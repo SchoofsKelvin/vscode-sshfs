@@ -48,6 +48,7 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
 ![Workspace folder added](./media/screenshot-explorer.png)
 
 ## TO DO *(in order of most likely to implement first)*
+* ~~Fix bug where saving a file resets the permissions (when owner/root at least)~~ **DONE**
 * Fix bug where the Explorer shows a loading bar forever
 * Fix bug where VSCode shows an error message about `no provider for ssh://NAME/`
 * An icon for the extension
