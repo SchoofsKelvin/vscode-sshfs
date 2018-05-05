@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "engines": {
         "vscode": "^1.23.0"
     },
@@ -11,6 +11,7 @@
         "Other"
     ],
     "activationEvents": [
+        "onUri:^ssh:",
         "onFileSystem:ssh",
         "onView:sshfs-configs",
         "onCommand:ssfs.new",
