@@ -1,7 +1,7 @@
 {
     "name": "vscode-sshfs",
     "displayName": "SSH FS",
-    "description": "File system provider using SSH, based on the MemFS sample extension",
+    "description": "File system provider using SSH",
     "publisher": "Kelvin",
     "version": "0.0.1",
     "engines": {
@@ -19,6 +19,12 @@
         "onCommand:ssfs.disconnect"
     ],
     "main": "./out/src/extension",
+    "author": {
+        "name": "Kelvin Schoofs",
+        "email": "schoofs.kelvin@gmail.com"
+    },
+    "repository": "SchoofsKelvin/vscode-sshfs",
+    "license": "GLP-3.0",
     "contributes": {
         "views": {
             "explorer": [
