@@ -1,0 +1,26 @@
+{
+    "defaultSeverity": "error",
+    "extends": [
+        "tslint:recommended",
+        "tslint-config-airbnb"
+    ],
+    "jsRules": {},
+    "rules": {
+        "no-empty": false,
+        "no-console": false,
+        "curly": [
+            true,
+            "ignore-same-line"
+        ],
+        "max-line-length": false,
+        "array-type": false,
+        "no-else-after-return": false,
+        "import-name": false,
+        "object-literal-sort-keys": false,
+		"no-parameter-reassignment": false,
+        "no-var-requires": false,
+        "interface-name": false,
+        "max-classes-per-file": false
+    },
+    "rulesDirectory": []
+}

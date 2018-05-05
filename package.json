@@ -1,0 +1,226 @@
+{
+    "name": "vscode-sshfs",
+    "displayName": "SSH FS",
+    "description": "File system provider using SSH, based on the MemFS sample extension",
+    "publisher": "Kelvin",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.23.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onFileSystem:ssh",
+        "onView:sshfs-configs",
+        "onCommand:ssfs.new",
+        "onCommand:ssfs.connect",
+        "onCommand:ssfs.reconnect",
+        "onCommand:ssfs.disconnect"
+    ],
+    "main": "./out/src/extension",
+    "contributes": {
+        "views": {
+            "explorer": [
+                {
+                    "id": "sshfs-configs",
+                    "name": "SSH File Systems"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "sshfs.new",
+                "title": "Create a new SSH FS configuration",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.connect",
+                "title": "Connect a SSH FS as Workspace folder",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.reconnect",
+                "title": "Reconnect a SSH FS Workspace folder",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.disconnect",
+                "title": "Disconnect a SSH FS Workspace folder",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs-configs.connect",
+                "title": "Connect",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs-configs.reconnect",
+                "title": "Reconnect",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs-configs.disconnect",
+                "title": "Disconnect",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs-configs.configure",
+                "title": "Configure",
+                "category": "SSH FS"
+            },
+            {
+                "command": "sshfs-configs.delete",
+                "title": "Delete",
+                "category": "SSH FS"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "sshfs.new",
+                    "group": "SSH FS@1"
+                },
+                {
+                    "command": "sshfs.connect",
+                    "group": "SSH FS@2"
+                },
+                {
+                    "command": "sshfs.reconnect",
+                    "group": "SSH FS@3"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "group": "SSH FS@4"
+                },
+                {
+                    "command": "sshfs-configs.connect",
+                    "when": "view == never"
+                },
+                {
+                    "command": "sshfs-configs.reconnect",
+                    "when": "view == never"
+                },
+                {
+                    "command": "sshfs-configs.disconnect",
+                    "when": "view == never"
+                },
+                {
+                    "command": "sshfs-configs.configure",
+                    "when": "view == never"
+                },
+                {
+                    "command": "sshfs-configs.delete",
+                    "when": "view == never"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "sshfs-configs.connect",
+                    "when": "view == 'sshfs-configs' && viewItem == inactive"
+                },
+                {
+                    "command": "sshfs-configs.reconnect",
+                    "when": "view == 'sshfs-configs' && viewItem == active"
+                },
+                {
+                    "command": "sshfs-configs.disconnect",
+                    "when": "view == 'sshfs-configs' && viewItem == active"
+                },
+                {
+                    "command": "sshfs-configs.configure",
+                    "when": "view == 'sshfs-configs' && viewItem"
+                },
+                {
+                    "command": "sshfs-configs.delete",
+                    "when": "view == 'sshfs-configs' && viewItem"
+                },
+                {
+                    "command": "sshfs.new",
+                    "when": "view == 'sshfs-configs' && !viewItem"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "SSH FS Configuration",
+            "properties": {
+                "sshfs.configs": {
+                    "type": "array",
+                    "default": [
+                        {
+                            "root": "/",
+                            "host": "localhost",
+                            "port": 22,
+                            "username": "root",
+                            "password": "CorrectHorseBatteryStaple"
+                        }
+                    ],
+                    "description": "A list of SSH FS configurations",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "name",
+                            "host",
+                            "username"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The unique name for this configuration"
+                            },
+                            "root": {
+                                "type": "string",
+                                "description": "The remote folder to act as root folder",
+                                "default": "/"
+                            },
+                            "host": {
+                                "type": "string",
+                                "description": "Hostname or IP address of the server"
+                            },
+                            "port": {
+                                "type": "number",
+                                "description": "Port number of the server",
+                                "default": 22
+                            },
+                            "username": {
+                                "type": "string",
+                                "description": "Username for authentication"
+                            },
+                            "password": {
+                                "type": "string",
+                                "description": "Password for password-based user authentication"
+                            },
+                            "agent": {
+                                "type": "string",
+                                "description": "Path to ssh-agent's UNIX socket for ssh-agent-based user authentication (or 'pageant' when using Pagent on Windows)"
+                            },
+                            "privateKey": {
+                                "type": "string",
+                                "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
+                            },
+                            "passphrase": {
+                                "type": "string",
+                                "description": "For an encrypted private key, this is the passphrase used to decrypt it"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+        "@types/node": "^7.0.43",
+        "@types/ssh2": "^0.5.35",
+        "typescript": "^2.5.2",
+        "vscode": "^1.1.17"
+    },
+    "dependencies": {
+        "ssh2": "^0.6.0"
+    }
+}
