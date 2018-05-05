@@ -24,7 +24,7 @@
         "name": "Kelvin Schoofs",
         "email": "schoofs.kelvin@gmail.com"
     },
-    "repository": "SchoofsKelvin/vscode-sshfs",
+    "repository": "https://github.com/SchoofsKelvin/vscode-sshfs",
     "license": "GLP-3.0",
     "contributes": {
         "views": {
