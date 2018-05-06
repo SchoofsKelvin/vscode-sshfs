@@ -249,11 +249,12 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     const config = vscode.workspace.getConfiguration('sshfs');
     if (!config) return [];
     const inspect = config.inspect<FileSystemConfig[]>('configs')!;
-    const configs: FileSystemConfig[] = [
-      ...(inspect.globalValue || []),
-      ...(inspect.workspaceValue || []),
+    let configs: FileSystemConfig[] = [
       ...(inspect.workspaceFolderValue || []),
+      ...(inspect.workspaceValue || []),
+      ...(inspect.globalValue || []),
     ];
+    configs = configs.filter((c, i) => configs.findIndex(c2 => c2.name === c.name) === i);
     for (const index in configs) {
       if (!configs[index].name) {
         vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
