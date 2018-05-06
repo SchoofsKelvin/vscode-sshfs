@@ -162,6 +162,22 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           }
         }
       }
+      if ((config.password as any) === true) {
+        config.passphrase = await vscode.window.showInputBox({
+          password: true,
+          ignoreFocusOut: true,
+          placeHolder: 'Password',
+          prompt: 'Password for the provided username',
+        });
+      }
+      if ((config.passphrase as any) === true) {
+        config.passphrase = await vscode.window.showInputBox({
+          password: true,
+          ignoreFocusOut: true,
+          placeHolder: 'Passphrase',
+          prompt: 'Passphrase for the provided public/private key',
+        });
+      }
       const client = new Client();
       client.on('ready', () => {
         client.sftp((err, sftp) => {

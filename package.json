@@ -194,7 +194,7 @@
                                 "description": "Username for authentication"
                             },
                             "password": {
-                                "type": "string",
+                                "type": ["string", "boolean"],
                                 "description": "Password for password-based user authentication"
                             },
                             "agent": {
@@ -206,7 +206,7 @@
                                 "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
                             },
                             "passphrase": {
-                                "type": "string",
+                                "type": ["string", "boolean"],
                                 "description": "For an encrypted private key, this is the passphrase used to decrypt it"
                             },
                             "putty": {

@@ -6,6 +6,7 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 ## Features
 * Use a remote directory (over SSH) as workspace folder
 * Use agents, including Pageant for Windows
+* Get prompted for a password/passphrase (no plain text password in settings)
 * Easily create configurations that mirror a PuTTY session
 * Have multiple SSH workspace folders at once
 
@@ -29,17 +30,21 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
 
         // Path to ssh-agent's UNIX socket (cygwin ones should work too)
         // or 'pageant' when using Pageant on Windows
-        "agent": "pageant"
+        "agent": "pageant",
         
         // Instead of using an agent, we can also just use a password
-        "password": "CorrectHorseBatteryStaple"
+        "password": "CorrectHorseBatteryStaple",
+        // We can also make the extension prompt us for it instead
+        "password": true,
         
 
         // Or a private key (raw key, OpenSSH format)
         // (can also be a public key for host-based authentication)
         "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnN...",
         // Should the private key be encrypted
-        "passphrase": "CorrectHorseBatteryStaple"
+        "passphrase": "CorrectHorseBatteryStaple",
+        // Same as with the password, we can let it prompt us
+        "passphrase": true
     },
     {
         // If you're on Windows and have PuTTY installed
@@ -100,7 +105,8 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
     * Currently it'll open a new default configuration file for it
 * Better error handling
     * Everything *seems* fine, but I haven't tested (a lot of) error situations
-    * Handles wrong password/key/... properly
+    * ~~Handle wrong password/key/... properly~~ **DONE**
+        * Maybe prompt for a password when one's needed but not configured? (**TODO**)
     * Doesn't report when `root` is set to a non-existant directory
     * Doesn't (always?) report errors related to lacking permissions
 * Offer reconnecting if the User Settings change
@@ -113,9 +119,10 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
     * Variant for the above two for deleted configurations
 * Better authentication methods
     * Currently (basically) everything is directly passed to [ssh2](https://www.npmjs.com/package/ssh2#client-methods)
-    * Add `promptForPasswordOrPassphrase` *(self-explanatory)*
+    * ~~Add `promptForPasswordOrPassphrase` *(self-explanatory)*~~ **DONE**
+        * Both `password` and `passphrase` can be set to `true` to prompt
     * Add `privateKeyPath` *(or auto-detect `privateKey` as a path)*
-    * Prompt the user for a passworf if the server prompts
+    * Prompt the user for a password if the server prompts
         * This would be the `tryKeyboard` option for ssh2's Client.connect
         * Would need to hook into the keyboard request and show a prompt
 * Add an option to open a SSH terminal *(might as well)*
