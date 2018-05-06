@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "engines": {
         "vscode": "^1.23.0"
     },
@@ -194,7 +194,10 @@
                                 "description": "Username for authentication"
                             },
                             "password": {
-                                "type": ["string", "boolean"],
+                                "type": [
+                                    "string",
+                                    "boolean"
+                                ],
                                 "description": "Password for password-based user authentication"
                             },
                             "agent": {
@@ -206,7 +209,10 @@
                                 "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
                             },
                             "passphrase": {
-                                "type": ["string", "boolean"],
+                                "type": [
+                                    "string",
+                                    "boolean"
+                                ],
                                 "description": "For an encrypted private key, this is the passphrase used to decrypt it"
                             },
                             "putty": {
