@@ -99,6 +99,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.loadConfigs();
   }
   public invalidConfigName(name: string) {
+    if (!name) return 'Missing a name for this SSH FS';
     if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
     return `A SSH FS name can only exists of alphanumeric characters, slashes and any of these: _.+-@`;
   }
@@ -254,13 +255,18 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       ...(inspect.workspaceFolderValue || []),
     ];
     for (const index in configs) {
-      if (this.invalidConfigName(configs[index].name)) {
+      if (!configs[index].name) {
+        vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
+      } else if (this.invalidConfigName(configs[index].name)) {
         const conf = configs[index];
         if (this.skippedConfigNames.indexOf(conf.name) !== -1) continue;
-        vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, { modal: true }, 'Rename', 'Delete', 'Skip').then(async (answer) => {
+        vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, 'Rename', 'Delete', 'Skip').then(async (answer) => {
           if (answer === 'Rename') {
             const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: this.invalidConfigName, placeHolder: 'New name' });
-            if (name) return conf.name = name;
+            if (name) {
+              conf.name = name;
+              return this.updateConfig(conf.name, conf);
+            }
             vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
           } else if (answer === 'Delete') {
             return this.updateConfig(conf.name);
@@ -296,6 +302,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     const loc = this.getConfigLocation(name);
     const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][loc];
     conf.update('configs', patch(array || []), loc || vscode.ConfigurationTarget.Global);
+    this.onDidChangeTreeDataEmitter.fire();
     return loc;
   }
 }
