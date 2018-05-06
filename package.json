@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "engines": {
         "vscode": "^1.23.0"
     },
@@ -210,7 +210,10 @@
                                 "description": "For an encrypted private key, this is the passphrase used to decrypt it"
                             },
                             "putty": {
-                                "type": ["string", "boolean"],
+                                "type": [
+                                    "string",
+                                    "boolean"
+                                ],
                                 "description": "(Windows only) Use the settings from the given PuTTY session (set this to true to find one using the other settings)"
                             }
                         }
