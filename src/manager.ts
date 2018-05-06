@@ -2,6 +2,7 @@
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
+import { toPromise } from './toPromise';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);

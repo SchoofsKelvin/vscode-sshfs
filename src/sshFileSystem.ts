@@ -4,12 +4,7 @@ import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
 
-type toPromiseCallback<T> = (err: Error | null, res?: T) => void;
-async function toPromise<T>(func: (cb: toPromiseCallback<T>) => void): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    func((err, res) => err ? reject(err) : resolve(res));
-  });
-}
+import { toPromise } from './toPromise';
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
   public copy = undefined;
