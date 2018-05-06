@@ -27,11 +27,11 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('sshfs.disconnect', () => pickAndClick(manager.commandConfigDisconnect, true)));
   context.subscriptions.push(vscode.commands.registerCommand('sshfs.reconnect', () => pickAndClick(manager.commandConfigReconnect, true)));
 
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.disconnect', manager.commandConfigDisconnect.bind(manager)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.reconnect', manager.commandConfigReconnect.bind(manager)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.connect', manager.commandConfigConnect.bind(manager)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.configure', manager.commandConfigure.bind(manager)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.delete', manager.commandConfigDelete.bind(manager)));
+  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.disconnect', manager.commandConfigDisconnect, manager));
+  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.reconnect', manager.commandConfigReconnect, manager));
+  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.connect', manager.commandConfigConnect, manager));
+  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.configure', manager.commandConfigure, manager));
+  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.delete', manager.commandConfigDelete, manager));
 
   vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager });
 }
