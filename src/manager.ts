@@ -185,7 +185,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         }
         reject(error);
       });
-      client.connect(Object.assign(config, { tryKeyboard: false }));
+      try {
+        client.connect(Object.assign(config, { tryKeyboard: false }));
+      } catch (e) {
+        reject(e);
+      }
     }).catch((e) => {
       delete this.creatingFileSystems[name];
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore')
