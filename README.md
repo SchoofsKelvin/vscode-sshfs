@@ -3,6 +3,12 @@
 
 This extension makes use of the new FileSystemProvider, added in version 1.23.0 of Visual Studio Code.
 
+## Features
+* Use a remote directory (over SSH) as workspace folder
+* Use agents, including Pageant for Windows
+* Easily create configurations that mirror a PuTTY session
+* Have multiple SSH workspace folders at once
+
 ## Usage
 Add SSH FS configs to "sshfs.configs" in your User Settings:
 ```js
@@ -20,17 +26,52 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
         // Username to login with
         "username": "root",
 
-        // Path to ssh-agent's UNIX socket
+
+        // Path to ssh-agent's UNIX socket (cygwin ones should work too)
         // or 'pageant' when using Pageant on Windows
         "agent": "pageant"
         
         // Instead of using an agent, we can also just use a password
         "password": "CorrectHorseBatteryStaple"
         
+
         // Or a private key (raw key, OpenSSH format)
+        // (can also be a public key for host-based authentication)
         "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnN...",
         // Should the private key be encrypted
         "passphrase": "CorrectHorseBatteryStaple"
+    },
+    {
+        // If you're on Windows and have PuTTY installed
+        "name": "media-server",
+        "root": "/data/media/",
+
+
+        // Either set this to a session name
+        "putty": "My media server",
+
+        // Or let it find one using the host (and username)
+        "putty": true,
+        // Can also be a session name, e.g. "My media server"
+        "host": "my.media.me",
+        // (Optional) Filter the session by username
+        // (This only works if host is NOT a name of a session)
+        "username": "media",
+
+
+        // If the session has an encrypted key
+        "passphrase": "CorrectHorseBatteryStaple"
+
+        // Note: If the session doesn't specify a username, but
+        // has "Use system username" enabled, it'll use process.env.USER
+
+        // Note: The "agent" option will be set to "pageant" if the
+        // session has "Attempt authentication using Pageant" set
+    },
+    {
+        // With PuTTY, this can be a complete configuration (with / as root)
+        "name": "quick-putty",
+        "putty": "My PuTTY session"
     }
   ],
 }
@@ -49,8 +90,11 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
 
 ## TO DO *(in order of most likely to implement first)*
 * ~~Fix bug where saving a file resets the permissions (when owner/root at least)~~ **DONE**
+* ~~Allow loading PuTTY sessions when on windows~~ **DONE**
+    * Also have a command to directly use a PuTTY session (**TODO**)
 * Fix bug where the Explorer shows a loading bar forever
 * Fix bug where VSCode shows an error message about `no provider for ssh://NAME/`
+* Allow loading (or automatically use) sessions from .ssh/config
 * An icon for the extension
 * Configuring a deleted (but active) configuration should show the old config
     * Currently it'll open a new default configuration file for it

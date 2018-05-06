@@ -208,6 +208,10 @@
                             "passphrase": {
                                 "type": "string",
                                 "description": "For an encrypted private key, this is the passphrase used to decrypt it"
+                            },
+                            "putty": {
+                                "type": ["string", "boolean"],
+                                "description": "(Windows only) Use the settings from the given PuTTY session (set this to true to find one using the other settings)"
                             }
                         }
                     }
@@ -224,10 +228,12 @@
     "devDependencies": {
         "@types/node": "^7.0.43",
         "@types/ssh2": "^0.5.35",
+        "@types/winreg": "^1.2.30",
         "typescript": "^2.5.2",
         "vscode": "^1.1.17"
     },
     "dependencies": {
-        "ssh2": "^0.6.0"
+        "ssh2": "^0.6.0",
+        "winreg": "^1.2.4"
     }
 }

@@ -1,6 +1,9 @@
 
+import { readFile } from 'fs';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
+
+import { getSession as getPuttySession, PuttySession } from './putty';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { toPromise } from './toPromise';
 
@@ -14,6 +17,7 @@ async function assertFs(man: Manager, uri: vscode.Uri) {
 export interface FileSystemConfig extends ConnectConfig {
   name: string;
   root?: string;
+  putty?: string | boolean;
 }
 
 function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
@@ -126,11 +130,38 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (promise) return promise;
     // config = config || this.memento.get(`fs.config.${name}`);
     config = config || (await this.loadConfigs()).find(c => c.name === name);
-    promise = new Promise<SSHFileSystem>((resolve, reject) => {
+    promise = new Promise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
       this.registerFileSystem(name, config);
+      if (config.putty) {
+        let nameOnly = true;
+        if (config.putty === true) {
+          if (!config.host) return reject(new Error(`'putty' was true but 'host' is empty/missing`));
+          config.putty = config.host;
+          nameOnly = false;
+        }
+        const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
+        if (!session) return reject(new Error(`Couldn't find the requested PuTTY session`));
+        if (session.protocol !== 'ssh') return reject(new Error(`The requested PuTTY session isn't a SSH session`));
+        config.username = session.username;
+        config.host = session.hostname;
+        config.port = session.portnumber;
+        config.agent = session.tryagent ? 'pageant' : undefined;
+        if (session.usernamefromenvironment) {
+          session.username = process.env.USERNAME;
+          if (!session.username) return reject(new Error(`No username specified in the session (nor is using the system username enabled)`));
+        }
+        if (session.publickeyfile) {
+          try {
+            const key = await toPromise<Buffer>(cb => readFile(session.publickeyfile, cb));
+            config.privateKey = key;
+          } catch (e) {
+            return reject(new Error(`Error while reading the keyfile at:\n${session.publickeyfile}`));
+          }
+        }
+      }
       const client = new Client();
       client.on('ready', () => {
         client.sftp((err, sftp) => {
