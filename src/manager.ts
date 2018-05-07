@@ -153,7 +153,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           session.username = process.env.USERNAME;
           if (!session.username) return reject(new Error(`No username specified in the session (nor is using the system username enabled)`));
         }
-        if (session.publickeyfile) {
+        if (!config.agent && session.publickeyfile) {
           try {
             const key = await toPromise<Buffer>(cb => readFile(session.publickeyfile, cb));
             config.privateKey = key;
@@ -171,12 +171,20 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         });
       }
       if ((config.passphrase as any) === true) {
-        config.passphrase = await vscode.window.showInputBox({
-          password: true,
-          ignoreFocusOut: true,
-          placeHolder: 'Passphrase',
-          prompt: 'Passphrase for the provided public/private key',
-        });
+        if (config.privateKey) {
+          config.passphrase = await vscode.window.showInputBox({
+            password: true,
+            ignoreFocusOut: true,
+            placeHolder: 'Passphrase',
+            prompt: 'Passphrase for the provided public/private key',
+          });
+        } else {
+          const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
+          if (answer === 'Configure') {
+            this.commandConfigure(name);
+            return reject(null);
+          }
+        }
       }
       const client = new Client();
       client.on('ready', () => {
@@ -207,6 +215,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         reject(e);
       }
     }).catch((e) => {
+      if (!e) {
+        delete this.creatingFileSystems[name];
+        this.commandConfigDisconnect(name);
+        throw e;
+      }
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
