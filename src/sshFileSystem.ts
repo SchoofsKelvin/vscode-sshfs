@@ -67,9 +67,18 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const stat = await toPromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
+      let mode: number | undefined;
+      try {
+        const stat = await toPromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
+        mode = stat.mode;
+      } catch (e) {
+        if (e.message !== 'No such file') {
+          console.log(e);
+          vscode.window.showWarningMessage(`Couldn't read the permissions for '${this.relative(uri.path)}', permissions might be overwritten`);
+        }
+      }
       const array = new Buffer(0);
-      const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode: stat.mode });
+      const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode, flags: 'w' });
       stream.on('error', reject);
       stream.end(content, resolve);
     });
