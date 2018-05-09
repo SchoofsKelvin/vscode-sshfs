@@ -19,7 +19,7 @@
         "onCommand:ssfs.reconnect",
         "onCommand:ssfs.disconnect"
     ],
-    "main": "./out/src/extension",
+    "main": "./out/extension.js",
     "author": {
         "name": "Kelvin Schoofs",
         "email": "schoofs.kelvin@gmail.com"

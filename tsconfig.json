@@ -8,8 +8,12 @@
             "es6"
         ],
         "sourceMap": true,
-        "rootDir": "."
+        "rootDir": "src"
     },
+    "compileOnSave": true,
+    "include": [
+        "src"
+    ],
     "exclude": [
         "node_modules",
         ".vscode-test"
