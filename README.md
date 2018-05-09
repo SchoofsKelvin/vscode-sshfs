@@ -97,6 +97,7 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
 * ~~Fix bug where saving a file resets the permissions (when owner/root at least)~~ **DONE**
 * ~~Allow loading PuTTY sessions when on windows~~ **DONE**
     * Also have a command to directly use a PuTTY session (**TODO**)
+* ~~Add proper JSON schema/validation for SSH FS configurations~~ **DONE**
 * Fix bug where the Explorer shows a loading bar forever
 * Fix bug where VSCode shows an error message about `no provider for ssh://NAME/`
 * Allow loading (or automatically use) sessions from .ssh/config

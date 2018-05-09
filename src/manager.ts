@@ -41,13 +41,13 @@ function createConfigFs(manager: Manager): SSHFileSystem {
     authority: '<config>',
     stat: (uri: vscode.Uri) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 } as vscode.FileStat),
     readFile: (uri: vscode.Uri) => {
-      const name = uri.path.substring(1, uri.path.length - 5);
+      const name = uri.path.substring(1, uri.path.length - 11);
       let config = manager.getConfig(name) || defaultConfig;
       config = { ...config, name: undefined! };
       return new Uint8Array(new Buffer(JSON.stringify(config, undefined, 4)));
     },
     writeFile: (uri: vscode.Uri, content: Uint8Array) => {
-      const name = uri.path.substring(1, uri.path.length - 5);
+      const name = uri.path.substring(1, uri.path.length - 11);
       try {
         const config = JSON.parse(new Buffer(content).toString());
         config.name = name;
@@ -315,7 +315,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.onDidChangeTreeDataEmitter.fire();
   }
   public async commandConfigure(name: string) {
-    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.json`), { preview: false });
+    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.json`), { preview: false });
   }
   public commandConfigDelete(name: string) {
     this.commandDisconnect(name);

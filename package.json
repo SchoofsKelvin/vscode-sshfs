@@ -130,81 +130,26 @@
             "title": "SSH FS Configuration",
             "properties": {
                 "sshfs.configs": {
-                    "type": "array",
+                    "$schema": "http://json-schema.org/draft-06/schema#",
+                    "$ref": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/c58a5432afb77f3dd97951245821eea589963227/settingsschema.json",
                     "default": [
                         {
-                            "root": "/",
+                            "root": "/tmp",
                             "host": "localhost",
                             "port": 22,
                             "username": "root",
                             "password": "CorrectHorseBatteryStaple"
                         }
-                    ],
-                    "description": "A list of SSH FS configurations",
-                    "items": {
-                        "type": "object",
-                        "required": [
-                            "name",
-                            "host",
-                            "username"
-                        ],
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "The unique name for this configuration"
-                            },
-                            "root": {
-                                "type": "string",
-                                "description": "The remote folder to act as root folder",
-                                "default": "/"
-                            },
-                            "host": {
-                                "type": "string",
-                                "description": "Hostname or IP address of the server"
-                            },
-                            "port": {
-                                "type": "number",
-                                "description": "Port number of the server",
-                                "default": 22
-                            },
-                            "username": {
-                                "type": "string",
-                                "description": "Username for authentication"
-                            },
-                            "password": {
-                                "type": [
-                                    "string",
-                                    "boolean"
-                                ],
-                                "description": "Password for password-based user authentication"
-                            },
-                            "agent": {
-                                "type": "string",
-                                "description": "Path to ssh-agent's UNIX socket for ssh-agent-based user authentication (or 'pageant' when using Pagent on Windows)"
-                            },
-                            "privateKey": {
-                                "type": "string",
-                                "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
-                            },
-                            "passphrase": {
-                                "type": [
-                                    "string",
-                                    "boolean"
-                                ],
-                                "description": "For an encrypted private key, this is the passphrase used to decrypt it"
-                            },
-                            "putty": {
-                                "type": [
-                                    "string",
-                                    "boolean"
-                                ],
-                                "description": "(Windows only) Use the settings from the given PuTTY session (set this to true to find one using the other settings)"
-                            }
-                        }
-                    }
+                    ]
                 }
             }
-        }
+        },
+        "jsonValidation": [
+            {
+                "fileMatch": "*.sshfs.json",
+                "url": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/c58a5432afb77f3dd97951245821eea589963227/configschema.json"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
