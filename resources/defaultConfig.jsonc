@@ -1,0 +1,8 @@
+// If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)"
+{
+    "root": "/tmp",
+    "host": "localhost",
+    "port": 22,
+    "username": "root",
+    "password": true
+}
