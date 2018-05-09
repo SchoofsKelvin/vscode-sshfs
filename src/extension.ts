@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerCommand('sshfs.new', async () => {
     const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: manager.invalidConfigName.bind(manager) });
-    if (name) vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.json`));
+    if (name) vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
   });
 
   registerCommand('sshfs.connect', (name?: string) => pickAndClick(manager.commandConnect, name, false));

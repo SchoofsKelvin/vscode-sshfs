@@ -146,7 +146,7 @@
         },
         "jsonValidation": [
             {
-                "fileMatch": "*.sshfs.json",
+                "fileMatch": "*.sshfs.jsonc",
                 "url": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/c58a5432afb77f3dd97951245821eea589963227/configschema.json"
             }
         ]

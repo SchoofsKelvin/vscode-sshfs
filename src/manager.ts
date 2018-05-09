@@ -1,5 +1,7 @@
 
 import { readFile } from 'fs';
+import { parse as parseJsonc, ParseError } from 'jsonc-parser';
+import * as path from 'path';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
 
@@ -31,41 +33,45 @@ function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
   };
 }
 
-const defaultConfig: FileSystemConfig = ({
-  name: undefined!, root: '/', host: 'localhost', port: 22,
-  username: 'root', password: 'CorrectHorseBatteryStaple',
-});
 function createConfigFs(manager: Manager): SSHFileSystem {
   return {
     ...EMPTY_FILE_SYSTEM,
     authority: '<config>',
     stat: (uri: vscode.Uri) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 } as vscode.FileStat),
-    readFile: (uri: vscode.Uri) => {
-      const name = uri.path.substring(1, uri.path.length - 11);
-      let config = manager.getConfig(name) || defaultConfig;
+    readFile: async (uri: vscode.Uri) => {
+      const name = uri.path.substring(1, uri.path.length - 12);
+      let config = manager.getConfig(name);
+      let str;
+      if (config) {
+        str = JSON.stringify(config, undefined, 4);
+        str = `// If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)"\n${str}`;
+      } else {
+        str = await toPromise<string>(cb => readFile(path.resolve(__dirname, '../resources/defaultConfig.jsonc'), 'utf-8', cb));
+      }
       config = { ...config, name: undefined! };
-      return new Uint8Array(new Buffer(JSON.stringify(config, undefined, 4)));
+      return new Uint8Array(new Buffer(str));
     },
     writeFile: (uri: vscode.Uri, content: Uint8Array) => {
-      const name = uri.path.substring(1, uri.path.length - 11);
-      try {
-        const config = JSON.parse(new Buffer(content).toString());
-        config.name = name;
-        const loc = manager.updateConfig(name, config);
-        let dialog: Thenable<string | undefined>;
-        if (loc === vscode.ConfigurationTarget.Global) {
-          dialog = vscode.window.showInformationMessage(`Config for '${name}' saved globally`, 'Connect', 'Okay');
-        } else if (loc === vscode.ConfigurationTarget.Workspace) {
-          dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for this workspace`, 'Connect', 'Okay');
-        } else if (loc === vscode.ConfigurationTarget.WorkspaceFolder) {
-          dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for the current workspace folder`, 'Connect', 'Okay');
-        } else {
-          throw new Error(`This isn't supposed to happen! Config location was '${loc}' somehow`);
-        }
-        dialog.then(o => o === 'Connect' && manager.commandReconnect(name));
-      } catch (e) {
+      const name = uri.path.substring(1, uri.path.length - 12);
+      const errors: ParseError[] = [];
+      const config = parseJsonc(new Buffer(content).toString(), errors);
+      if (!config || errors.length) {
         vscode.window.showErrorMessage(`Couldn't parse this config as JSON`);
+        return;
       }
+      config.name = name;
+      const loc = manager.updateConfig(name, config);
+      let dialog: Thenable<string | undefined>;
+      if (loc === vscode.ConfigurationTarget.Global) {
+        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved globally`, 'Connect', 'Okay');
+      } else if (loc === vscode.ConfigurationTarget.Workspace) {
+        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for this workspace`, 'Connect', 'Okay');
+      } else if (loc === vscode.ConfigurationTarget.WorkspaceFolder) {
+        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for the current workspace folder`, 'Connect', 'Okay');
+      } else {
+        throw new Error(`This isn't supposed to happen! Config location was '${loc}' somehow`);
+      }
+      dialog.then(o => o === 'Connect' && manager.commandReconnect(name));
     },
   } as any;
 }
@@ -315,7 +321,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.onDidChangeTreeDataEmitter.fire();
   }
   public async commandConfigure(name: string) {
-    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.json`), { preview: false });
+    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
   }
   public commandConfigDelete(name: string) {
     this.commandDisconnect(name);
