@@ -1,0 +1,193 @@
+{
+    "title": "A list of SSH FS configurations",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "definitions": {
+        "fields": {
+            "name": {
+                "type": "string",
+                "description": "The unique name for this configuration"
+            },
+            "root": {
+                "type": "string",
+                "description": "The remote folder to act as root folder",
+                "default": "/"
+            },
+            "host": {
+                "type": "string",
+                "description": "Hostname or IP address of the server"
+            },
+            "port": {
+                "type": "number",
+                "description": "Port number of the server",
+                "default": 22
+            },
+            "username": {
+                "type": "string",
+                "description": "Username for authentication"
+            },
+            "password": {
+                "type": [
+                    "string",
+                    "boolean"
+                ],
+                "description": "Password for password-based user authentication"
+            },
+            "privateKey": {
+                "type": "string",
+                "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
+            },
+            "passphrase": {
+                "type": [
+                    "string",
+                    "boolean"
+                ],
+                "description": "For an encrypted private key, this is the passphrase used to decrypt it"
+            },
+            "agent": {
+                "type": "string",
+                "description": "Path to ssh-agent's UNIX socket for ssh-agent-based user authentication (or 'pageant' when using Pagent on Windows)"
+            },
+            "putty": {
+                "type": [
+                    "string",
+                    "boolean"
+                ],
+                "description": "(Windows only) Use the settings from the given PuTTY session (set this to true to find one using the other settings)"
+            }
+        },
+        "basic": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/fields/name"
+                },
+                "root": {
+                    "$ref": "#/definitions/fields/root"
+                }
+            }
+        },
+        "authentication": {
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/authentication-types/password"
+                },
+                {
+                    "$ref": "#/definitions/authentication-types/key"
+                },
+                {
+                    "$ref": "#/definitions/authentication-types/agent"
+                }
+            ]
+        },
+        "authentication-types": {
+            "password": {
+                "type": "object",
+                "required": [
+                    "username",
+                    "password"
+                ],
+                "properties": {
+                    "username": {
+                        "$ref": "#/definitions/fields/username"
+                    },
+                    "password": {
+                        "$ref": "#/definitions/fields/password"
+                    }
+                }
+            },
+            "key": {
+                "type": "object",
+                "required": [
+                    "username",
+                    "privateKey"
+                ],
+                "properties": {
+                    "username": {
+                        "$ref": "#/definitions/fields/username"
+                    },
+                    "privateKey": {
+                        "$ref": "#/definitions/fields/privateKey"
+                    },
+                    "passphrase": {
+                        "$ref": "#/definitions/fields/passphrase"
+                    }
+                }
+            },
+            "agent": {
+                "type": "object",
+                "required": [
+                    "username",
+                    "agent"
+                ],
+                "properties": {
+                    "username": {
+                        "$ref": "#/definitions/fields/username"
+                    },
+                    "agent": {
+                        "$ref": "#/definitions/fields/agent"
+                    }
+                }
+            }
+        },
+        "server-identification": {
+            "hostname": {
+                "required": [
+                    "host"
+                ],
+                "properties": {
+                    "host": {
+                        "$ref": "#/definitions/fields/host"
+                    },
+                    "port": {
+                        "$ref": "#/definitions/fields/port"
+                    }
+                }
+            },
+            "putty": {
+                "required": [
+                    "putty"
+                ],
+                "properties": {
+                    "putty": {
+                        "$ref": "#/definitions/fields/putty"
+                    }
+                }
+            }
+        }
+    },
+    "allOf": [
+        {
+            "$ref": "#/definitions/basic"
+        },
+        {
+            "oneOf": [
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/server-identification/hostname"
+                        },
+                        {
+                            "$ref": "#/definitions/authentication"
+                        }
+                    ]
+                },
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/server-identification/putty"
+                        },
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/authentication"
+                                },
+                                {}
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

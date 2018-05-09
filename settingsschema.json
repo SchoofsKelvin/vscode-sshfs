@@ -1,0 +1,22 @@
+{
+    "title": "A list of SSH FS configurations",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {
+        "allOf": [
+            {
+                "$ref": "configschema.json"
+            },
+            {
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "$ref": "configschema.json#/definitions/fields/name"
+                    }
+                }
+            }
+        ]
+    }
+}
