@@ -62,7 +62,7 @@ function createConfigFs(manager: Manager): SSHFileSystem {
         } else {
           throw new Error(`This isn't supposed to happen! Config location was '${loc}' somehow`);
         }
-        dialog.then(o => o === 'Connect' && manager.commandConfigReconnect(name));
+        dialog.then(o => o === 'Connect' && manager.commandReconnect(name));
       } catch (e) {
         vscode.window.showErrorMessage(`Couldn't parse this config as JSON`);
       }
@@ -93,7 +93,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       e.added.forEach(folderAdded);
       e.removed.forEach(async (folder) => {
         if (folder.uri.scheme !== 'ssh') return;
-        this.commandConfigDisconnect(folder.uri.authority);
+        this.commandDisconnect(folder.uri.authority);
       });
     });
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -202,7 +202,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         });
       });
       client.on('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${name}'`)));
-      client.on('close', hadError => hadError && this.commandConfigReconnect(name));
+      client.on('close', hadError => hadError && this.commandReconnect(name));
       client.on('error', (error) => {
         if (error.description) {
           error.message = `${error.description}\n${error.message}`;
@@ -217,7 +217,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     }).catch((e) => {
       if (!e) {
         delete this.creatingFileSystems[name];
-        this.commandConfigDisconnect(name);
+        this.commandDisconnect(name);
         throw e;
       }
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
@@ -227,7 +227,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         } else if (chosen === 'Configure') {
           this.commandConfigure(name);
         } else {
-          this.commandConfigDisconnect(name);
+          this.commandDisconnect(name);
         }
       });
       throw e;
@@ -284,7 +284,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return configs;
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
-  public commandConfigDisconnect(name: string) {
+  public commandDisconnect(name: string) {
     const fs = this.fileSystems.find(f => f.authority === name);
     if (fs) {
       fs.disconnect();
@@ -295,15 +295,15 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);
     this.onDidChangeTreeDataEmitter.fire();
   }
-  public commandConfigReconnect(name: string) {
+  public commandReconnect(name: string) {
     const fs = this.fileSystems.find(f => f.authority === name);
     if (fs) {
       fs.disconnect();
       this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
     }
-    this.commandConfigConnect(name);
+    this.commandConnect(name);
   }
-  public commandConfigConnect(name: string) {
+  public commandConnect(name: string) {
     if (this.getActive().indexOf(name) !== -1) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
@@ -318,7 +318,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.json`), { preview: false });
   }
   public commandConfigDelete(name: string) {
-    this.commandConfigDisconnect(name);
+    this.commandDisconnect(name);
     this.updateConfig(name);
   }
   /* Configuration discovery */

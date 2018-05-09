@@ -38,47 +38,32 @@
         "commands": [
             {
                 "command": "sshfs.new",
-                "title": "Create a new SSH FS configuration",
+                "title": "Create a SSH FS configuration",
                 "category": "SSH FS"
             },
             {
                 "command": "sshfs.connect",
-                "title": "Connect a SSH FS as Workspace folder",
+                "title": "Connect as Workspace folder",
                 "category": "SSH FS"
             },
             {
                 "command": "sshfs.reconnect",
-                "title": "Reconnect a SSH FS Workspace folder",
+                "title": "Reconnect Workspace folder",
                 "category": "SSH FS"
             },
             {
                 "command": "sshfs.disconnect",
-                "title": "Disconnect a SSH FS Workspace folder",
+                "title": "Disconnect Workspace folder",
                 "category": "SSH FS"
             },
             {
-                "command": "sshfs-configs.connect",
-                "title": "Connect",
+                "command": "sshfs.configure",
+                "title": "Edit configuration",
                 "category": "SSH FS"
             },
             {
-                "command": "sshfs-configs.reconnect",
-                "title": "Reconnect",
-                "category": "SSH FS"
-            },
-            {
-                "command": "sshfs-configs.disconnect",
-                "title": "Disconnect",
-                "category": "SSH FS"
-            },
-            {
-                "command": "sshfs-configs.configure",
-                "title": "Configure",
-                "category": "SSH FS"
-            },
-            {
-                "command": "sshfs-configs.delete",
-                "title": "Delete",
+                "command": "sshfs.delete",
+                "title": "Delete configuration",
                 "category": "SSH FS"
             }
         ],
@@ -101,50 +86,43 @@
                     "group": "SSH FS@4"
                 },
                 {
-                    "command": "sshfs-configs.connect",
-                    "when": "view == never"
+                    "command": "sshfs.configure",
+                    "group": "SSH FS@5"
                 },
                 {
-                    "command": "sshfs-configs.reconnect",
-                    "when": "view == never"
-                },
-                {
-                    "command": "sshfs-configs.disconnect",
-                    "when": "view == never"
-                },
-                {
-                    "command": "sshfs-configs.configure",
-                    "when": "view == never"
-                },
-                {
-                    "command": "sshfs-configs.delete",
-                    "when": "view == never"
+                    "command": "sshfs.delete",
+                    "group": "SSH FS@6"
                 }
             ],
             "view/item/context": [
                 {
-                    "command": "sshfs-configs.connect",
-                    "when": "view == 'sshfs-configs' && viewItem == inactive"
-                },
-                {
-                    "command": "sshfs-configs.reconnect",
-                    "when": "view == 'sshfs-configs' && viewItem == active"
-                },
-                {
-                    "command": "sshfs-configs.disconnect",
-                    "when": "view == 'sshfs-configs' && viewItem == active"
-                },
-                {
-                    "command": "sshfs-configs.configure",
-                    "when": "view == 'sshfs-configs' && viewItem"
-                },
-                {
-                    "command": "sshfs-configs.delete",
-                    "when": "view == 'sshfs-configs' && viewItem"
-                },
-                {
                     "command": "sshfs.new",
                     "when": "view == 'sshfs-configs' && !viewItem"
+                },
+                {
+                    "command": "sshfs.connect",
+                    "when": "view == 'sshfs-configs' && viewItem == inactive",
+                    "group": "SSH FS@1"
+                },
+                {
+                    "command": "sshfs.reconnect",
+                    "when": "view == 'sshfs-configs' && viewItem == active",
+                    "group": "SSH FS@1"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "when": "view == 'sshfs-configs' && viewItem == active",
+                    "group": "SSH FS@2"
+                },
+                {
+                    "command": "sshfs.configure",
+                    "when": "view == 'sshfs-configs' && viewItem",
+                    "group": "SSH FS@3"
+                },
+                {
+                    "command": "sshfs.delete",
+                    "when": "view == 'sshfs-configs' && viewItem",
+                    "group": "SSH FS@4"
                 }
             ]
         },

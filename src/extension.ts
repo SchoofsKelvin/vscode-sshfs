@@ -6,32 +6,41 @@ import { Manager } from './manager';
 
 const workspace = vscode.workspace;
 
+async function pickConfig(manager: Manager, activeOrNot?: boolean) {
+  let names = manager.getActive();
+  const others = manager.loadConfigs().map(c => c.name);
+  if (activeOrNot === false) {
+    names = others.filter(n => names.indexOf(n) === -1);
+  } else if (activeOrNot === undefined) {
+    others.forEach(n => names.indexOf(n) === -1 && names.push(n));
+  }
+  return vscode.window.showQuickPick(names, { placeHolder: 'SSH FS Configuration' });
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const manager = new Manager(context);
 
-  context.subscriptions.push(vscode.workspace.registerFileSystemProvider('ssh', manager, { isCaseSensitive: true }));
+  const subscribe = context.subscriptions.push.bind(context.subscriptions) as typeof context.subscriptions.push;
+  const registerCommand = (command: string, callback: (...args: any[]) => any, thisArg?: any) =>
+    subscribe(vscode.commands.registerCommand(command, callback, thisArg));
 
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs.new', async () => {
-    const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: manager.invalidConfigName.bind(manager) });
-    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.json`));
-  }));
+  subscribe(vscode.workspace.registerFileSystemProvider('ssh', manager, { isCaseSensitive: true }));
 
-  async function pickAndClick(func: (name: string) => void, activeOrNot: boolean) {
-    const active = manager.getActive();
-    const names = activeOrNot ? active : manager.loadConfigs().map(c => c.name).filter(n => active.indexOf(n) === -1);
-    const pick = await vscode.window.showQuickPick(names, { placeHolder: 'SSH FS Configuration' });
-    if (pick) func.call(manager, pick);
+  async function pickAndClick(func: (name: string) => void, name?: string, activeOrNot?: boolean) {
+    name = name || await pickConfig(manager, activeOrNot);
+    if (name) func.call(manager, name);
   }
 
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs.connect', () => pickAndClick(manager.commandConfigConnect, false)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs.disconnect', () => pickAndClick(manager.commandConfigDisconnect, true)));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs.reconnect', () => pickAndClick(manager.commandConfigReconnect, true)));
+  registerCommand('sshfs.new', async () => {
+    const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: manager.invalidConfigName.bind(manager) });
+    if (name) vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.json`));
+  });
 
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.disconnect', manager.commandConfigDisconnect, manager));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.reconnect', manager.commandConfigReconnect, manager));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.connect', manager.commandConfigConnect, manager));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.configure', manager.commandConfigure, manager));
-  context.subscriptions.push(vscode.commands.registerCommand('sshfs-configs.delete', manager.commandConfigDelete, manager));
+  registerCommand('sshfs.connect', (name?: string) => pickAndClick(manager.commandConnect, name, false));
+  registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
+  registerCommand('sshfs.reconnect', (name?: string) => pickAndClick(manager.commandReconnect, name, true));
+  registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
+  registerCommand('sshfs.delete', (name?: string) => pickAndClick(manager.commandConfigDelete, name));
 
   vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager });
 }
