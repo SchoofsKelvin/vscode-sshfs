@@ -165,6 +165,7 @@
         "vscode": "^1.1.17"
     },
     "dependencies": {
+        "jsonc-parser": "^2.0.0",
         "ssh2": "^0.6.0",
         "winreg": "^1.2.4"
     }
