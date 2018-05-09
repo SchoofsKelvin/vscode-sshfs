@@ -11,8 +11,8 @@
         "Other"
     ],
     "activationEvents": [
-        "onUri:^ssh:",
         "onFileSystem:ssh",
+        "onFileSystemAccess:ssh",
         "onView:sshfs-configs",
         "onCommand:ssfs.new",
         "onCommand:ssfs.connect",

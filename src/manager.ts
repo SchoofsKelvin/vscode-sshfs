@@ -285,6 +285,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandConfigDisconnect(name: string) {
+    const fs = this.fileSystems.find(f => f.authority === name);
+    if (fs) {
+      fs.disconnect();
+      this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
+    }
     const folders = vscode.workspace.workspaceFolders!;
     const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
     if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);

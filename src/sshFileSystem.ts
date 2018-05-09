@@ -29,7 +29,9 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     return new vscode.Disposable(() => { });
   }
   public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
-    const stat = await toPromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
+    const stat = await toPromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb)).catch((e: Error & { code: number }) => {
+      throw e.code === 2 ? vscode.FileSystemError.FileNotFound(uri) : e;
+    });
     const { mtime, size } = stat;
     let type = vscode.FileType.Unknown;
     // tslint:disable no-bitwise */
@@ -43,7 +45,9 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     };
   }
   public async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-    const entries = await toPromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(this.relative(uri.path), cb));
+    const entries = await toPromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(this.relative(uri.path), cb)).catch((e) => {
+      throw e === 2 ? vscode.FileSystemError.FileNotFound(uri) : e;
+    });
     return Promise.all(entries.map(async (file) => {
       const furi = uri.with({ path: `${uri.path}${uri.path.endsWith('/') ? '' : '/'}${file.filename}` });
       const type = (await this.stat(furi)).type;
