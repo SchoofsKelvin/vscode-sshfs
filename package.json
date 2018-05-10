@@ -14,10 +14,12 @@
         "onFileSystem:ssh",
         "onFileSystemAccess:ssh",
         "onView:sshfs-configs",
-        "onCommand:ssfs.new",
-        "onCommand:ssfs.connect",
-        "onCommand:ssfs.reconnect",
-        "onCommand:ssfs.disconnect"
+        "onCommand:sshfs.new",
+        "onCommand:sshfs.connect",
+        "onCommand:sshfs.reconnect",
+        "onCommand:sshfs.disconnect",
+        "onCommand:sshfs.configure",
+        "onCommand:sshfs.delete"
     ],
     "main": "./out/extension.js",
     "author": {
