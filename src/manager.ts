@@ -4,10 +4,9 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-
-import { getSession as getPuttySession, PuttySession } from './putty';
+import { getSession as getPuttySession } from './putty';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
-import { toPromise } from './toPromise';
+import { catchingPromise, toPromise } from './toPromise';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);
@@ -142,7 +141,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (promise) return promise;
     // config = config || this.memento.get(`fs.config.${name}`);
     config = config || this.loadConfigs().find(c => c.name === name);
-    promise = new Promise<SSHFileSystem>(async (resolve, reject) => {
+    promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
@@ -228,6 +227,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         reject(e);
       }
     }).catch((e) => {
+      this.onDidChangeTreeDataEmitter.fire();
       if (!e) {
         delete this.creatingFileSystems[name];
         this.commandDisconnect(name);
