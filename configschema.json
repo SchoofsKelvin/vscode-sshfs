@@ -8,6 +8,10 @@
                 "type": "string",
                 "description": "The unique name for this configuration"
             },
+            "label": {
+                "type": "string",
+                "description": "A display name used in some user interface places"
+            },
             "root": {
                 "type": "string",
                 "description": "The remote folder to act as root folder",
@@ -62,6 +66,9 @@
             "properties": {
                 "name": {
                     "$ref": "#/definitions/fields/name"
+                },
+                "label": {
+                    "$ref": "#/definitions/fields/label"
                 },
                 "root": {
                     "$ref": "#/definitions/fields/root"
