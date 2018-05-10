@@ -22,13 +22,19 @@ export interface FileSystemConfig extends ConnectConfig {
   putty?: string | boolean;
 }
 
+export enum ConfigStatus {
+  Idle = 'Idle',
+  Active = 'Active',
+  Deleted = 'Deleted',
+  Connecting = 'Connecting',
+  Error = 'Error',
+}
+
 function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
   const config = manager.getConfig(name);
   const folders = vscode.workspace.workspaceFolders || [];
   const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
-  const isActive = manager.getActive().some(f => f.name === name);
-  let status = isActive ? (config ? 'Active' : 'Deleted') : 'Idle';
-  if (isConnected && !isActive) status = 'Connecting';
+  const status = manager.getStatus(name);
   return {
     label: config && config.label || name,
     contextValue: isConnected ? 'active' : 'inactive',
@@ -111,9 +117,10 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         if (folder.uri.scheme !== 'ssh') return;
         this.commandDisconnect(folder.uri.authority);
       });
+      this.onDidChangeTreeDataEmitter.fire();
     });
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('sshfs.configs')) return;
+      // if (!e.affectsConfiguration('sshfs.configs')) return;
       this.onDidChangeTreeDataEmitter.fire();
       // TODO: Offer to reconnect everything
     });
@@ -128,6 +135,19 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (name === '<config>') return null;
     return this.loadConfigs().find(c => c.name === name);
     // return this.memento.get<FileSystemConfig>(`fs.config.${name}`);
+  }
+  public getStatus(name: string): ConfigStatus {
+    const config = this.getConfig(name);
+    const folders = vscode.workspace.workspaceFolders || [];
+    const isActive = this.getActive().find(c => c.name === name);
+    const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
+    if (!config) return isActive ? ConfigStatus.Deleted : ConfigStatus.Error;
+    if (isConnected) {
+      if (isActive) return ConfigStatus.Active;
+      if (this.creatingFileSystems[name]) return ConfigStatus.Connecting;
+      return ConfigStatus.Error;
+    }
+    return ConfigStatus.Idle;
   }
   public async registerFileSystem(name: string, config?: FileSystemConfig) {
     if (name === '<config>') return;
@@ -294,6 +314,8 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
     const configs = this.loadConfigs().map(c => c.name);
     this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
+    const folders = vscode.workspace.workspaceFolders!;
+    folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
     return configs;
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
