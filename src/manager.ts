@@ -18,6 +18,7 @@ async function assertFs(man: Manager, uri: vscode.Uri) {
 
 export interface FileSystemConfig extends ConnectConfig {
   name: string;
+  label?: string;
   root?: string;
   putty?: string | boolean;
 }
@@ -27,7 +28,7 @@ function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
   const folders = vscode.workspace.workspaceFolders || [];
   const active = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
   return {
-    label: name,
+    label: config && config.label || name,
     contextValue: active ? 'active' : 'inactive',
     tooltip: config ? (active ? 'Active' : 'Inactive') : 'Active but deleted',
   };
@@ -40,15 +41,14 @@ function createConfigFs(manager: Manager): SSHFileSystem {
     stat: (uri: vscode.Uri) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 } as vscode.FileStat),
     readFile: async (uri: vscode.Uri) => {
       const name = uri.path.substring(1, uri.path.length - 12);
-      let config = manager.getConfig(name);
+      const config = manager.getConfig(name);
       let str;
       if (config) {
-        str = JSON.stringify(config, undefined, 4);
+        str = JSON.stringify({ ...config, name: undefined }, undefined, 4);
         str = `// If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)"\n${str}`;
       } else {
         str = await toPromise<string>(cb => readFile(path.resolve(__dirname, '../resources/defaultConfig.jsonc'), 'utf-8', cb));
       }
-      config = { ...config, name: undefined! };
       return new Uint8Array(new Buffer(str));
     },
     writeFile: (uri: vscode.Uri, content: Uint8Array) => {
@@ -112,7 +112,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public invalidConfigName(name: string) {
     if (!name) return 'Missing a name for this SSH FS';
     if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
-    return `A SSH FS name can only exists of alphanumeric characters, slashes and any of these: _.+-@`;
+    return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
   }
   public getConfig(name: string) {
     if (name === '<config>') return null;
@@ -135,7 +135,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
     // config = config || this.memento.get(`fs.config.${name}`);
-    config = config || (await this.loadConfigs()).find(c => c.name === name);
+    config = config || this.loadConfigs().find(c => c.name === name);
     promise = new Promise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
@@ -200,7 +200,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
             return reject(err);
           }
           sftp.on('end', () => client.end());
-          const fs = new SSHFileSystem(name, sftp, config!.root || '/');
+          const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
           this.fileSystems.push(fs);
           delete this.creatingFileSystems[name];
           vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
@@ -241,7 +241,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return this.creatingFileSystems[name] = promise;
   }
   public getActive() {
-    return this.fileSystems.map(fs => fs.authority);
+    return this.fileSystems.map(fs => fs.config);
   }
   public async getFs(uri: vscode.Uri) {
     const fs = this.fileSystems.find(f => f.authority === uri.authority);
@@ -310,7 +310,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.commandConnect(name);
   }
   public commandConnect(name: string) {
-    if (this.getActive().indexOf(name) !== -1) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+    if (this.getActive().find(fs => fs.name === name)) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
     if (folder) {
@@ -337,6 +337,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       ...(inspect.workspaceValue || []),
       ...(inspect.globalValue || []),
     ];
+    configs.forEach(c => c.name = c.name.toLowerCase());
     configs = configs.filter((c, i) => configs.findIndex(c2 => c2.name === c.name) === i);
     for (const index in configs) {
       if (!configs[index].name) {

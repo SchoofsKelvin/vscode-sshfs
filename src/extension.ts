@@ -8,13 +8,18 @@ const workspace = vscode.workspace;
 
 async function pickConfig(manager: Manager, activeOrNot?: boolean) {
   let names = manager.getActive();
-  const others = manager.loadConfigs().map(c => c.name);
+  const others = manager.loadConfigs();
   if (activeOrNot === false) {
-    names = others.filter(n => names.indexOf(n) === -1);
+    names = others.filter(c => !names.find(cc => cc.name === c.name));
   } else if (activeOrNot === undefined) {
     others.forEach(n => names.indexOf(n) === -1 && names.push(n));
   }
-  return vscode.window.showQuickPick(names, { placeHolder: 'SSH FS Configuration' });
+  const options: vscode.QuickPickItem[] = names.map(config => ({
+    label: config.label || config.name,
+    description: config.label && config.name,
+  }));
+  const pick = await vscode.window.showQuickPick(options, { placeHolder: 'SSH FS Configuration' });
+  return pick && pick.detail;
 }
 
 export function activate(context: vscode.ExtensionContext) {

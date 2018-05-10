@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
-
+import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
@@ -11,7 +11,8 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
 
-  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper, public readonly root: string) {
+  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper,
+              public readonly root: string, public readonly config: FileSystemConfig) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
   }
 

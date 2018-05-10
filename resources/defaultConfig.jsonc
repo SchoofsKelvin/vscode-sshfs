@@ -1,5 +1,6 @@
 // If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)"
 {
+    "label": "An optional label for a good name",
     "root": "/tmp",
     "host": "localhost",
     "port": 22,
