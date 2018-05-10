@@ -10,14 +10,19 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 * Easily create configurations that mirror a PuTTY session
 * Have multiple SSH workspace folders at once
 
+## Note
+There is a [bug in VSCode 1.23.0](https://github.com/Microsoft/vscode/issues/49258) related to configurations. This results in configurations that get added/removed to/from the global settings not showing up/disappearing until reload.
+
 ## Usage
 Add SSH FS configs to "sshfs.configs" in your User Settings:
 ```js
 {
   "sshfs.configs": [
     {
-        // Both display name and what results in ssh://serverlogs/
+        // Unique id, which results in ssh://serverlogs/
         "name": "serverlogs",
+        // The label to usually display (uses the name by default)
+        "label": "Server logs"
         // Remote folder to use as root (default is /)
         "root": "/var/log",
         // Host to connect to (domain / IPv4 / IPv6)
@@ -81,7 +86,9 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
   ],
 }
 ```
-*You could also put them in Workspace settings, it merges instead of overrides*
+*You could also put them in Workspace settings, all entries get merged together in one array.*
+
+There's an extensive JSON schema, so it'll say when you're missing a field. Mind that when you have to use e.g. either "host" or "putty", VSCode will only say "Missing host". Check your intellisense/autocomplete for all possible options.
 
 **The name has to be a certain format, creating a new configuration using the Command Pallet (or rightclicking the `SSH File Systems` view) is recommended.** Think of the name as an internet domain name, and you'll be more than fine.
 
@@ -99,11 +106,11 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
     * Also have a command to directly use a PuTTY session (**TODO**)
 * ~~Add proper JSON schema/validation for SSH FS configurations~~ **DONE**
 * Fix bug where the Explorer shows a loading bar forever
+    * *Seems like I might've fixed this bug over time, but difficult to say*
 * Fix bug where VSCode shows an error message about `no provider for ssh://NAME/`
 * Allow loading (or automatically use) sessions from .ssh/config
 * An icon for the extension
-* Configuring a deleted (but active) configuration should show the old config
-    * Currently it'll open a new default configuration file for it
+* ~~Configuring a deleted (but active) configuration should show the old config~~ **DONE**
 * Better error handling
     * Everything *seems* fine, but I haven't tested (a lot of) error situations
     * ~~Handle wrong password/key/... properly~~ **DONE**
@@ -113,11 +120,11 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
 * Offer reconnecting if the User Settings change
     * Currently this only refreshes the `SSH File Systems` view
     * We do offer this when it's changed using Configure in the context menu
-* Icons for the `SSH File Systems` view
-    * Icon for a configuration that isn't active
-    * Icon for a configuration that's active and connected
-    * Icon for a configuration that's active but disconnected
-    * Variant for the above two for deleted configurations
+* ~~Icons for the `SSH File Systems` view~~ **DONE**
+    * ~~Icon for a configuration that isn't active~~
+    * ~~Icon for a configuration that's active and connected~~
+    * ~~Icon for a configuration that's active but disconnected~~
+    * ~~Variant for the above two for deleted configurations~~
 * Better authentication methods
     * Currently (basically) everything is directly passed to [ssh2](https://www.npmjs.com/package/ssh2#client-methods)
     * ~~Add `promptForPasswordOrPassphrase` *(self-explanatory)*~~ **DONE**
