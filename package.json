@@ -28,6 +28,10 @@
     },
     "repository": "https://github.com/SchoofsKelvin/vscode-sshfs",
     "license": "GLP-3.0",
+    "bugs": {
+        "url": "https://github.com/SchoofsKelvin/vscode-sshfs/issues"
+    },
+    "icon": "resources/Logo.png",
     "contributes": {
         "views": {
             "explorer": [

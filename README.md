@@ -1,6 +1,8 @@
 
 # SSH FS
 
+![Logo](./resources/Logo.png)
+
 This extension makes use of the new FileSystemProvider, added in version 1.23.0 of Visual Studio Code.
 
 ## Features
@@ -109,7 +111,7 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
     * *Seems like I might've fixed this bug over time, but difficult to say*
 * Fix bug where VSCode shows an error message about `no provider for ssh://NAME/`
 * Allow loading (or automatically use) sessions from .ssh/config
-* An icon for the extension
+* ~~An icon for the extension~~ **DONE** *(not the best, but eh)*
 * ~~Configuring a deleted (but active) configuration should show the old config~~ **DONE**
 * Better error handling
     * Everything *seems* fine, but I haven't tested (a lot of) error situations
