@@ -62,11 +62,7 @@
         },
         "basic": {
             "type": "object",
-            "required": ["name"],
             "properties": {
-                "name": {
-                    "$ref": "#/definitions/fields/name"
-                },
                 "label": {
                     "$ref": "#/definitions/fields/label"
                 },
