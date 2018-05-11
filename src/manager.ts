@@ -176,22 +176,29 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
         if (!session) return reject(new Error(`Couldn't find the requested PuTTY session`));
         if (session.protocol !== 'ssh') return reject(new Error(`The requested PuTTY session isn't a SSH session`));
-        config.username = session.username;
-        config.host = session.hostname;
-        config.port = session.portnumber;
-        config.agent = session.tryagent ? 'pageant' : undefined;
+        config.username = config.username || session.username;
+        config.host = config.host || session.hostname;
+        config.port = config.port || session.portnumber;
+        config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
         if (session.usernamefromenvironment) {
-          session.username = process.env.USERNAME;
-          if (!session.username) return reject(new Error(`No username specified in the session (nor is using the system username enabled)`));
+          config.username = process.env.USERNAME;
+          if (!config.username) return reject(new Error(`Trying to use the system username, but process.env.USERNAME is missing`));
         }
         if (!config.agent && session.publickeyfile) {
           try {
-            const key = await toPromise<Buffer>(cb => readFile(session.publickeyfile, cb));
+            const key = await toPromise<Buffer>(cb => readFile(session.publickeyfile!, cb));
             config.privateKey = key;
           } catch (e) {
             return reject(new Error(`Error while reading the keyfile at:\n${session.publickeyfile}`));
           }
         }
+      }
+      if (!config.username || (config.username as any) === true) {
+        config.username = await vscode.window.showInputBox({
+          ignoreFocusOut: true,
+          placeHolder: 'Username',
+          prompt: 'Username to log in with',
+        });
       }
       if ((config.password as any) === true) {
         config.password = await vscode.window.showInputBox({
