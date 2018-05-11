@@ -194,13 +194,14 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         }
       }
       if ((config.password as any) === true) {
-        config.passphrase = await vscode.window.showInputBox({
+        config.password = await vscode.window.showInputBox({
           password: true,
           ignoreFocusOut: true,
           placeHolder: 'Password',
           prompt: 'Password for the provided username',
         });
       }
+      if (config.password) config.agent = undefined;
       if ((config.passphrase as any) === true) {
         if (config.privateKey) {
           config.passphrase = await vscode.window.showInputBox({
@@ -217,6 +218,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           }
         }
       }
+      if (config.password) config.agent = undefined;
       const client = new Client();
       client.on('ready', () => {
         client.sftp((err, sftp) => {
