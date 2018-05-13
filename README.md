@@ -113,6 +113,11 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
 * Allow loading (or automatically use) sessions from .ssh/config
 * ~~An icon for the extension~~ **DONE** *(not the best, but eh)*
 * ~~Configuring a deleted (but active) configuration should show the old config~~ **DONE**
+* Add proxy support for SOCKS 4 and SOCKS 5 **EXPERIMENTAL**
+    * A quick test makes it seem like it works
+    * Need to check for (common) errors, configuration issues, ...
+    * Load proxy config from PuTTY session if given **DONE**
+    * Do more tests using (non-)PuTTY sessions, other (public?) proxies, ...
 * Better error handling
     * Everything *seems* fine, but I haven't tested (a lot of) error situations
     * ~~Handle wrong password/key/... properly~~ **DONE**
