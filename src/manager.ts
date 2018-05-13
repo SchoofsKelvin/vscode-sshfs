@@ -201,7 +201,22 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
             return reject(new Error(`Error while reading the keyfile at:\n${session.publickeyfile}`));
           }
         }
+        switch (session.proxymethod) {
+          case 0:
+            break;
+          case 1:
+          case 2:
+            if (!session.proxyhost) return reject(new Error(`Proxymethod is SOCKS 4/5 but 'proxyhost' is missing`));
+            config.proxy = {
+              host: session.proxyhost,
+              port: session.proxyport,
+              type: session.proxymethod === 1 ? 'socks4' : 'socks5',
+            };
+            break;
+          default:
+            return reject(new Error(`The requested PuTTY session uses an unsupported proxy method`));
         }
+      }
       if (!config.username || (config.username as any) === true) {
         config.username = await vscode.window.showInputBox({
           ignoreFocusOut: true,
