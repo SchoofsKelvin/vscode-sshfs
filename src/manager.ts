@@ -4,6 +4,8 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
+
+import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -15,11 +17,18 @@ async function assertFs(man: Manager, uri: vscode.Uri) {
   // throw new Error(`A SSH filesystem with the name '${uri.authority}' doesn't exists`);
 }
 
+export interface ProxyConfig {
+  type: 'socks4' | 'socks5';
+  host: string;
+  port: number;
+}
+
 export interface FileSystemConfig extends ConnectConfig {
   name: string;
   label?: string;
   root?: string;
   putty?: string | boolean;
+  proxy?: ProxyConfig;
 }
 
 export enum ConfigStatus {
@@ -192,7 +201,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
             return reject(new Error(`Error while reading the keyfile at:\n${session.publickeyfile}`));
           }
         }
-      }
+        }
       if (!config.username || (config.username as any) === true) {
         config.username = await vscode.window.showInputBox({
           ignoreFocusOut: true,
@@ -226,6 +235,17 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         }
       }
       if (config.password) config.agent = undefined;
+      switch (config.proxy && config.proxy.type) {
+        case null:
+        case undefined:
+          break;
+        case 'socks4':
+        case 'socks5':
+          config = await proxy.socks(config);
+          break;
+        default:
+          return reject(new Error(`Unknown proxy method`));
+      }
       const client = new Client();
       client.on('ready', () => {
         client.sftp((err, sftp) => {

@@ -11,6 +11,7 @@ const winreg = new Winreg({
 export type NumberAsBoolean = 0 | 1;
 export interface PuttySession {
   [key: string]: string | number | undefined;
+  // General settings
   name: string;
   hostname: string;
   protocol: string;
@@ -19,6 +20,11 @@ export interface PuttySession {
   usernamefromenvironment: NumberAsBoolean;
   tryagent: NumberAsBoolean;
   publickeyfile?: string;
+  // Proxy settings
+  proxyhost?: string;
+  proxyport: number;
+  proxylocalhost: NumberAsBoolean;
+  proxymethod: number; // Key of ['None', 'SOCKS 4', 'SOCKS 5', 'HTTP', 'Telnet', 'Local'] // Only checked first 3
 }
 
 function valueFromItem(item: Winreg.RegistryItem) {
