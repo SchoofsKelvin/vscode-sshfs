@@ -358,7 +358,8 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
     const configs = this.loadConfigs().map(c => c.name);
     this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
-    const folders = vscode.workspace.workspaceFolders!;
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders) return [];
     folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
     return configs;
   }
