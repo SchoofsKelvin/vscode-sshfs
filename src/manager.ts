@@ -102,6 +102,11 @@ function createConfigFs(manager: Manager): SSHFileSystem {
   } as any;
 }
 
+function replaceVariables(string?: string) {
+  if (typeof string !== 'string') return string;
+  return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
+}
+
 export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string> {
   public onDidChangeTreeData: vscode.Event<string>;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
@@ -182,19 +187,22 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           if (!config.host) return reject(new Error(`'putty' was true but 'host' is empty/missing`));
           config.putty = config.host;
           nameOnly = false;
+        } else {
+          config.putty = replaceVariables(config.putty);
         }
         const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
         if (!session) return reject(new Error(`Couldn't find the requested PuTTY session`));
         if (session.protocol !== 'ssh') return reject(new Error(`The requested PuTTY session isn't a SSH session`));
-        config.username = config.username || session.username;
-        config.host = config.host || session.hostname;
-        config.port = config.port || session.portnumber;
-        config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
+        config.username = replaceVariables(config.username) || session.username;
+        config.host = replaceVariables(config.host) || session.hostname;
+        const port = replaceVariables((config.port || '') + '') || session.portnumber;
+        if (port) config.port = Number(port);
+        config.agent = replaceVariables(config.agent) || (session.tryagent ? 'pageant' : undefined);
         if (session.usernamefromenvironment) {
           config.username = process.env.USERNAME;
           if (!config.username) return reject(new Error(`Trying to use the system username, but process.env.USERNAME is missing`));
         }
-        const keyPath = config.privateKeyPath || (!config.agent && session.publickeyfile);
+        const keyPath = replaceVariables(config.privateKeyPath) || (!config.agent && session.publickeyfile);
         if (keyPath) {
           try {
             const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
