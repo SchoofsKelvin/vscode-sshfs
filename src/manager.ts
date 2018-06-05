@@ -276,11 +276,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           delete this.creatingFileSystems[name];
           vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
           this.onDidChangeTreeDataEmitter.fire();
+          client.on('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
           return resolve(fs);
         });
       });
       client.on('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${name}'`)));
-      client.on('close', hadError => hadError && this.commandReconnect(name));
       client.on('error', (error) => {
         if (error.description) {
           error.message = `${error.description}\n${error.message}`;
@@ -320,6 +320,17 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     const fs = this.fileSystems.find(f => f.authority === uri.authority);
     if (fs) return fs;
     return null;
+  }
+  public async promptReconnect(name: string) {
+    const config = this.getConfig(name);
+    console.log('config', name, config);
+    if (!config) return;
+    const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Reconnect', 'Disconnect');
+    if (choice === 'Reconnect') {
+      this.commandReconnect(name);
+    } else {
+      this.commandDisconnect(name);
+    }
   }
   /* FileSystemProvider */
   public watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
