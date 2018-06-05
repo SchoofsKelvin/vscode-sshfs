@@ -285,24 +285,24 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       if (config == null) return reject(null);
       const sock = await this.createSocket(config);
       const client = new Client();
-      client.on('ready', () => {
+      client.once('ready', () => {
         client.sftp((err, sftp) => {
           if (err) {
             client.end();
             return reject(err);
           }
-          sftp.on('end', () => client.end());
+          sftp.once('end', () => client.end());
           const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
           this.fileSystems.push(fs);
           delete this.creatingFileSystems[name];
           vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
           this.onDidChangeTreeDataEmitter.fire();
-          client.on('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
+          client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
           return resolve(fs);
         });
       });
-      client.on('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${name}'`)));
-      client.on('error', (error) => {
+      client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${name}'`)));
+      client.once('error', (error) => {
         if (error.description) {
           error.message = `${error.description}\n${error.message}`;
         }
