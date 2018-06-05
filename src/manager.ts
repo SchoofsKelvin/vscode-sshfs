@@ -1,6 +1,7 @@
 
 import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
+import { Socket } from 'net';
 import * as path from 'path';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
@@ -250,7 +251,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (config.password) config.agent = undefined;
     return config;
   }
-  public async createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
+  public async createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
     switch (config.proxy && config.proxy.type) {
       case null:
       case undefined:
@@ -261,7 +262,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       default:
         throw new Error(`Unknown proxy method`);
     }
-    return null;
+    return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+      const socket = new Socket();
+      socket.connect(config.port || 22, config.host, () => resolve(socket as NodeJS.ReadableStream));
+      socket.once('error', reject);
+    });
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
@@ -355,7 +360,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       disp = fs.watch(uri, options).dispose.bind(fs);
     }).catch(console.error);
     return new vscode.Disposable(() => disp());*/
-    return new vscode.Disposable(() => {});
+    return new vscode.Disposable(() => { });
   }
   public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
     return (await assertFs(this, uri)).stat(uri);
