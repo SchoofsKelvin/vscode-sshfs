@@ -66,6 +66,25 @@
             "hop": {
                 "type": "string",
                 "description": "Use another SSH configuration as intermediate proxy (connection hopping)"
+            },
+            "proxy": {
+                "type": "object",
+                "description": "Define a SOCKS 4 or SOCKS 5 proxy to connect through",
+                "required": ["host", "port", "type"],
+                "properties": {
+                    "host": {
+                        "type": "string",
+                        "description": "The hostname of the proxy"
+                    },
+                    "port": {
+                        "type": "number",
+                        "description": "The port of the proxy"
+                    },
+                    "type": {
+                        "description": "The type of the proxy (socks4/socks5)",
+                        "enum": ["socks4", "socks5"]
+                    }
+                }
             }
         },
         "basic": {
@@ -79,6 +98,9 @@
                 },
                 "hop": {
                     "$ref": "#/definitions/fields/hop"
+                },
+                "proxy": {
+                    "$ref": "#/definitions/fields/proxy"
                 }
             }
         },
