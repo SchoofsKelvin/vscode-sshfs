@@ -58,6 +58,10 @@
                     "boolean"
                 ],
                 "description": "(Windows only) Use the settings from the given PuTTY session (set this to true to find one using the other settings)"
+            },
+            "hop": {
+                "type": "string",
+                "description": "Use another SSH configuration as intermediate proxy (connection hopping)"
             }
         },
         "basic": {
@@ -68,6 +72,9 @@
                 },
                 "root": {
                     "$ref": "#/definitions/fields/root"
+                },
+                "hop": {
+                    "$ref": "#/definitions/fields/hop"
                 }
             }
         },
