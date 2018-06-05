@@ -41,6 +41,10 @@
                 "type": "string",
                 "description": "String that contains a private key for either key-based or hostbased user authentication (OpenSSH format)"
             },
+            "privateKeyPath": {
+                "type": "string",
+                "description": "String that contains the path to a private key for either key-based or hostbased user authentication (OpenSSH format)"
+            },
             "passphrase": {
                 "type": [
                     "string",
@@ -87,6 +91,9 @@
                     "$ref": "#/definitions/authentication-types/key"
                 },
                 {
+                    "$ref": "#/definitions/authentication-types/key-path"
+                },
+                {
                     "$ref": "#/definitions/authentication-types/agent"
                 }
             ]
@@ -119,6 +126,24 @@
                     },
                     "privateKey": {
                         "$ref": "#/definitions/fields/privateKey"
+                    },
+                    "passphrase": {
+                        "$ref": "#/definitions/fields/passphrase"
+                    }
+                }
+            },
+            "key-path": {
+                "type": "object",
+                "required": [
+                    "username",
+                    "privateKey"
+                ],
+                "properties": {
+                    "username": {
+                        "$ref": "#/definitions/fields/username"
+                    },
+                    "privateKeyPath": {
+                        "$ref": "#/definitions/fields/privateKeyPath"
                     },
                     "passphrase": {
                         "$ref": "#/definitions/fields/passphrase"
