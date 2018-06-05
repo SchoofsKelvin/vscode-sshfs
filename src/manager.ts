@@ -4,6 +4,7 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
+import { getConfig, loadConfigs, updateConfig } from './config';
 import { createSocket, createSSH } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -39,7 +40,7 @@ export enum ConfigStatus {
 }
 
 function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
-  const config = manager.getConfig(name);
+  const config = getConfig(name);
   const folders = vscode.workspace.workspaceFolders || [];
   const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
   const status = manager.getStatus(name);
@@ -58,7 +59,7 @@ function createConfigFs(manager: Manager): SSHFileSystem {
     stat: (uri: vscode.Uri) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 } as vscode.FileStat),
     readFile: async (uri: vscode.Uri) => {
       const name = uri.path.substring(1, uri.path.length - 12);
-      let config = manager.getConfig(name);
+      let config = getConfig(name);
       let activeButDeleted = false;
       if (!config) {
         config = config || manager.getActive().find(c => c.name === name);
@@ -84,7 +85,8 @@ function createConfigFs(manager: Manager): SSHFileSystem {
         return;
       }
       config.name = name;
-      const loc = await manager.updateConfig(name, config);
+      const loc = await updateConfig(name, config);
+      this.onDidChangeTreeDataEmitter.fire();
       let dialog: Thenable<string | undefined>;
       if (loc === vscode.ConfigurationTarget.Global) {
         dialog = vscode.window.showInformationMessage(`Config for '${name}' saved globally`, 'Connect', 'Okay');
@@ -108,7 +110,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   protected configFileSystem = createConfigFs(this);
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string>();
-  protected skippedConfigNames: string[] = [];
   // private memento: vscode.Memento = this.context.globalState;
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
@@ -132,20 +133,10 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       this.onDidChangeTreeDataEmitter.fire();
       // TODO: Offer to reconnect everything
     });
-    this.loadConfigs();
-  }
-  public invalidConfigName(name: string) {
-    if (!name) return 'Missing a name for this SSH FS';
-    if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
-    return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
-  }
-  public getConfig(name: string) {
-    if (name === '<config>') return null;
-    return this.loadConfigs().find(c => c.name === name);
-    // return this.memento.get<FileSystemConfig>(`fs.config.${name}`);
+    loadConfigs();
   }
   public getStatus(name: string): ConfigStatus {
-    const config = this.getConfig(name);
+    const config = getConfig(name);
     const folders = vscode.workspace.workspaceFolders || [];
     const isActive = this.getActive().find(c => c.name === name);
     const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
@@ -159,7 +150,8 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   public async registerFileSystem(name: string, config?: FileSystemConfig) {
     if (name === '<config>') return;
-    this.updateConfig(name, config);
+    await updateConfig(name, config);
+    this.onDidChangeTreeDataEmitter.fire();
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
@@ -168,7 +160,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
     // config = config || this.memento.get(`fs.config.${name}`);
-    config = config || this.loadConfigs().find(c => c.name === name);
+    config = config || loadConfigs().find(c => c.name === name);
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
@@ -222,7 +214,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return null;
   }
   public async promptReconnect(name: string) {
-    const config = this.getConfig(name);
+    const config = getConfig(name);
     console.log('config', name, config);
     if (!config) return;
     const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Reconnect', 'Disconnect');
@@ -269,7 +261,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return createTreeItem(this, element);
   }
   public getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
-    const configs = this.loadConfigs().map(c => c.name);
+    const configs = loadConfigs().map(c => c.name);
     this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
     const folders = vscode.workspace.workspaceFolders || [];
     folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
@@ -311,70 +303,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   public commandDelete(name: string) {
     this.commandDisconnect(name);
-    this.updateConfig(name);
-  }
-  /* Configuration discovery */
-  public loadConfigs() {
-    const config = vscode.workspace.getConfiguration('sshfs');
-    if (!config) return [];
-    const inspect = config.inspect<FileSystemConfig[]>('configs')!;
-    let configs: FileSystemConfig[] = [
-      ...(inspect.workspaceFolderValue || []),
-      ...(inspect.workspaceValue || []),
-      ...(inspect.globalValue || []),
-    ];
-    configs.forEach(c => c.name = c.name.toLowerCase());
-    configs = configs.filter((c, i) => configs.findIndex(c2 => c2.name === c.name) === i);
-    for (const index in configs) {
-      if (!configs[index].name) {
-        vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
-      } else if (this.invalidConfigName(configs[index].name)) {
-        const conf = configs[index];
-        if (this.skippedConfigNames.indexOf(conf.name) !== -1) continue;
-        vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, 'Rename', 'Delete', 'Skip').then(async (answer) => {
-          if (answer === 'Rename') {
-            const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: this.invalidConfigName, placeHolder: 'New name' });
-            if (name) {
-              conf.name = name;
-              return this.updateConfig(conf.name, conf);
-            }
-            vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
-          } else if (answer === 'Delete') {
-            return this.updateConfig(conf.name);
-          }
-          this.skippedConfigNames.push(conf.name);
-        });
-      }
-    }
-    return configs.filter(c => !this.invalidConfigName(c.name));
-  }
-  public getConfigLocation(name: string) {
-    const conf = vscode.workspace.getConfiguration('sshfs');
-    const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
-    const contains = (v?: FileSystemConfig[]) => v && v.find(c => c.name === name);
-    if (contains(inspect.workspaceFolderValue)) {
-      return vscode.ConfigurationTarget.WorkspaceFolder;
-    } else if (contains(inspect.workspaceValue)) {
-      return vscode.ConfigurationTarget.Workspace;
-    } else { // if (contains(inspect.globalValue)) {
-      return vscode.ConfigurationTarget.Global;
-    }
-  }
-  public async updateConfig(name: string, config?: FileSystemConfig) {
-    const conf = vscode.workspace.getConfiguration('sshfs');
-    const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
-    // const contains = (v?: FileSystemConfig[]) => v && v.find(c => c.name === name);
-    const patch = (v: FileSystemConfig[]) => {
-      const con = v.findIndex(c => c.name === name);
-      if (!config) return v.filter(c => c.name.toLowerCase() !== name);
-      v[con === -1 ? v.length : con] = config;
-      return v;
-    };
-    const loc = this.getConfigLocation(name);
-    const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][loc];
-    await conf.update('configs', patch(array || []), loc || vscode.ConfigurationTarget.Global);
-    this.onDidChangeTreeDataEmitter.fire();
-    return loc;
+    updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
   }
 }
 

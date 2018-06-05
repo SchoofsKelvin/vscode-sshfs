@@ -1,7 +1,6 @@
 
 import * as dns from 'dns';
 import { SocksClient } from 'socks';
-
 import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
