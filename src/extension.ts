@@ -1,6 +1,7 @@
 
 import * as fs from 'fs';
 import * as vscode from 'vscode';
+import { invalidConfigName, loadConfigs } from './config';
 import { MemFs } from './fileSystemProvider';
 import { Manager } from './manager';
 
@@ -8,7 +9,7 @@ const workspace = vscode.workspace;
 
 async function pickConfig(manager: Manager, activeOrNot?: boolean) {
   let names = manager.getActive();
-  const others = manager.loadConfigs();
+  const others = loadConfigs();
   if (activeOrNot === false) {
     names = others.filter(c => !names.find(cc => cc.name === c.name));
   } else if (activeOrNot === undefined) {
@@ -37,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   registerCommand('sshfs.new', async () => {
-    const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: manager.invalidConfigName.bind(manager) });
+    const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: invalidConfigName });
     if (name) vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
   });
 

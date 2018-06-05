@@ -2,6 +2,7 @@ import { readFile } from 'fs';
 import { Socket } from 'net';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
+import { loadConfigs, openConfigurationEditor } from './config';
 import { FileSystemConfig } from './manager';
 import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
@@ -89,7 +90,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     } else {
       const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
       if (answer === 'Configure') {
-        this.commandConfigure(config.name);
+        openConfigurationEditor(config.name);
         return null;
       }
     }
@@ -99,7 +100,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
 }
 
 export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
-  config = (await this.calculateActualConfig(config))!;
+  config = (await calculateActualConfig(config))!;
   if (!config) return null;
   switch (config.proxy && config.proxy.type) {
     case null:

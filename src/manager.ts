@@ -4,7 +4,7 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, loadConfigs, updateConfig } from './config';
+import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
 import { createSocket, createSSH } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -299,7 +299,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.onDidChangeTreeDataEmitter.fire();
   }
   public async commandConfigure(name: string) {
-    vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
+    openConfigurationEditor(name);
   }
   public commandDelete(name: string) {
     this.commandDisconnect(name);
