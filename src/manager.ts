@@ -4,7 +4,6 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-
 import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
@@ -168,6 +167,89 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (name === '<config>') return;
     this.updateConfig(name, config);
   }
+  public async calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
+    config = { ...config };
+    if (config.putty) {
+      let nameOnly = true;
+      if (config.putty === true) {
+        if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
+        config.putty = config.host;
+        nameOnly = false;
+      } else {
+        config.putty = replaceVariables(config.putty);
+      }
+      const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
+      if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
+      if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
+      config.username = replaceVariables(config.username) || session.username;
+      config.host = replaceVariables(config.host) || session.hostname;
+      const port = replaceVariables((config.port || '') + '') || session.portnumber;
+      if (port) config.port = Number(port);
+      config.agent = replaceVariables(config.agent) || (session.tryagent ? 'pageant' : undefined);
+      if (session.usernamefromenvironment) {
+        config.username = process.env.USERNAME;
+        if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME is missing`);
+      }
+      const keyPath = replaceVariables(config.privateKeyPath) || (!config.agent && session.publickeyfile);
+      if (keyPath) {
+        try {
+          const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
+          config.privateKey = key;
+        } catch (e) {
+          throw new Error(`Error while reading the keyfile at:\n${keyPath}`);
+        }
+      }
+      switch (session.proxymethod) {
+        case 0:
+          break;
+        case 1:
+        case 2:
+          if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 but 'proxyhost' is missing`);
+          config.proxy = {
+            host: session.proxyhost,
+            port: session.proxyport,
+            type: session.proxymethod === 1 ? 'socks4' : 'socks5',
+          };
+          break;
+        default:
+          throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
+      }
+    }
+    if (!config.username || (config.username as any) === true) {
+      config.username = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'Username',
+        prompt: 'Username to log in with',
+      });
+    }
+    if ((config.password as any) === true) {
+      config.password = await vscode.window.showInputBox({
+        password: true,
+        ignoreFocusOut: true,
+        placeHolder: 'Password',
+        prompt: 'Password for the provided username',
+      });
+    }
+    if (config.password) config.agent = undefined;
+    if ((config.passphrase as any) === true) {
+      if (config.privateKey) {
+        config.passphrase = await vscode.window.showInputBox({
+          password: true,
+          ignoreFocusOut: true,
+          placeHolder: 'Passphrase',
+          prompt: 'Passphrase for the provided public/private key',
+        });
+      } else {
+        const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
+        if (answer === 'Configure') {
+          this.commandConfigure(config.name);
+          return null;
+        }
+      }
+    }
+    if (config.password) config.agent = undefined;
+    return config;
+  }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
     const existing = this.fileSystems.find(fs => fs.authority === name);
@@ -181,85 +263,8 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
       this.registerFileSystem(name, { ...config });
-      if (config.putty) {
-        let nameOnly = true;
-        if (config.putty === true) {
-          if (!config.host) return reject(new Error(`'putty' was true but 'host' is empty/missing`));
-          config.putty = config.host;
-          nameOnly = false;
-        } else {
-          config.putty = replaceVariables(config.putty);
-        }
-        const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
-        if (!session) return reject(new Error(`Couldn't find the requested PuTTY session`));
-        if (session.protocol !== 'ssh') return reject(new Error(`The requested PuTTY session isn't a SSH session`));
-        config.username = replaceVariables(config.username) || session.username;
-        config.host = replaceVariables(config.host) || session.hostname;
-        const port = replaceVariables((config.port || '') + '') || session.portnumber;
-        if (port) config.port = Number(port);
-        config.agent = replaceVariables(config.agent) || (session.tryagent ? 'pageant' : undefined);
-        if (session.usernamefromenvironment) {
-          config.username = process.env.USERNAME;
-          if (!config.username) return reject(new Error(`Trying to use the system username, but process.env.USERNAME is missing`));
-        }
-        const keyPath = replaceVariables(config.privateKeyPath) || (!config.agent && session.publickeyfile);
-        if (keyPath) {
-          try {
-            const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
-            config.privateKey = key;
-          } catch (e) {
-            return reject(new Error(`Error while reading the keyfile at:\n${keyPath}`));
-          }
-        }
-        switch (session.proxymethod) {
-          case 0:
-            break;
-          case 1:
-          case 2:
-            if (!session.proxyhost) return reject(new Error(`Proxymethod is SOCKS 4/5 but 'proxyhost' is missing`));
-            config.proxy = {
-              host: session.proxyhost,
-              port: session.proxyport,
-              type: session.proxymethod === 1 ? 'socks4' : 'socks5',
-            };
-            break;
-          default:
-            return reject(new Error(`The requested PuTTY session uses an unsupported proxy method`));
-        }
-      }
-      if (!config.username || (config.username as any) === true) {
-        config.username = await vscode.window.showInputBox({
-          ignoreFocusOut: true,
-          placeHolder: 'Username',
-          prompt: 'Username to log in with',
-        });
-      }
-      if ((config.password as any) === true) {
-        config.password = await vscode.window.showInputBox({
-          password: true,
-          ignoreFocusOut: true,
-          placeHolder: 'Password',
-          prompt: 'Password for the provided username',
-        });
-      }
-      if (config.password) config.agent = undefined;
-      if ((config.passphrase as any) === true) {
-        if (config.privateKey) {
-          config.passphrase = await vscode.window.showInputBox({
-            password: true,
-            ignoreFocusOut: true,
-            placeHolder: 'Passphrase',
-            prompt: 'Passphrase for the provided public/private key',
-          });
-        } else {
-          const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
-          if (answer === 'Configure') {
-            this.commandConfigure(name);
-            return reject(null);
-          }
-        }
-      }
-      if (config.password) config.agent = undefined;
+      config = (await this.calculateActualConfig(config))!;
+      if (config == null) return reject(null);
       switch (config.proxy && config.proxy.type) {
         case null:
         case undefined:
