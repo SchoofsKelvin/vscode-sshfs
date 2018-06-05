@@ -21,6 +21,11 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
 {
   "sshfs.configs": [
     {
+        // With PuTTY, this can be a complete configuration (with / as root)
+        "name": "quick-putty",
+        "putty": "My PuTTY session"
+    },
+    {
         // Unique id, which results in ssh://serverlogs/
         "name": "serverlogs",
         // The label to usually display (uses the name by default)
@@ -38,6 +43,11 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
         // Path to ssh-agent's UNIX socket (cygwin ones should work too)
         // or 'pageant' when using Pageant on Windows
         "agent": "pageant",
+
+        // Username, agent, ... replace environment variables, so
+        // you can use the SSH_AUTH_SOCK (or any other) variable
+        // (variables can be anywhere in the string)
+        "agent": "$SSH_AUTH_SOCK",
         
         // Instead of using an agent, we can also just use a password
         "password": "CorrectHorseBatteryStaple",
@@ -79,11 +89,6 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
 
         // Note: The "agent" option will be set to "pageant" if the
         // session has "Attempt authentication using Pageant" set
-    },
-    {
-        // With PuTTY, this can be a complete configuration (with / as root)
-        "name": "quick-putty",
-        "putty": "My PuTTY session"
     }
   ],
 }
@@ -101,6 +106,10 @@ Either rightclick to Connect or use the command panel
 This will add a Workspace folder linked to a SSH (SFTP) session:
 
 ![Workspace folder added](./media/screenshot-explorer.png)
+
+## Links
+- [GitHub](https://github.com/SchoofsKelvin/vscode-sshfs)
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
 
 ## TO DO *(in order of most likely to implement first)*
 * ~~Fix bug where saving a file resets the permissions (when owner/root at least)~~ **DONE**
@@ -136,7 +145,7 @@ This will add a Workspace folder linked to a SSH (SFTP) session:
     * Currently (basically) everything is directly passed to [ssh2](https://www.npmjs.com/package/ssh2#client-methods)
     * ~~Add `promptForPasswordOrPassphrase` *(self-explanatory)*~~ **DONE**
         * Both `password` and `passphrase` can be set to `true` to prompt
-    * Add `privateKeyPath` *(or auto-detect `privateKey` as a path)*
+    * ~~Add `privateKeyPath`~~ **DONE**
     * Prompt the user for a password if the server prompts
         * This would be the `tryKeyboard` option for ssh2's Client.connect
         * Would need to hook into the keyboard request and show a prompt
