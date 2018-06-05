@@ -250,6 +250,19 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (config.password) config.agent = undefined;
     return config;
   }
+  public async createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
+    switch (config.proxy && config.proxy.type) {
+      case null:
+      case undefined:
+        break;
+      case 'socks4':
+      case 'socks5':
+        return await proxy.socks(config);
+      default:
+        throw new Error(`Unknown proxy method`);
+    }
+    return null;
+  }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
     const existing = this.fileSystems.find(fs => fs.authority === name);
@@ -265,17 +278,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       this.registerFileSystem(name, { ...config });
       config = (await this.calculateActualConfig(config))!;
       if (config == null) return reject(null);
-      switch (config.proxy && config.proxy.type) {
-        case null:
-        case undefined:
-          break;
-        case 'socks4':
-        case 'socks5':
-          config = await proxy.socks(config);
-          break;
-        default:
-          return reject(new Error(`Unknown proxy method`));
-      }
+      const sock = await this.createSocket(config);
       const client = new Client();
       client.on('ready', () => {
         client.sftp((err, sftp) => {
@@ -301,7 +304,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         reject(error);
       });
       try {
-        client.connect(Object.assign(config, { tryKeyboard: false }));
+        client.connect(Object.assign(config, { sock, tryKeyboard: false } as ConnectConfig));
       } catch (e) {
         reject(e);
       }

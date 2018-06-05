@@ -5,7 +5,7 @@ import { SocksClient } from 'socks';
 import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
-export async function socks(config: FileSystemConfig): Promise<FileSystemConfig> {
+export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
   if (!config.proxy) throw new Error(`Missing field 'config.proxy'`);
   if (!config.proxy.host) throw new Error(`Missing field 'config.proxy.host'`);
   if (!config.proxy.port) throw new Error(`Missing field 'config.proxy.port'`);
@@ -28,8 +28,7 @@ export async function socks(config: FileSystemConfig): Promise<FileSystemConfig>
         type: config.proxy.type === 'socks4' ? 4 : 5,
       },
     });
-    config.sock = con.socket as NodeJS.ReadableStream;
-    return config;
+    return con.socket as NodeJS.ReadableStream;
   } catch (e) {
     throw new Error(`Error while connecting to the the proxy: ${e.message}`);
   }
