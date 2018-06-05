@@ -1,12 +1,10 @@
 
 import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
-import { Socket } from 'net';
 import * as path from 'path';
-import { Client, ConnectConfig } from 'ssh2';
+import { ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-import * as proxy from './proxy';
-import { getSession as getPuttySession } from './putty';
+import { createSocket, createSSH } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 
@@ -102,11 +100,6 @@ function createConfigFs(manager: Manager): SSHFileSystem {
   } as any;
 }
 
-function replaceVariables(string?: string) {
-  if (typeof string !== 'string') return string;
-  return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
-}
-
 export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string> {
   public onDidChangeTreeData: vscode.Event<string>;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
@@ -168,106 +161,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (name === '<config>') return;
     this.updateConfig(name, config);
   }
-  public async calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
-    config = { ...config };
-    if (config.putty) {
-      let nameOnly = true;
-      if (config.putty === true) {
-        if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
-        config.putty = config.host;
-        nameOnly = false;
-      } else {
-        config.putty = replaceVariables(config.putty);
-      }
-      const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
-      if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
-      if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
-      config.username = replaceVariables(config.username) || session.username;
-      config.host = replaceVariables(config.host) || session.hostname;
-      const port = replaceVariables((config.port || '') + '') || session.portnumber;
-      if (port) config.port = Number(port);
-      config.agent = replaceVariables(config.agent) || (session.tryagent ? 'pageant' : undefined);
-      if (session.usernamefromenvironment) {
-        config.username = process.env.USERNAME;
-        if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME is missing`);
-      }
-      const keyPath = replaceVariables(config.privateKeyPath) || (!config.agent && session.publickeyfile);
-      if (keyPath) {
-        try {
-          const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
-          config.privateKey = key;
-        } catch (e) {
-          throw new Error(`Error while reading the keyfile at:\n${keyPath}`);
-        }
-      }
-      switch (session.proxymethod) {
-        case 0:
-          break;
-        case 1:
-        case 2:
-          if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 but 'proxyhost' is missing`);
-          config.proxy = {
-            host: session.proxyhost,
-            port: session.proxyport,
-            type: session.proxymethod === 1 ? 'socks4' : 'socks5',
-          };
-          break;
-        default:
-          throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
-      }
-    }
-    if (!config.username || (config.username as any) === true) {
-      config.username = await vscode.window.showInputBox({
-        ignoreFocusOut: true,
-        placeHolder: 'Username',
-        prompt: 'Username to log in with',
-      });
-    }
-    if ((config.password as any) === true) {
-      config.password = await vscode.window.showInputBox({
-        password: true,
-        ignoreFocusOut: true,
-        placeHolder: 'Password',
-        prompt: 'Password for the provided username',
-      });
-    }
-    if (config.password) config.agent = undefined;
-    if ((config.passphrase as any) === true) {
-      if (config.privateKey) {
-        config.passphrase = await vscode.window.showInputBox({
-          password: true,
-          ignoreFocusOut: true,
-          placeHolder: 'Passphrase',
-          prompt: 'Passphrase for the provided public/private key',
-        });
-      } else {
-        const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
-        if (answer === 'Configure') {
-          this.commandConfigure(config.name);
-          return null;
-        }
-      }
-    }
-    if (config.password) config.agent = undefined;
-    return config;
-  }
-  public async createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
-    switch (config.proxy && config.proxy.type) {
-      case null:
-      case undefined:
-        break;
-      case 'socks4':
-      case 'socks5':
-        return await proxy.socks(config);
-      default:
-        throw new Error(`Unknown proxy method`);
-    }
-    return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
-      const socket = new Socket();
-      socket.connect(config.port || 22, config.host, () => resolve(socket as NodeJS.ReadableStream));
-      socket.once('error', reject);
-    });
-  }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
     const existing = this.fileSystems.find(fs => fs.authority === name);
@@ -281,38 +174,24 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
       this.registerFileSystem(name, { ...config });
-      config = (await this.calculateActualConfig(config))!;
-      if (config == null) return reject(null);
-      const sock = await this.createSocket(config);
-      const client = new Client();
-      client.once('ready', () => {
-        client.sftp((err, sftp) => {
-          if (err) {
-            client.end();
-            return reject(err);
-          }
-          sftp.once('end', () => client.end());
-          const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
-          this.fileSystems.push(fs);
-          delete this.creatingFileSystems[name];
-          vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-          this.onDidChangeTreeDataEmitter.fire();
-          client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
-          return resolve(fs);
-        });
-      });
-      client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${name}'`)));
-      client.once('error', (error) => {
-        if (error.description) {
-          error.message = `${error.description}\n${error.message}`;
+      const sock = await createSocket(config);
+      if (sock == null) return reject(null);
+      const client = await createSSH(config, sock);
+      if (!client) return reject(null);
+      client.sftp((err, sftp) => {
+        if (err) {
+          client.end();
+          return reject(err);
         }
-        reject(error);
+        sftp.once('end', () => client.end());
+        const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
+        this.fileSystems.push(fs);
+        delete this.creatingFileSystems[name];
+        vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+        this.onDidChangeTreeDataEmitter.fire();
+        client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
+        return resolve(fs);
       });
-      try {
-        client.connect(Object.assign(config, { sock, tryKeyboard: false } as ConnectConfig));
-      } catch (e) {
-        reject(e);
-      }
     }).catch((e) => {
       this.onDidChangeTreeDataEmitter.fire();
       if (!e) {
