@@ -24,7 +24,7 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
         // Unique id, which results in ssh://serverlogs/
         "name": "serverlogs",
         // The label to usually display (uses the name by default)
-        "label": "Server logs"
+        "label": "Server logs",
         // Remote folder to use as root (default is /)
         "root": "/var/log",
         // Host to connect to (domain / IPv4 / IPv6)
