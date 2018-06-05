@@ -29,6 +29,7 @@ export interface FileSystemConfig extends ConnectConfig {
   root?: string;
   putty?: string | boolean;
   proxy?: ProxyConfig;
+  privateKeyPath?: string;
 }
 
 export enum ConfigStatus {
@@ -193,12 +194,13 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
           config.username = process.env.USERNAME;
           if (!config.username) return reject(new Error(`Trying to use the system username, but process.env.USERNAME is missing`));
         }
-        if (!config.agent && session.publickeyfile) {
+        const keyPath = config.privateKeyPath || (!config.agent && session.publickeyfile);
+        if (keyPath) {
           try {
-            const key = await toPromise<Buffer>(cb => readFile(session.publickeyfile!, cb));
+            const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
             config.privateKey = key;
           } catch (e) {
-            return reject(new Error(`Error while reading the keyfile at:\n${session.publickeyfile}`));
+            return reject(new Error(`Error while reading the keyfile at:\n${keyPath}`));
           }
         }
         switch (session.proxymethod) {
