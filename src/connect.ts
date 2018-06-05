@@ -102,6 +102,22 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
 export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
+  if (config.hop) {
+    const hop = loadConfigs().find(c => c.name === config.hop);
+    if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
+    const ssh = await createSSH(hop);
+    if (!ssh) return null;
+    return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+      ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
+        if (err) {
+          err.message = `Couldn't connect through the hop:\n${err.message}`;
+          return reject(err);
+        }
+        channel.once('close', () => ssh.destroy());
+        resolve(channel);
+      });
+    });
+  }
   switch (config.proxy && config.proxy.type) {
     case null:
     case undefined:

@@ -29,6 +29,7 @@ export interface FileSystemConfig extends ConnectConfig {
   putty?: string | boolean;
   proxy?: ProxyConfig;
   privateKeyPath?: string;
+  hop?: string;
 }
 
 export enum ConfigStatus {
