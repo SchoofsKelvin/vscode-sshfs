@@ -17,6 +17,12 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   config = { ...config };
   if ('_calculated' in config) return config;
   (config as any)._calculated = true;
+  config.username = replaceVariables(config.username);
+  config.host = replaceVariables(config.host);
+  const port = replaceVariables((config.port || '') + '');
+  if (port) config.port = Number(port);
+  config.agent = replaceVariables(config.agent);
+  config.privateKeyPath = replaceVariables(config.privateKeyPath);
   if (config.putty) {
     let nameOnly = true;
     if (config.putty === true) {
@@ -29,24 +35,15 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
     if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
     if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
-    config.username = replaceVariables(config.username) || session.username;
-    config.host = replaceVariables(config.host) || session.hostname;
-    const port = replaceVariables((config.port || '') + '') || session.portnumber;
-    if (port) config.port = Number(port);
-    config.agent = replaceVariables(config.agent) || (session.tryagent ? 'pageant' : undefined);
+    config.username = config.username || session.username;
+    config.host = config.host || session.hostname;
+    config.port = session.portnumber || config.port;
+    config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
     if (session.usernamefromenvironment) {
       config.username = process.env.USERNAME;
       if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME is missing`);
     }
-    const keyPath = replaceVariables(config.privateKeyPath) || (!config.agent && session.publickeyfile);
-    if (keyPath) {
-      try {
-        const key = await toPromise<Buffer>(cb => readFile(keyPath, cb));
-        config.privateKey = key;
-      } catch (e) {
-        throw new Error(`Error while reading the keyfile at:\n${keyPath}`);
-      }
-    }
+    config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
     switch (session.proxymethod) {
       case 0:
         break;
@@ -61,6 +58,14 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
         break;
       default:
         throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
+    }
+  }
+  if (config.privateKeyPath) {
+    try {
+      const key = await toPromise<Buffer>(cb => readFile(config.privateKeyPath!, cb));
+      config.privateKey = key;
+    } catch (e) {
+      throw new Error(`Error while reading the keyfile at:\n${config.privateKeyPath}`);
     }
   }
   if (!config.username || (config.username as any) === true) {
