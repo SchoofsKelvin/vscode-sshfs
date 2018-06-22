@@ -158,7 +158,7 @@
                 "type": "object",
                 "required": [
                     "username",
-                    "privateKey"
+                    "privateKeyPath"
                 ],
                 "properties": {
                     "username": {
