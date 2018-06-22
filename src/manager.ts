@@ -171,13 +171,28 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       if (sock == null) return reject(null);
       const client = await createSSH(config, sock);
       if (!client) return reject(null);
-      client.sftp((err, sftp) => {
+      client.sftp(async (err, sftp) => {
         if (err) {
           client.end();
           return reject(err);
         }
         sftp.once('end', () => client.end());
         const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
+        try {
+          const rootUri = vscode.Uri.parse(`ssh://${name}/${fs.root.replace(/^\//, '')}`);
+          const stat = await fs.stat(rootUri);
+          // tslint:disable-next-line:no-bitwise
+          if (!(stat.type & vscode.FileType.Directory)) {
+            throw vscode.FileSystemError.FileNotADirectory(rootUri);
+          }
+        } catch (e) {
+          let message = `Couldn't read the root directory '${fs.root}' on the server for SSH FS '${name}'`;
+          if (e instanceof vscode.FileSystemError) {
+            message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
+          }
+          await vscode.window.showErrorMessage(message, 'Okay');
+          return reject();
+        }
         this.fileSystems.push(fs);
         delete this.creatingFileSystems[name];
         vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
