@@ -70,7 +70,11 @@
             "proxy": {
                 "type": "object",
                 "description": "Define a SOCKS 4 or SOCKS 5 proxy to connect through",
-                "required": ["host", "port", "type"],
+                "required": [
+                    "host",
+                    "port",
+                    "type"
+                ],
                 "properties": {
                     "host": {
                         "type": "string",
@@ -82,7 +86,10 @@
                     },
                     "type": {
                         "description": "The type of the proxy (socks4/socks5)",
-                        "enum": ["socks4", "socks5"]
+                        "enum": [
+                            "socks4",
+                            "socks5"
+                        ]
                     }
                 }
             }
@@ -110,13 +117,17 @@
                     "$ref": "#/definitions/authentication-types/password"
                 },
                 {
-                    "$ref": "#/definitions/authentication-types/key"
-                },
-                {
-                    "$ref": "#/definitions/authentication-types/key-path"
-                },
-                {
                     "$ref": "#/definitions/authentication-types/agent"
+                },
+                {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/authentication-types/key"
+                        },
+                        {
+                            "$ref": "#/definitions/authentication-types/key-path"
+                        }
+                    ]
                 }
             ]
         },
