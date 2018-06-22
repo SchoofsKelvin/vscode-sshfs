@@ -137,7 +137,7 @@
             "properties": {
                 "sshfs.configs": {
                     "$schema": "http://json-schema.org/draft-06/schema#",
-                    "$ref": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/f4acd6be1e0bb9a3b0a41354221a0c1ad51c38e2/settingsschema.json",
+                    "$ref": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/27dec3277d9a50869c3d2a11db21da6e07a3223a/settingsschema.json",
                     "default": [
                         {
                             "root": "/tmp",
@@ -153,7 +153,7 @@
         "jsonValidation": [
             {
                 "fileMatch": "*.sshfs.jsonc",
-                "url": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/f4acd6be1e0bb9a3b0a41354221a0c1ad51c38e2/configschema.json"
+                "url": "https://raw.githubusercontent.com/SchoofsKelvin/vscode-sshfs/27dec3277d9a50869c3d2a11db21da6e07a3223a/configschema.json"
             }
         ]
     },
