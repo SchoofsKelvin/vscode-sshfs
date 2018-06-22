@@ -88,7 +88,7 @@ function createConfigFs(manager: Manager): SSHFileSystem {
       }
       config.name = name;
       const loc = await updateConfig(name, config);
-      this.onDidChangeTreeDataEmitter.fire();
+      manager.fireConfigChanged();
       let dialog: Thenable<string | undefined>;
       if (loc === vscode.ConfigurationTarget.Global) {
         dialog = vscode.window.showInformationMessage(`Config for '${name}' saved globally`, 'Connect', 'Okay');
@@ -148,6 +148,9 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       // TODO: Offer to reconnect everything
     });
     loadConfigs();
+  }
+  public fireConfigChanged(): void {
+    this.onDidChangeTreeDataEmitter.fire();
   }
   public getStatus(name: string): ConfigStatus {
     const config = getConfig(name);
