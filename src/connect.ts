@@ -149,6 +149,15 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     const client = new Client();
     client.once('ready', () => resolve(client));
     client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${config.name}'`)));
+    client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
+      Promise.all<string>(prompts.map(prompt =>
+        vscode.window.showInputBox({
+          password: true, // prompt.echo was false for me while testing password prompting
+          ignoreFocusOut: true,
+          prompt: prompt.prompt.replace(/:\s*$/, ''),
+        }),
+      )).then(finish);
+    });
     client.once('error', (error) => {
       if (error.description) {
         error.message = `${error.description}\n${error.message}`;
@@ -156,7 +165,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       reject(error);
     });
     try {
-      client.connect(Object.assign<ConnectConfig, ConnectConfig>(config, { sock, tryKeyboard: false }));
+      client.connect(Object.assign<ConnectConfig, ConnectConfig>(config, { sock, tryKeyboard: true }));
     } catch (e) {
       reject(e);
     }
