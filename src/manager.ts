@@ -2,11 +2,12 @@
 import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
-import { ConnectConfig } from 'ssh2';
+import { Client, ClientChannel, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
 import { createSocket, createSSH } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
+import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
@@ -103,6 +104,18 @@ function createConfigFs(manager: Manager): SSHFileSystem {
   } as any;
 }
 
+async function tryGetHome(ssh: Client): Promise<string | null> {
+  const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
+  const stdout = new MemoryDuplex();
+  exec.stdout.pipe(stdout);
+  await toPromise(cb => exec.on('close', cb));
+  const home = stdout.read().toString();
+  if (!home) return null;
+  const mat = home.match(/^Home: (.*?)\r?\n?$/);
+  if (!mat) return null;
+  return mat[1];
+}
+
 export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string> {
   public onDidChangeTreeData: vscode.Event<string>;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
@@ -171,15 +184,24 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       if (sock == null) return reject(null);
       const client = await createSSH(config, sock);
       if (!client) return reject(null);
+      let root = config!.root || '/';
+      if (root.startsWith('~')) {
+        const home = await tryGetHome(client);
+        if (!home) {
+          await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
+          return reject();
+        }
+        root = root.replace(/^~/, home.replace(/\/$/, ''));
+      }
       client.sftp(async (err, sftp) => {
         if (err) {
           client.end();
           return reject(err);
         }
         sftp.once('end', () => client.end());
-        const fs = new SSHFileSystem(name, sftp, config!.root || '/', config!);
+        const fs = new SSHFileSystem(name, sftp, root, config!);
         try {
-          const rootUri = vscode.Uri.parse(`ssh://${name}/${fs.root.replace(/^\//, '')}`);
+          const rootUri = vscode.Uri.parse(`ssh://${name}/`);
           const stat = await fs.stat(rootUri);
           // tslint:disable-next-line:no-bitwise
           if (!(stat.type & vscode.FileType.Directory)) {
