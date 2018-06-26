@@ -75,8 +75,18 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     });
     return Promise.all(entries.map(async (file) => {
       const furi = uri.with({ path: `${uri.path}${uri.path.endsWith('/') ? '' : '/'}${file.filename}` });
-      const type = (await this.stat(furi)).type;
-      return [file.filename, type] as [string, vscode.FileType];
+      // Mode in octal representation is 120XXX for links, e.g. 120777
+      // Any link's mode & 170000 should equal 120000 (using the octal system, at least)
+      // tslint:disable-next-line:no-bitwise
+      const link = (file.attrs.mode & 61440) === 40960 ? vscode.FileType.SymbolicLink : 0;
+      try {
+        const type = (await this.stat(furi)).type;
+        // tslint:disable-next-line:no-bitwise
+        return [file.filename, type | link] as [string, vscode.FileType];
+      } catch (e) {
+        // tslint:disable-next-line:no-bitwise
+        return [file.filename, vscode.FileType.Unknown | link] as [string, vscode.FileType];
+      }
     }));
   }
   public createDirectory(uri: vscode.Uri): void | Promise<void> {
