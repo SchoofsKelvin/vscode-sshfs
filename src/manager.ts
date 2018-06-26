@@ -183,9 +183,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
       this.registerFileSystem(name, { ...config });
-      const sock = await createSocket(config);
-      if (sock == null) return reject(null);
-      const client = await createSSH(config, sock);
+      const client = await createSSH(config);
       if (!client) return reject(null);
       let root = config!.root || '/';
       if (root.startsWith('~')) {

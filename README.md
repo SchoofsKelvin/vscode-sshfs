@@ -11,6 +11,7 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 ## Summary
 * Use a remote directory (over SSH) as workspace folder
 * Use agents, including Pageant for Windows
+* Use private keys (any supported by ssh2-streams, including PuTTY's PPK)
 * Get prompted for a password/passphrase (plain text password aren't required)
 * Easily create configurations that reference a PuTTY session/configuration
 * Have multiple SSH (and regular) workspace folders at once
@@ -65,6 +66,10 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
         // Or a private key (raw key, OpenSSH format)
         // (can also be a public key for host-based authentication)
         "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnN...",
+        // It's a lot easier to use a path, though
+        "privateKeyPath": "/root/.ssh/myPrivateKey",
+        // Also supports PPK keys
+        "privateKeyPath": "C:/Users/Kelvin/.ssh/myPrivateKey.ppk",
         // Should the private key be encrypted
         "passphrase": "CorrectHorseBatteryStaple",
         // Same as with the password, we can let it prompt us
