@@ -3,7 +3,9 @@
 
 ![Logo](./resources/Logo.png)
 
-**| [GitHub](https://github.com/SchoofsKelvin/vscode-sshfs) | [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs) |**
+[![GitHub package version](https://img.shields.io/github/last-commit/SchoofsKelvin/vscode-sshfs.svg)](https://github.com/SchoofsKelvin/vscode-sshfs) 
+[![Visual Studio Marketplace](https://img.shields.io/vscode-marketplace/d/Kelvin.vscode-sshfs.svg)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
+ [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RLYCWPYEC5WZL)
 
 
 This extension makes use of the new FileSystemProvider, added in version 1.23.0 of Visual Studio Code. It allows "mounting" a remote folder over SSH as a local Workspace folder.
