@@ -3,9 +3,10 @@ import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
-import { createSocket, createSSH } from './connect';
+import { createSocket, createSSH, getSFTP } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
@@ -31,6 +32,7 @@ export interface FileSystemConfig extends ConnectConfig {
   proxy?: ProxyConfig;
   privateKeyPath?: string;
   hop?: string;
+  sftpCommand?: string;
 }
 
 export enum ConfigStatus {
@@ -194,35 +196,29 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         }
         root = root.replace(/^~/, home.replace(/\/$/, ''));
       }
-      client.sftp(async (err, sftp) => {
-        if (err) {
-          client.end();
-          return reject(err);
+      const sftp = await getSFTP(client, config);
+      const fs = new SSHFileSystem(name, sftp, root, config!);
+      try {
+        const rootUri = vscode.Uri.parse(`ssh://${name}/`);
+        const stat = await fs.stat(rootUri);
+        // tslint:disable-next-line:no-bitwise
+        if (!(stat.type & vscode.FileType.Directory)) {
+          throw vscode.FileSystemError.FileNotADirectory(rootUri);
         }
-        sftp.once('end', () => client.end());
-        const fs = new SSHFileSystem(name, sftp, root, config!);
-        try {
-          const rootUri = vscode.Uri.parse(`ssh://${name}/`);
-          const stat = await fs.stat(rootUri);
-          // tslint:disable-next-line:no-bitwise
-          if (!(stat.type & vscode.FileType.Directory)) {
-            throw vscode.FileSystemError.FileNotADirectory(rootUri);
-          }
-        } catch (e) {
-          let message = `Couldn't read the root directory '${fs.root}' on the server for SSH FS '${name}'`;
-          if (e instanceof vscode.FileSystemError) {
-            message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
-          }
-          await vscode.window.showErrorMessage(message, 'Okay');
-          return reject();
+      } catch (e) {
+        let message = `Couldn't read the root directory '${fs.root}' on the server for SSH FS '${name}'`;
+        if (e instanceof vscode.FileSystemError) {
+          message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
         }
-        this.fileSystems.push(fs);
-        delete this.creatingFileSystems[name];
-        vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-        this.onDidChangeTreeDataEmitter.fire();
-        client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
-        return resolve(fs);
-      });
+        await vscode.window.showErrorMessage(message, 'Okay');
+        return reject();
+      }
+      this.fileSystems.push(fs);
+      delete this.creatingFileSystems[name];
+      vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+      this.onDidChangeTreeDataEmitter.fire();
+      client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
+      return resolve(fs);
     }).catch((e) => {
       this.onDidChangeTreeDataEmitter.fire();
       if (!e) {

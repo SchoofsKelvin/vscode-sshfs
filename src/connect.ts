@@ -1,12 +1,17 @@
 import { readFile } from 'fs';
 import { Socket } from 'net';
-import { Client, ConnectConfig } from 'ssh2';
+import { Client, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
+import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { loadConfigs, openConfigurationEditor } from './config';
 import { FileSystemConfig } from './manager';
 import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
 import { toPromise } from './toPromise';
+
+// tslint:disable-next-line:variable-name
+const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
+type SFTPWrapper = SFTPWrapperReal;
 
 function replaceVariables(string?: string) {
   if (typeof string !== 'string') return string;
@@ -169,5 +174,35 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     } catch (e) {
       reject(e);
     }
+  });
+}
+
+export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
+  return new Promise((resolve, reject) => {
+    if (!config.sftpCommand) {
+      return client.sftp((err, sftp) => {
+        if (err) {
+          client.end();
+          reject(err);
+        }
+        resolve(sftp);
+      });
+    }
+    client.exec(config.sftpCommand, (err, channel) => {
+      if (err) {
+        client.end();
+        return reject(err);
+      }
+      channel.once('close', () => (client.end(), reject()));
+      channel.once('error', () => (client.end(), reject()));
+      try {
+        const sftps = new SFTPStream();
+        channel.pipe(sftps).pipe(channel);
+        const sftp = new SFTPWrapper(sftps);
+        resolve(sftp);
+      } catch (e) {
+        reject(e);
+      }
+    });
   });
 }
