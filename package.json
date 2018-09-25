@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.9.2",
+    "version": "1.9.3",
     "engines": {
         "vscode": "^1.23.0"
     },
