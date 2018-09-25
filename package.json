@@ -254,14 +254,7 @@
                                     "$ref": "#/properties/sshfs.configs/definitions/authentication-types/agent"
                                 },
                                 {
-                                    "oneOf": [
-                                        {
-                                            "$ref": "#/properties/sshfs.configs/definitions/authentication-types/key"
-                                        },
-                                        {
-                                            "$ref": "#/properties/sshfs.configs/definitions/authentication-types/key-path"
-                                        }
-                                    ]
+                                    "$ref": "#/properties/sshfs.configs/definitions/authentication-types/key"
                                 }
                             ]
                         },
@@ -294,26 +287,20 @@
                                     "privateKey": {
                                         "$ref": "#/properties/sshfs.configs/definitions/fields/privateKey"
                                     },
-                                    "passphrase": {
-                                        "$ref": "#/properties/sshfs.configs/definitions/fields/passphrase"
-                                    }
-                                }
-                            },
-                            "key-path": {
-                                "type": "object",
-                                "required": [
-                                    "username",
-                                    "privateKeyPath"
-                                ],
-                                "properties": {
-                                    "username": {
-                                        "$ref": "#/properties/sshfs.configs/definitions/fields/username"
-                                    },
                                     "privateKeyPath": {
                                         "$ref": "#/properties/sshfs.configs/definitions/fields/privateKeyPath"
                                     },
                                     "passphrase": {
                                         "$ref": "#/properties/sshfs.configs/definitions/fields/passphrase"
+                                    }
+                                },
+                                "dependencies": {
+                                    "privateKey": {
+                                        "not": {
+                                            "required": [
+                                                "privateKeyPath"
+                                            ]
+                                        }
                                     }
                                 }
                             },
@@ -380,17 +367,19 @@
                                         ]
                                     },
                                     {
-                                        "allOf": [
+                                        "anyOf": [
                                             {
-                                                "$ref": "#/properties/sshfs.configs/definitions/server-identification/putty"
-                                            },
-                                            {
-                                                "anyOf": [
+                                                "allOf": [
                                                     {
                                                         "$ref": "#/properties/sshfs.configs/definitions/authentication"
                                                     },
-                                                    {}
+                                                    {
+                                                        "$ref": "#/properties/sshfs.configs/definitions/server-identification/putty"
+                                                    }
                                                 ]
+                                            },
+                                            {
+                                                "$ref": "#/properties/sshfs.configs/definitions/server-identification/putty"
                                             }
                                         ]
                                     }
