@@ -3,10 +3,9 @@ import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ClientChannel, ConnectConfig } from 'ssh2';
-import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
-import { createSocket, createSSH, getSFTP } from './connect';
+import { createSSH, getSFTP } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
@@ -15,7 +14,6 @@ async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);
   if (fs) return fs;
   return man.createFileSystem(uri.authority);
-  // throw new Error(`A SSH filesystem with the name '${uri.authority}' doesn't exists`);
 }
 
 export interface ProxyConfig {
@@ -126,7 +124,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   protected configFileSystem = createConfigFs(this);
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string>();
-  // private memento: vscode.Memento = this.context.globalState;
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
@@ -178,7 +175,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (existing) return existing;
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
-    // config = config || this.memento.get(`fs.config.${name}`);
     config = config || loadConfigs().find(c => c.name === name);
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
@@ -261,6 +257,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   /* FileSystemProvider */
   public watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
+    // TODO: Store watched files/directories in an array and periodically check if they're modified
     /*let disp = () => {};
     assertFs(this, uri).then((fs) => {
       disp = fs.watch(uri, options).dispose.bind(fs);

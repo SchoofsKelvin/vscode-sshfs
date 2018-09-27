@@ -1,5 +1,5 @@
 
-import { Duplex, Stream, Writable } from 'stream';
+import { Duplex, Writable } from 'stream';
 
 export class MemoryDuplex extends Duplex {
   protected buffer = new Buffer(this.size);

@@ -1,11 +1,7 @@
 
-import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { invalidConfigName, loadConfigs } from './config';
-import { MemFs } from './fileSystemProvider';
 import { Manager } from './manager';
-
-const workspace = vscode.workspace;
 
 async function pickConfig(manager: Manager, activeOrNot?: boolean) {
   let names = manager.getActive();

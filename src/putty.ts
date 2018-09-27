@@ -1,6 +1,5 @@
 
 import * as Winreg from 'winreg';
-
 import { toPromise } from './toPromise';
 
 const winreg = new Winreg({
