@@ -5,7 +5,7 @@
     "publisher": "Kelvin",
     "version": "1.9.3",
     "engines": {
-        "vscode": "^1.23.0"
+        "vscode": "^1.26.0"
     },
     "categories": [
         "Other"
