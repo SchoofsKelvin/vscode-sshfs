@@ -427,7 +427,7 @@
         "@types/ssh2": "^0.5.35",
         "@types/winreg": "^1.2.30",
         "typescript": "^2.5.2",
-        "vscode": "^1.1.17"
+        "vscode": "^1.1.21"
     },
     "dependencies": {
         "jsonc-parser": "^2.0.0",
