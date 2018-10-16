@@ -71,6 +71,11 @@
                 "command": "sshfs.delete",
                 "title": "Delete configuration",
                 "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.connectTerminal",
+                "title": "Connect SSH Terminal",
+                "category": "SSH FS"
             }
         ],
         "menus": {
@@ -98,6 +103,10 @@
                 {
                     "command": "sshfs.delete",
                     "group": "SSH FS@6"
+                },
+                {
+                    "command": "sshfs.connectTerminal",
+                    "group": "SSH FS@7"
                 }
             ],
             "view/item/context": [
@@ -129,6 +138,11 @@
                     "command": "sshfs.delete",
                     "when": "view == 'sshfs-configs' && viewItem",
                     "group": "SSH FS@4"
+                },
+                {
+                    "command": "sshfs.connectTerminal",
+                    "when": "view == 'sshfs-configs' && viewItem",
+                    "group": "SSH FS@5"
                 }
             ]
         },

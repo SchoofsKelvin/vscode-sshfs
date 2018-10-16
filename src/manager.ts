@@ -9,6 +9,7 @@ import { createSSH, getSFTP } from './connect';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
+import { openTerminal } from './connectTerminal';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);
@@ -336,6 +337,9 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public commandDelete(name: string) {
     this.commandDisconnect(name);
     updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
+  }
+  public commandConnectTerminal(name: string) {
+    openTerminal(name);
   }
 }
 
