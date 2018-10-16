@@ -18,6 +18,7 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 * Easily create configurations that reference a PuTTY session/configuration
 * Have multiple SSH (and regular) workspace folders at once
 * Make use of SOCKS 4/5 proxies and connection hopping
+* Easily open a SSH Terminal on VSCode
 
 ## Note
 There is a [bug in VSCode 1.23.0](https://github.com/Microsoft/vscode/issues/49258) related to configurations. This results in configurations that get added/removed to/from the global settings not showing up/disappearing until reload.
