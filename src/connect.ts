@@ -41,6 +41,9 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
     if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
     config.username = config.username || session.username;
+    if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
+      config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
+    }
     config.host = config.host || session.hostname;
     config.port = session.portnumber || config.port;
     config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
