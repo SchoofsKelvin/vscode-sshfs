@@ -106,17 +106,19 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Promise<void> {
     return new Promise(async (resolve, reject) => {
-      let mode: number | undefined;
+      let mode: number | string | undefined;
       try {
         const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
         mode = stat.mode;
       } catch (e) {
-        if (e.message !== 'No such file') {
+        if (e.message === 'No such file') {
+          mode = this.config.newFileMode;
+        } else {
           console.log(e);
           vscode.window.showWarningMessage(`Couldn't read the permissions for '${this.relative(uri.path)}', permissions might be overwritten`);
         }
       }
-      const array = new Buffer(0);
+      mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this
       const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode, flags: 'w' });
       stream.on('error', reject);
       stream.end(content, resolve);

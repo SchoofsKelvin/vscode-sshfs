@@ -31,6 +31,7 @@ export interface FileSystemConfig extends ConnectConfig {
   privateKeyPath?: string;
   hop?: string;
   sftpCommand?: string;
+  newFileMode?: number | string;
 }
 
 export enum ConfigStatus {
