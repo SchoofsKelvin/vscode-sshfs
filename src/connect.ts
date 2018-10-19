@@ -13,6 +13,11 @@ import { toPromise } from './toPromise';
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
 type SFTPWrapper = SFTPWrapperReal;
 
+const DEFAULT_CONFIG: ConnectConfig = {
+  tryKeyboard: true,
+  keepaliveInterval: 30e3,
+}
+
 function replaceVariables(string?: string) {
   if (typeof string !== 'string') return string;
   return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
@@ -176,7 +181,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       reject(error);
     });
     try {
-      client.connect(Object.assign<ConnectConfig, ConnectConfig>(config, { sock, tryKeyboard: true }));
+      client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock }, DEFAULT_CONFIG));
     } catch (e) {
       reject(e);
     }
