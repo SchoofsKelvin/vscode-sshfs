@@ -17,7 +17,7 @@ async function assertFs(man: Manager, uri: vscode.Uri) {
 }
 
 export interface ProxyConfig {
-  type: 'socks4' | 'socks5';
+  type: 'socks4' | 'socks5' | 'http';
   host: string;
   port: number;
 }

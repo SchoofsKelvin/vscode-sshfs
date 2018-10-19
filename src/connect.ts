@@ -54,13 +54,14 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
         break;
       case 1:
       case 2:
-        if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 but 'proxyhost' is missing`);
+      case 3:
+        if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 or HTTP but 'proxyhost' is missing`);
         config.proxy = {
           host: session.proxyhost,
           port: session.proxyport,
-          type: session.proxymethod === 1 ? 'socks4' : 'socks5',
+          type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
         };
-        break;
+      break;
       default:
         throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
     }
@@ -135,6 +136,8 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
     case 'socks4':
     case 'socks5':
       return await proxy.socks(config);
+    case 'http':
+      return await proxy.http(config);
     default:
       throw new Error(`Unknown proxy method`);
   }
