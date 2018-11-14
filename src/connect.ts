@@ -16,7 +16,7 @@ type SFTPWrapper = SFTPWrapperReal;
 const DEFAULT_CONFIG: ConnectConfig = {
   tryKeyboard: true,
   keepaliveInterval: 30e3,
-}
+};
 
 function replaceVariables(string?: string) {
   if (typeof string !== 'string') return string;
@@ -69,7 +69,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
           port: session.proxyport,
           type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
         };
-      break;
+        break;
       default:
         throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
     }

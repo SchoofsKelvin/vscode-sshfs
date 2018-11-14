@@ -45,12 +45,12 @@ export function http(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
       reject(new Error(`Expected config.proxy.type' to be 'http'`));
     }
     try {
-      let req = request({
+      const req = request({
         port: config.proxy!.port,
         hostname: config.proxy!.host,
         method: 'CONNECT',
-        path: `${config.host}:${config.port}`
-      })
+        path: `${config.host}:${config.port}`,
+      });
       req.end();
       req.on('connect', (res, socket) => {
         resolve(socket as NodeJS.ReadableStream);
