@@ -53,8 +53,8 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     config.port = session.portnumber || config.port;
     config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
     if (session.usernamefromenvironment) {
-      config.username = process.env.USERNAME;
-      if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME is missing`);
+      config.username = process.env.USERNAME || process.env.USER;
+      if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME or process.env.USER is missing`);
     }
     config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
     switch (session.proxymethod) {
