@@ -67,7 +67,7 @@ Add SSH FS configs to "sshfs.configs" in your User Settings:
 
         // Or a private key (raw key, OpenSSH format)
         // (can also be a public key for host-based authentication)
-        "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnN...",
+        "privateKey": "-----BEGIN RSA PRIVATE KEY-----\nb3BlbnN...",
         // It's a lot easier to use a path, though
         "privateKeyPath": "/root/.ssh/myPrivateKey",
         // Also supports PPK keys
