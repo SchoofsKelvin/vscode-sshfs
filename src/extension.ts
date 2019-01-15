@@ -9,7 +9,7 @@ async function pickConfig(manager: Manager, activeOrNot?: boolean) {
   if (activeOrNot === false) {
     names = others.filter(c => !names.find(cc => cc.name === c.name));
   } else if (activeOrNot === undefined) {
-    others.forEach(n => names.indexOf(n) === -1 && names.push(n));
+    names = others;
   }
   const options: vscode.QuickPickItem[] = names.map(config => ({
     label: config.label || config.username + '@' + config.host,
