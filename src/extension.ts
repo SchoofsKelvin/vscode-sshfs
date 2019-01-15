@@ -12,8 +12,9 @@ async function pickConfig(manager: Manager, activeOrNot?: boolean) {
     others.forEach(n => names.indexOf(n) === -1 && names.push(n));
   }
   const options: vscode.QuickPickItem[] = names.map(config => ({
-    label: config.label || config.name,
-    description: config.label && config.name,
+    label: config.label || config.username + '@' + config.host,
+    description: config.root,
+    detail: config.name
   }));
   const pick = await vscode.window.showQuickPick(options, { placeHolder: 'SSH FS Configuration' });
   return pick && pick.detail;
