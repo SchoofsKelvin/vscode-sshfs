@@ -3,9 +3,10 @@ import * as path from 'path';
 import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
+import * as split from 'binary-split';
 import { FileSystemConfig } from './manager';
 
-export class SSHFileSystem implements vscode.FileSystemProvider {
+export class SSHFileSystem implements vscode.FileSystemProvider, vscode.FileIndexProvider {
   public waitForContinue = false;
   public closed = false;
   public closing = false;
@@ -13,15 +14,19 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
 
-  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper,
-              public readonly root: string, public readonly config: FileSystemConfig) {
+  constructor(
+      public readonly authority: string,
+      protected ssh: ssh2.Client,
+      protected sftp: ssh2.SFTPWrapper,
+      public readonly root: string,
+      public readonly config: FileSystemConfig) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
-    this.sftp.on('end', () => this.closed = true);
+    this.ssh.on('end', () => this.closed = true);
   }
 
   public disconnect() {
     this.closing = true;
-    this.sftp.end();
+    this.ssh.end();
   }
 
   public relative(relPath: string) {
@@ -137,6 +142,39 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Promise<void> {
     return this.continuePromise(cb => this.sftp.rename(this.relative(oldUri.path), this.relative(newUri.path), cb));
+  }
+
+  public async provideFileIndex(options: vscode.FileSearchOptions, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
+    const name = this.config.label || this.config.name;
+    const command = `find ${this.relative(options.folder.path)} -print0`;
+    return new Promise<vscode.Uri[]>((resolve, reject) => {
+      const stream = this.ssh.exec(command, (err, stream) => {
+        if (err) return reject(err);
+        stream.stderr.on('data', (d) => {
+          console.log("Stderr from directory listing:", d.toString())
+        })
+        const uris: vscode.Uri[] = [];
+        stream.pipe(split("\x00")).on('data', (d) => {
+          const p = path.posix.relative(this.root, d.toString());
+          uris.push(vscode.Uri.parse(`ssh://${name}/${p}`))
+        });
+        stream.on('error', reject);
+        stream.on('close', (exitCode, signal) => {
+          if (exitCode || signal) {
+            return reject(new Error("error listing directory"));
+          }
+          resolve(uris);
+        });
+      });
+    });
+  }
+
+  public async provideTextSearchResults(
+    query: vscode.TextSearchQuery,
+    options: vscode.TextSearchOptions,
+    progress: vscode.Progress<vscode.TextSearchResult>, token: vscode.CancellationToken
+  ): Promise<void> {
+
   }
 }
 

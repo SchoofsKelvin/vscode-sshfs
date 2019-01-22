@@ -27,6 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     subscribe(vscode.commands.registerCommand(command, callback, thisArg));
 
   subscribe(vscode.workspace.registerFileSystemProvider('ssh', manager, { isCaseSensitive: true }));
+  subscribe(vscode.workspace.registerFileIndexProvider('ssh', manager));
 
   async function pickAndClick(func: (name: string) => void, name?: string, activeOrNot?: boolean) {
     name = name || await pickConfig(manager, activeOrNot);
