@@ -31,7 +31,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');
   if (port) config.port = Number(port);
-  config.agent = replaceVariables(config.agent);
+  config.agent = replaceVariables(config.agent) || process.env.SSH_AUTH_SOCK;
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
   if (config.putty) {
     let nameOnly = true;

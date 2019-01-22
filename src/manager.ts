@@ -117,7 +117,7 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
   return mat[1];
 }
 
-export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string> {
+export class Manager implements vscode.FileSystemProvider, vscode.FileIndexProvider, vscode.TreeDataProvider<string> {
   public onDidChangeTreeData: vscode.Event<string>;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected fileSystems: SSHFileSystem[] = [];
@@ -194,7 +194,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         root = root.replace(/^~/, home.replace(/\/$/, ''));
       }
       const sftp = await getSFTP(client, config);
-      const fs = new SSHFileSystem(name, sftp, root, config!);
+      const fs = new SSHFileSystem(name, client, sftp, root, config!);
       try {
         const rootUri = vscode.Uri.parse(`ssh://${name}/`);
         const stat = await fs.stat(rootUri);
@@ -288,6 +288,9 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     const fs = await assertFs(this, oldUri);
     if (fs !== (await assertFs(this, newUri))) throw new Error(`Can't copy between different SSH filesystems`);
     return fs.rename(oldUri, newUri, options);
+  }
+  public async provideFileIndex(options: vscode.FileSearchOptions, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
+    return (await assertFs(this, options.folder)).provideFileIndex(options, token);
   }
   /* TreeDataProvider */
   public getTreeItem(element: string): vscode.TreeItem | Thenable<vscode.TreeItem> {
