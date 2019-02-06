@@ -6,6 +6,11 @@ import * as Logging from './logging';
 import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
+async function resolveHostname(hostname: string): Promise<string[]> {
+  if (hostname === 'localhost') return ['127.0.0.1'];
+  return toPromise<string[]>(cb => dns.resolve(hostname, cb));
+}
+
 function validateConfig(config: FileSystemConfig) {
   if (!config.proxy) throw new Error(`Missing field 'config.proxy'`);
   if (!config.proxy.host) throw new Error(`Missing field 'config.proxy.host'`);
@@ -20,7 +25,7 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
     throw new Error(`Expected 'config.proxy.type' to be 'socks4' or 'socks5'`);
   }
   try {
-    const ipaddress = (await toPromise<string[]>(cb => dns.resolve(config.proxy!.host, cb)))[0];
+    const ipaddress = (await resolveHostname(config.proxy!.host))[0];
     if (!ipaddress) throw new Error(`Couldn't resolve '${config.proxy!.host}'`);
     Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${config.proxy!.type} proxy at ${ipaddress}:${config.proxy!.port}`);
     const con = await SocksClient.createConnection({
