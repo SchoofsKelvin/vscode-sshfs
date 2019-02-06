@@ -1,6 +1,7 @@
 
 import * as vscode from 'vscode';
 import { invalidConfigName, loadConfigs } from './config';
+import * as Logging from './logging';
 import { Manager } from './manager';
 
 async function pickConfig(manager: Manager, activeOrNot?: boolean) {
@@ -20,6 +21,8 @@ async function pickConfig(manager: Manager, activeOrNot?: boolean) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  Logging.info('Extension activated');
+
   const manager = new Manager(context);
 
   const subscribe = context.subscriptions.push.bind(context.subscriptions) as typeof context.subscriptions.push;

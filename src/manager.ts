@@ -6,6 +6,7 @@ import { Client, ClientChannel, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
 import { createSSH, getSFTP } from './connect';
+import * as Logging from './logging';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
@@ -195,6 +196,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       }
       const sftp = await getSFTP(client, config);
       const fs = new SSHFileSystem(name, sftp, root, config!);
+      Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);
       try {
         const rootUri = vscode.Uri.parse(`ssh://${name}/`);
         const stat = await fs.stat(rootUri);
@@ -207,6 +209,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         if (e instanceof vscode.FileSystemError) {
           message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
         }
+        Logging.error(message);
         await vscode.window.showErrorMessage(message, 'Okay');
         return reject();
       }
@@ -223,6 +226,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         this.commandDisconnect(name);
         throw e;
       }
+      Logging.error(`Error while connecting to SSH FS ${name}:\n${e.message}`);
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
@@ -276,17 +280,21 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return (await assertFs(this, uri)).createDirectory(uri);
   }
   public async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    Logging.debug(`Reading ${uri}`);
     return (await assertFs(this, uri)).readFile(uri);
   }
   public async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): Promise<void> {
+    Logging.debug(`Writing ${content.length} bytes to ${uri}`);
     return (await assertFs(this, uri)).writeFile(uri, content, options);
   }
   public async delete(uri: vscode.Uri, options: { recursive: boolean; }): Promise<void> {
+    Logging.debug(`Deleting ${uri}`);
     return (await assertFs(this, uri)).delete(uri, options);
   }
   public async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): Promise<void> {
+    Logging.debug(`Renaming ${oldUri} to ${newUri}`);
     const fs = await assertFs(this, oldUri);
-    if (fs !== (await assertFs(this, newUri))) throw new Error(`Can't copy between different SSH filesystems`);
+    if (fs !== (await assertFs(this, newUri))) throw new Error(`Can't rename between different SSH filesystems`);
     return fs.rename(oldUri, newUri, options);
   }
   /* TreeDataProvider */
@@ -302,6 +310,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandDisconnect(name: string) {
+    Logging.info(`Command received to disconnect ${name}`);
     const fs = this.fileSystems.find(f => f.authority === name);
     if (fs) {
       fs.disconnect();
@@ -313,6 +322,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.onDidChangeTreeDataEmitter.fire();
   }
   public commandReconnect(name: string) {
+    Logging.info(`Command received to reconnect ${name}`);
     const fs = this.fileSystems.find(f => f.authority === name);
     if (fs) {
       fs.disconnect();
@@ -321,6 +331,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.commandConnect(name);
   }
   public commandConnect(name: string) {
+    Logging.info(`Command received to connect ${name}`);
     if (this.getActive().find(fs => fs.name === name)) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
@@ -332,9 +343,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.onDidChangeTreeDataEmitter.fire();
   }
   public async commandConfigure(name: string) {
+    Logging.info(`Command received to configure ${name}`);
     openConfigurationEditor(name);
   }
   public commandDelete(name: string) {
+    Logging.info(`Command received to delete ${name}`);
     this.commandDisconnect(name);
     updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
   }

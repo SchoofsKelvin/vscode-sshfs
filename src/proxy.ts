@@ -2,6 +2,7 @@
 import * as dns from 'dns';
 import { request } from 'http';
 import { SocksClient } from 'socks';
+import * as Logging from './logging';
 import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
@@ -13,6 +14,7 @@ function validateConfig(config: FileSystemConfig) {
 }
 
 export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
+  Logging.info(`Creating socks proxy connection for ${config.name}`);
   validateConfig(config);
   if (config.proxy!.type !== 'socks4' && config.proxy!.type !== 'socks5') {
     throw new Error(`Expected 'config.proxy.type' to be 'socks4' or 'socks5'`);
@@ -20,6 +22,7 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
   try {
     const ipaddress = (await toPromise<string[]>(cb => dns.resolve(config.proxy!.host, cb)))[0];
     if (!ipaddress) throw new Error(`Couldn't resolve '${config.proxy!.host}'`);
+    Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${config.proxy!.type} proxy at ${ipaddress}:${config.proxy!.port}`);
     const con = await SocksClient.createConnection({
       command: 'connect',
       destination: {
@@ -39,12 +42,14 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
 }
 
 export function http(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
+  Logging.info(`Creating http proxy connection for ${config.name}`);
   validateConfig(config);
   return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
     if (config.proxy!.type !== 'http') {
       reject(new Error(`Expected config.proxy.type' to be 'http'`));
     }
     try {
+      Logging.debug(`\tConnecting to ${config.host}:${config.port} over http proxy at ${config.proxy!.host}:${config.proxy!.port}`);
       const req = request({
         port: config.proxy!.port,
         hostname: config.proxy!.host,

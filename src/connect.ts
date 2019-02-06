@@ -4,6 +4,7 @@ import { Client, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { loadConfigs, openConfigurationEditor } from './config';
+import * as Logging from './logging';
 import { FileSystemConfig } from './manager';
 import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
@@ -33,7 +34,11 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   if (port) config.port = Number(port);
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
+  Logging.info(`Calculating actual config for ${config.name}`);
   if (config.putty) {
+    if (process.platform !== 'win32') {
+      Logging.warning(`\tConfigurating uses putty, but platform is ${process.platform}`);
+    }
     let nameOnly = true;
     if (config.putty === true) {
       if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
@@ -73,11 +78,13 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       default:
         throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
     }
+    Logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
   }
   if (config.privateKeyPath) {
     try {
       const key = await toPromise<Buffer>(cb => readFile(config.privateKeyPath!, cb));
       config.privateKey = key;
+      Logging.debug(`\tRead private key from ${config.privateKeyPath}`);
     } catch (e) {
       throw new Error(`Error while reading the keyfile at:\n${config.privateKeyPath}`);
     }
@@ -116,20 +123,27 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     }
   }
   if (config.password) config.agent = undefined;
+  Logging.debug(`\tFinal configuration:\n${JSON.stringify(Logging.censorConfig(config), null, 4)}`);
   return config;
 }
 
 export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
+  Logging.info(`Creating socket for ${config.name}`);
   if (config.hop) {
+    Logging.debug(`\tHopping through ${config.hop}`);
     const hop = loadConfigs().find(c => c.name === config.hop);
     if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
     const ssh = await createSSH(hop);
-    if (!ssh) return null;
+    if (!ssh) {
+      Logging.debug(`\tFailed in connecting to hop ${config.hop} for ${config.name}`);
+      return null;
+    }
     return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
       ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
         if (err) {
+          Logging.debug(`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`);
           err.message = `Couldn't connect through the hop:\n${err.message}`;
           return reject(err);
         }
@@ -151,6 +165,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
       throw new Error(`Unknown proxy method`);
   }
   return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+    Logging.debug(`Connecting to ${config.host}:${config.port || 22}`);
     const socket = new Socket();
     socket.connect(config.port || 22, config.host, () => resolve(socket as NodeJS.ReadableStream));
     socket.once('error', reject);
@@ -167,6 +182,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     client.once('ready', () => resolve(client));
     client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${config.name}'`)));
     client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
+      Logging.debug(`Received keyboard-interactive request with prompts "${JSON.stringify(prompts)}"`);
       Promise.all<string>(prompts.map(prompt =>
         vscode.window.showInputBox({
           password: true, // prompt.echo was false for me while testing password prompting
@@ -179,9 +195,11 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       if (error.description) {
         error.message = `${error.description}\n${error.message}`;
       }
+      Logging.error(`[${config.name}] ${error.message || error}`);
       reject(error);
     });
     try {
+      Logging.info(`Creating SSH session for ${config.name} over the opened socket`);
       client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock }, DEFAULT_CONFIG));
     } catch (e) {
       reject(e);
@@ -192,6 +210,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
 export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
   return new Promise((resolve, reject) => {
     if (!config.sftpCommand) {
+      Logging.info(`Creating SFTP session using standard sftp subsystem`);
       return client.sftp((err, sftp) => {
         if (err) {
           client.end();
@@ -200,6 +219,7 @@ export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPW
         resolve(sftp);
       });
     }
+    Logging.info(`Creating SFTP session for ${config.name} using specified command: ${config.sftpCommand}`);
     client.exec(config.sftpCommand, (err, channel) => {
       if (err) {
         client.end();
@@ -208,6 +228,7 @@ export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPW
       channel.once('close', () => (client.end(), reject()));
       channel.once('error', () => (client.end(), reject()));
       try {
+        Logging.debug(`\tSFTP session created, wrapping resulting channel in SFTPWrapper`);
         const sftps = new SFTPStream();
         channel.pipe(sftps).pipe(channel);
         const sftp = new SFTPWrapper(sftps);

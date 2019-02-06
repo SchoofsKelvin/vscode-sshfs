@@ -1,5 +1,6 @@
 
 import * as vscode from 'vscode';
+import * as Logging from './logging';
 import { FileSystemConfig } from './manager';
 
 export const skippedConfigNames: string[] = [];
@@ -23,22 +24,26 @@ export function loadConfigs() {
   configs = configs.filter((c, i) => configs.findIndex(c2 => c2.name === c.name) === i);
   for (const index in configs) {
     if (!configs[index].name) {
+      Logging.error(`Skipped an invalid SSH FS config (missing a name field):\n${JSON.stringify(configs[index], undefined, 4)}`);
       vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
     } else if (invalidConfigName(configs[index].name)) {
       const conf = configs[index];
       if (skippedConfigNames.indexOf(conf.name) !== -1) continue;
+      Logging.error(`Found a SSH FS config with the invalid name "${conf.name}", prompting user how to handle`);
       vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, 'Rename', 'Delete', 'Skip').then(async (answer) => {
         if (answer === 'Rename') {
           const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: invalidConfigName, placeHolder: 'New name' });
           if (name) {
+            Logging.info(`Renaming config "${conf.name}" to "${name}"`);
             conf.name = name;
             return updateConfig(conf.name, conf);
           }
-          vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
         } else if (answer === 'Delete') {
           return updateConfig(conf.name);
         }
         skippedConfigNames.push(conf.name);
+        Logging.warning(`Skipped SSH FS config '${conf.name}'`);
+        vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
       });
     }
   }
@@ -71,6 +76,7 @@ export async function updateConfig(name: string, config?: FileSystemConfig) {
   const loc = getConfigLocation(name);
   const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][loc];
   await conf.update('configs', patch(array || []), loc || vscode.ConfigurationTarget.Global);
+  Logging.debug(`Updated config "${name}"`);
   return loc;
 }
 
