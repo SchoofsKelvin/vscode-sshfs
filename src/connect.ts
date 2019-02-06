@@ -86,7 +86,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     config.username = await vscode.window.showInputBox({
       ignoreFocusOut: true,
       placeHolder: 'Username',
-      prompt: 'Username to log in with',
+      prompt: `Username for ${config.name}`,
     });
   }
   if ((config.password as any) === true) {
@@ -94,7 +94,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       password: true,
       ignoreFocusOut: true,
       placeHolder: 'Password',
-      prompt: 'Password for the provided username',
+      prompt: `Password for ${config.username}@${config.name}`,
     });
   }
   if (config.password) config.agent = undefined;
@@ -104,10 +104,11 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
         password: true,
         ignoreFocusOut: true,
         placeHolder: 'Passphrase',
-        prompt: 'Passphrase for the provided export/private key',
+        prompt: `Passphrase for provided export/private key for ${config.username}@${config.name}`,
       });
     } else {
-      const answer = await vscode.window.showWarningMessage(`The field 'passphrase' was set to true, but no key was provided`, 'Configure', 'Ignore');
+      const answer = await vscode.window.showWarningMessage(
+        `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, 'Configure', 'Ignore');
       if (answer === 'Configure') {
         openConfigurationEditor(config.name);
         return null;
