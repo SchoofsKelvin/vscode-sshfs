@@ -432,7 +432,7 @@
     "dependencies": {
         "jsonc-parser": "^2.0.0",
         "socks": "^2.2.0",
-        "ssh2": "^0.6.0",
+        "ssh2": "^0.8.2",
         "winreg": "^1.2.4"
     }
 }
