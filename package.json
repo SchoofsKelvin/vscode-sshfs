@@ -82,7 +82,8 @@
             "commandPalette": [
                 {
                     "command": "sshfs.new",
-                    "group": "SSH FS@1"
+                    "group": "SSH FS@1",
+                    "when": "view == 'DISABLED'"
                 },
                 {
                     "command": "sshfs.connect",
@@ -98,17 +99,19 @@
                 },
                 {
                     "command": "sshfs.configure",
-                    "group": "SSH FS@5"
+                    "group": "SSH FS@5",
+                    "when": "view == 'DISABLED'"
                 },
                 {
                     "command": "sshfs.delete",
-                    "group": "SSH FS@6"
+                    "group": "SSH FS@6",
+                    "when": "view == 'DISABLED'"
                 }
             ],
             "view/item/context": [
                 {
                     "command": "sshfs.new",
-                    "when": "view == 'sshfs-configs' && !viewItem"
+                    "when": "view == 'sshfs-configs' && !viewItem && view == 'DISABLED'"
                 },
                 {
                     "command": "sshfs.connect",
@@ -127,12 +130,12 @@
                 },
                 {
                     "command": "sshfs.configure",
-                    "when": "view == 'sshfs-configs' && viewItem",
+                    "when": "view == 'sshfs-configs' && viewItem && view == 'DISABLED'",
                     "group": "SSH FS@3"
                 },
                 {
                     "command": "sshfs.delete",
-                    "when": "view == 'sshfs-configs' && viewItem",
+                    "when": "view == 'sshfs-configs' && viewItem && view == 'DISABLED'",
                     "group": "SSH FS@4"
                 }
             ]
