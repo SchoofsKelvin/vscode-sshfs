@@ -3,7 +3,7 @@ import { Socket } from 'net';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { loadConfigs, openConfigurationEditor } from './config';
+import { getConfigs, openConfigurationEditor } from './config';
 import * as Logging from './logging';
 import { FileSystemConfig } from './manager';
 import * as proxy from './proxy';
@@ -134,8 +134,8 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   if (!config) return null;
   Logging.info(`[${config.name}] Creating socket`);
   if (config.hop) {
-    Logging.debug(`[${config.name}] \tHopping through ${config.hop}`);
-    const hop = loadConfigs().find(c => c.name === config.hop);
+    Logging.debug(`\tHopping through ${config.hop}`);
+    const hop = getConfigs().find(c => c.name === config.hop);
     if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
     const ssh = await createSSH(hop);
     if (!ssh) {

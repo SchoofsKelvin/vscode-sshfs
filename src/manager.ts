@@ -4,7 +4,7 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ClientChannel, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, loadConfigs, openConfigurationEditor, updateConfig } from './config';
+import { getConfig, getConfigs, loadConfigs, openConfigurationEditor, UPDATE_LISTENERS, updateConfig } from './config';
 import { createSSH, getSFTP } from './connect';
 import * as Logging from './logging';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
@@ -24,16 +24,30 @@ export interface ProxyConfig {
 }
 
 export interface FileSystemConfig extends ConnectConfig {
+  /* Name of the config. Can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@ */
   name: string;
+  /* Optional label to display in some UI places (e.g. popups) */
   label?: string;
+  /* Whether to merge this "lower" config (e.g. from folders) into higher configs (e.g. from global settings) */
+  merge?: boolean;
+  /* Path on the remote server where the root path in vscode should point to. Defaults to / */
   root?: string;
+  /* A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
   putty?: string | boolean;
+  /* Optional object defining a proxy to use */
   proxy?: ProxyConfig;
+  /* Optional path to a private keyfile to authenticate with */
   privateKeyPath?: string;
+  /* A name of another config to use as a hop */
   hop?: string;
+  /* A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem) */
   sftpCommand?: string;
+  /* Whether to use a sudo shell (and for which user) to run the sftpCommand in (sftpCommand defaults to /usr/lib/openssh/sftp-server if missing) */
   sftpSudo?: string | boolean;
+  /* The filemode to assign to created files */
   newFileMode?: number | string;
+  /* Internal property keeping track of where this config comes from (including merges) */
+  _locations: string[];
 }
 
 export enum ConfigStatus {
@@ -130,7 +144,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-    const folderAdded = async (folder) => {
+    const folderAdded = async (folder: vscode.WorkspaceFolder) => {
       if (folder.uri.scheme !== 'ssh') return;
       this.createFileSystem(folder.uri.authority);
     };
@@ -144,15 +158,16 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       });
       this.onDidChangeTreeDataEmitter.fire();
     });
-    vscode.workspace.onDidChangeConfiguration((e) => {
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
       // if (!e.affectsConfiguration('sshfs.configs')) return;
-      this.onDidChangeTreeDataEmitter.fire();
-      // TODO: Offer to reconnect everything
+      return loadConfigs();
     });
+    UPDATE_LISTENERS.push(() => this.fireConfigChanged());
     loadConfigs();
   }
   public fireConfigChanged(): void {
     this.onDidChangeTreeDataEmitter.fire();
+    // TODO: Offer to reconnect everything
   }
   public getStatus(name: string): ConfigStatus {
     const config = getConfig(name);
@@ -178,7 +193,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (existing) return existing;
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
-    config = config || loadConfigs().find(c => c.name === name);
+    config = config || (await loadConfigs()).find(c => c.name === name);
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
@@ -303,11 +318,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return createTreeItem(this, element);
   }
   public getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
-    const configs = loadConfigs().map(c => c.name);
+    const configs = getConfigs().map(c => c.name);
     this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
     const folders = vscode.workspace.workspaceFolders || [];
     folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
-    return configs;
+    return configs.filter((c,i) => configs.indexOf(c) === i);
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandDisconnect(name: string) {
