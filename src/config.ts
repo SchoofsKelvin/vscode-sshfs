@@ -3,8 +3,8 @@ import { readFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import { FileSystemConfig } from './manager';
 import { toPromise } from './toPromise';
 
 export const skippedConfigNames: string[] = [];

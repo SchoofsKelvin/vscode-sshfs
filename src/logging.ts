@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './manager';
+import { FileSystemConfig } from './fileSystemConfig';
 
 const outputChannel = vscode.window.createOutputChannel('ssh-fs');
 

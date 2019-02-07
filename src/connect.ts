@@ -4,8 +4,8 @@ import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } 
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfigs, openConfigurationEditor } from './config';
+import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import { FileSystemConfig } from './manager';
 import * as proxy from './proxy';
 import { getSession as getPuttySession } from './putty';
 import { toPromise } from './toPromise';

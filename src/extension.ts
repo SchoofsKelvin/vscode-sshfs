@@ -1,8 +1,9 @@
 
 import * as vscode from 'vscode';
 import { invalidConfigName, loadConfigs } from './config';
+import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import { FileSystemConfig, Manager } from './manager';
+import { Manager } from './manager';
 
 function generateDetail(config: FileSystemConfig): string | undefined {
   const { username, host, putty } = config;

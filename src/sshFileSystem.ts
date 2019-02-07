@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './manager';
+import { FileSystemConfig } from './fileSystemConfig';
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
   public waitForContinue = false;
