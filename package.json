@@ -71,6 +71,11 @@
                 "command": "sshfs.delete",
                 "title": "Delete configuration",
                 "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.reload",
+                "title": "Reload configurations",
+                "category": "SSH FS"
             }
         ],
         "menus": {
@@ -135,6 +140,12 @@
         "configuration": {
             "title": "SSH FS Configuration",
             "properties": {
+                "sshfs.configpaths": {
+                    "default": [],
+                    "description": "Location of JSON files to load configs from",
+                    "type": "array",
+                    "items": "string"
+                },
                 "sshfs.configs": {
                     "definitions": {
                         "fields": {
