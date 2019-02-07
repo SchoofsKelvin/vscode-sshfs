@@ -440,7 +440,7 @@
         "@types/node": "^7.0.43",
         "@types/ssh2": "^0.5.35",
         "@types/winreg": "^1.2.30",
-        "typescript": "^2.5.2",
+        "typescript": "^3.3.3",
         "vscode": "^1.1.21"
     },
     "dependencies": {
