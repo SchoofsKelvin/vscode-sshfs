@@ -2,9 +2,23 @@
 import * as vscode from 'vscode';
 import { invalidConfigName, loadConfigs, renameNameless } from './config';
 import * as Logging from './logging';
-import { Manager } from './manager';
+import { FileSystemConfig, Manager } from './manager';
 
-async function pickConfig(manager: Manager, activeOrNot?: boolean) {
+function generateDetail(config: FileSystemConfig): string | undefined {
+  const { username, host, putty } = config;
+  const port = config.port && config.port !== 22 ? `:${config.port}` : '';
+  if (putty) {
+    if (typeof putty === 'string') return `PuTTY session "${putty}"`;
+    return 'PuTTY session (deduced from config)';
+  } else if (!host) {
+    return undefined;
+  } else if (username) {
+    return `${username}@${host}${port}`;
+  }
+  return `${host}${port}`;
+}
+
+async function pickConfig(manager: Manager, activeOrNot?: boolean): Promise<string | undefined> {
   await renameNameless();
   let names = manager.getActive();
   const others = loadConfigs();
@@ -13,12 +27,14 @@ async function pickConfig(manager: Manager, activeOrNot?: boolean) {
   } else if (activeOrNot === undefined) {
     others.forEach(n => !names.find(c => c.name === n.name) && names.push(n));
   }
-  const options: vscode.QuickPickItem[] = names.map(config => ({
+  const options: (vscode.QuickPickItem & { name: string })[] = names.map(config => ({
+    name: config.name,
+    description: config.name,
     label: config.label || config.name,
-    description: config.label && config.name,
+    detail: generateDetail(config),
   }));
   const pick = await vscode.window.showQuickPick(options, { placeHolder: 'SSH FS Configuration' });
-  return pick && pick.detail;
+  return pick && pick.name;
 }
 
 export function activate(context: vscode.ExtensionContext) {
