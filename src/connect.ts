@@ -121,6 +121,9 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
         return null;
       }
     }
+  } else if ((config.passphrase as any) === false) {
+    // Issue with the ssh2 dependency apparently not liking false
+    delete config.passphrase;
   }
   Logging.debug(`[${config.name}] \tFinal configuration:\n${JSON.stringify(Logging.censorConfig(config), null, 4)}`);
   return config;
