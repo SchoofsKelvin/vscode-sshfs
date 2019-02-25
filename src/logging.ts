@@ -19,8 +19,8 @@ export function error(message: string) {
 export function censorConfig(config: FileSystemConfig): FileSystemConfig {
   return {
     ...config,
-    password: config.password ? '<censored>' : config.password,
-    passphrase: config.passphrase ? '<censored>' : config.passphrase,
+    password: typeof config.password === 'string' ? '<censored>' : config.password,
+    passphrase: typeof config.passphrase === 'string' ? '<censored>' : config.passphrase,
   };
 }
 
