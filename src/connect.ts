@@ -222,6 +222,7 @@ export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPW
     Logging.info(`Creating SFTP session for ${config.name} using specified command: ${config.sftpCommand}`);
     client.exec(config.sftpCommand, (err, channel) => {
       if (err) {
+        Logging.error(`Couldn't create SFTP session for ${config.name} using specified command: ${config.sftpCommand}\n${err}`);
         client.end();
         return reject(err);
       }
@@ -234,6 +235,7 @@ export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPW
         const sftp = new SFTPWrapper(sftps);
         resolve(sftp);
       } catch (e) {
+        Logging.error(`Couldn't wrap SFTP session for ${config.name} using specified command: ${config.sftpCommand}\n${err}`);
         reject(e);
       }
     });
