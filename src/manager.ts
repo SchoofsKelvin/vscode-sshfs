@@ -69,7 +69,7 @@ function createConfigFs(manager: Manager): SSHFileSystem {
         config = config || manager.getActive().find(c => c.name === name);
         activeButDeleted = true;
       }
-      let str;
+      let str: string;
       if (config) {
         str = JSON.stringify({ ...config, name: undefined }, undefined, 4);
         let prefix = `// If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)\n`;
@@ -78,12 +78,12 @@ function createConfigFs(manager: Manager): SSHFileSystem {
       } else {
         str = await toPromise<string>(cb => readFile(path.resolve(__dirname, '../resources/defaultConfig.jsonc'), 'utf-8', cb));
       }
-      return new Uint8Array(new Buffer(str));
+      return new Uint8Array(Buffer.from(str));
     },
     writeFile: async (uri: vscode.Uri, content: Uint8Array) => {
       const name = uri.path.substring(1, uri.path.length - 12);
       const errors: ParseError[] = [];
-      const config = parseJsonc(new Buffer(content).toString(), errors);
+      const config = parseJsonc(Buffer.from(content).toString(), errors);
       if (!config || errors.length) {
         vscode.window.showErrorMessage(`Couldn't parse this config as JSON`);
         return;

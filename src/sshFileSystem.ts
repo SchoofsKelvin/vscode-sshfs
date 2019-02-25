@@ -94,7 +94,6 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public readFile(uri: vscode.Uri): Uint8Array | Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      const array = new Buffer(0);
       const stream = this.sftp.createReadStream(this.relative(uri.path), { autoClose: true });
       const bufs = [];
       stream.on('data', bufs.push.bind(bufs));
