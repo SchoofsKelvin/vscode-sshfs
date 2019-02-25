@@ -19,7 +19,9 @@
         "onCommand:sshfs.reconnect",
         "onCommand:sshfs.disconnect",
         "onCommand:sshfs.configure",
-        "onCommand:sshfs.delete"
+        "onCommand:sshfs.delete",
+        "onCommand:sshfs.reload",
+        "onCommand:sshfs.settings"
     ],
     "main": "./out/extension.js",
     "author": {
@@ -76,6 +78,11 @@
                 "command": "sshfs.reload",
                 "title": "Reload configurations",
                 "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.settings",
+                "title": "Open settings and edit configurations",
+                "category": "SSH FS"
             }
         ],
         "menus": {
@@ -106,6 +113,14 @@
                     "command": "sshfs.delete",
                     "group": "SSH FS@6",
                     "when": "view == 'DISABLED'"
+                },
+                {
+                    "command": "sshfs.reload",
+                    "group": "SSH FS@7"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "group": "SSH FS@8"
                 }
             ],
             "view/item/context": [

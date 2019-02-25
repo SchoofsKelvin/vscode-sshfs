@@ -4,6 +4,7 @@ import { invalidConfigName, loadConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import { Manager } from './manager';
+import * as settings from './settings';
 
 function generateDetail(config: FileSystemConfig): string | undefined {
   const { username, host, putty } = config;
@@ -65,6 +66,8 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.delete', (name?: string) => pickAndClick(manager.commandDelete, name));
 
   registerCommand('sshfs.reload', loadConfigs);
+
+  registerCommand('sshfs.settings', () => settings.open(context.extensionPath));
 
   vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager });
 }
