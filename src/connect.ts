@@ -1,6 +1,6 @@
 import { readFile } from 'fs';
 import { Socket } from 'net';
-import { Client, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
+import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { loadConfigs, openConfigurationEditor } from './config';
@@ -122,7 +122,6 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       }
     }
   }
-  if (config.password) config.agent = undefined;
   Logging.debug(`\tFinal configuration:\n${JSON.stringify(Logging.censorConfig(config), null, 4)}`);
   return config;
 }
@@ -191,7 +190,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
         }),
       )).then(finish);
     });
-    client.once('error', (error) => {
+    client.once('error', (error: Error & { description?: string }) => {
       if (error.description) {
         error.message = `${error.description}\n${error.message}`;
       }
@@ -207,37 +206,105 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
   });
 }
 
-export function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
+function startSudo(shell: ClientChannel, config: FileSystemConfig, user: string | boolean = true): Promise<void> {
+  Logging.debug(`Turning shell into a sudo shell for ${typeof user === 'string' ? user : 'default sudo user'}`);
   return new Promise((resolve, reject) => {
-    if (!config.sftpCommand) {
-      Logging.info(`Creating SFTP session using standard sftp subsystem`);
-      return client.sftp((err, sftp) => {
-        if (err) {
-          client.end();
-          reject(err);
-        }
-        resolve(sftp);
-      });
+    function stdout(data: Buffer | string) {
+      data = data.toString();
+      if (data.trim() === 'SUDO OK') {
+        return cleanup(), resolve();
+      } else {
+        Logging.debug(`Unexpected STDOUT: ${data}`);
+      }
     }
-    Logging.info(`Creating SFTP session for ${config.name} using specified command: ${config.sftpCommand}`);
-    client.exec(config.sftpCommand, (err, channel) => {
-      if (err) {
-        Logging.error(`Couldn't create SFTP session for ${config.name} using specified command: ${config.sftpCommand}\n${err}`);
-        client.end();
-        return reject(err);
+    async function stderr(data: Buffer | string) {
+      data = data.toString();
+      if (data.match(/^\[sudo\]/)) {
+        const password = typeof config.password === 'string' ? config.password :
+          await vscode.window.showInputBox({
+            password: true,
+            ignoreFocusOut: true,
+            placeHolder: 'Password',
+            prompt: data.substr(7),
+          });
+        if (!password) return cleanup(), reject(new Error('No password given'));
+        return shell.write(`${password}\n`);
       }
-      channel.once('close', () => (client.end(), reject()));
-      channel.once('error', () => (client.end(), reject()));
-      try {
-        Logging.debug(`\tSFTP session created, wrapping resulting channel in SFTPWrapper`);
-        const sftps = new SFTPStream();
-        channel.pipe(sftps).pipe(channel);
-        const sftp = new SFTPWrapper(sftps);
-        resolve(sftp);
-      } catch (e) {
-        Logging.error(`Couldn't wrap SFTP session for ${config.name} using specified command: ${config.sftpCommand}\n${err}`);
-        reject(e);
-      }
-    });
+      return cleanup(), reject(new Error(`Sudo error: ${data}`));
+    }
+    function cleanup() {
+      shell.stdout.removeListener('data', stdout);
+      shell.stderr.removeListener('data', stderr);
+    }
+    shell.stdout.on('data', stdout);
+    shell.stderr.on('data', stderr);
+    const uFlag = typeof user === 'string' ? `-u ${user} ` : '';
+    shell.write(`sudo -S ${uFlag}bash -c "echo SUDO OK; cat | bash"\n`);
   });
+}
+
+function stripSudo(cmd: string) {
+  cmd = cmd.replace(/^sudo\s+/, '');
+  let res = cmd;
+  while (true) {
+    cmd = res.trim();
+    res = cmd.replace(/^\-\-\s+/, '');
+    if (res !== cmd) break;
+    res = cmd.replace(/^\-[AbEeKklnPSsVv]/, '');
+    if (res !== cmd) continue;
+    res = cmd.replace(/^\-[CHhprtUu]\s+\S+/, '');
+    if (res !== cmd) continue;
+    res = cmd.replace(/^\-\-(close\-from|group|host|role|type|other\-user|user)=\S+/, '');
+    if (res !== cmd) continue;
+    break;
+  }
+  return cmd;
+}
+
+export async function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
+  config = (await calculateActualConfig(config))!;
+  if (!config) throw new Error('Couldn\'t calculate the config');
+  if (config.sftpSudo && !config.sftpCommand) {
+    Logging.warning('sftpSudo is set without sftpCommand. Assuming /usr/lib/openssh/sftp-server');
+    config.sftpCommand = '/usr/lib/openssh/sftp-server';
+  }
+  if (!config.sftpCommand) {
+    Logging.info(`Creating SFTP session using standard sftp subsystem`);
+    return toPromise<SFTPWrapper>(cb => client.sftp(cb));
+  }
+  let cmd = config.sftpCommand;
+  Logging.info(`Creating SFTP session for ${config.name} using specified command: ${cmd}`);
+  const shell = await toPromise<ClientChannel>(cb => client.shell(false, cb));
+  // shell.stdout.on('data', (d: string | Buffer) => Logging.debug(`[${config.name}][SFTP-STDOUT] ${d}`));
+  // shell.stderr.on('data', (d: string | Buffer) => Logging.debug(`[${config.name}][SFTP-STDERR] ${d}`));
+  // Maybe the user hasn't specified `sftpSudo`, but did put `sudo` in `sftpCommand`
+  // I can't find a good way of differentiating welcome messages, SFTP traffic, sudo password prompts, ...
+  // so convert the `sftpCommand` to make use of `sftpSudo`, since that seems to work
+  if (cmd.match(/^sudo/)) {
+    // If the -u flag is given, use that too
+    const mat = cmd.match(/\-u\s+(\S+)/) || cmd.match(/\-\-user=(\S+)/);
+    config.sftpSudo = mat ? mat[1] : true;
+    // Now the tricky part of splitting the sudo and sftp command
+    config.sftpCommand = cmd = stripSudo(cmd);
+    Logging.warning(`Reformed sftpCommand due to sudo to: ${cmd}`);
+  }
+  // If the user wants sudo, we'll first convert this shell into a sudo shell
+  if (config.sftpSudo) await startSudo(shell, config, config.sftpSudo);
+  shell.write(`echo SFTP READY\n`);
+  // Wait until we see "SFTP READY" (skipping welcome messages etc)
+  await new Promise((ready, nvm) => {
+    const handler = (data: string | Buffer) => {
+      if (data.toString().trim() !== 'SFTP READY') return;
+      shell.stdout.removeListener('data', handler);
+      ready();
+    };
+    shell.stdout.on('data', handler);
+    shell.on('close', nvm);
+  });
+  // Start sftpCommand (e.g. /usr/lib/openssh/sftp-server) and wrap everything nicely
+  const sftps = new SFTPStream({ debug: config.debug });
+  shell.pipe(sftps).pipe(shell);
+  const sftp = new SFTPWrapper(sftps);
+  await toPromise(cb => shell.write(`${cmd}\n`, cb));
+  return sftp;
 }

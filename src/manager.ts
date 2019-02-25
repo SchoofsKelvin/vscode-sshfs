@@ -32,6 +32,7 @@ export interface FileSystemConfig extends ConnectConfig {
   privateKeyPath?: string;
   hop?: string;
   sftpCommand?: string;
+  sftpSudo?: string | boolean;
   newFileMode?: number | string;
 }
 
@@ -316,6 +317,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       fs.disconnect();
       this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
     }
+    delete this.creatingFileSystems[name];
     const folders = vscode.workspace.workspaceFolders!;
     const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
     if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);
@@ -328,6 +330,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       fs.disconnect();
       this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
     }
+    delete this.creatingFileSystems[name];
     this.commandConnect(name);
   }
   public commandConnect(name: string) {
