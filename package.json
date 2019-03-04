@@ -453,6 +453,7 @@
     },
     "devDependencies": {
         "@types/node": "^7.0.43",
+        "@types/request": "^2.48.1",
         "@types/ssh2": "^0.5.35",
         "@types/winreg": "^1.2.30",
         "typescript": "^3.3.3",
