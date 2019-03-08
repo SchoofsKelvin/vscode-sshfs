@@ -6,6 +6,8 @@ export interface ProxyConfig {
   port: number;
 }
 
+export type ConfigLocation = number | string;
+
 export interface FileSystemConfig extends ConnectConfig {
   /* Name of the config. Can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@ */
   name: string;
@@ -29,6 +31,14 @@ export interface FileSystemConfig extends ConnectConfig {
   sftpSudo?: string | boolean;
   /* The filemode to assign to created files */
   newFileMode?: number | string;
+  /* Internal property saying where this config comes from. Undefined if this config is merged or something */
+  _location?: ConfigLocation;
   /* Internal property keeping track of where this config comes from (including merges) */
-  _locations: string[];
+  _locations: ConfigLocation[];
+}
+
+export function invalidConfigName(name: string) {
+  if (!name) return 'Missing a name for this SSH FS';
+  if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
+  return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
 }

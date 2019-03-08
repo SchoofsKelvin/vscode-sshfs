@@ -64,7 +64,8 @@ function createConfigFs(manager: Manager): SSHFileSystem {
       return new Uint8Array(Buffer.from(str));
     },
     writeFile: async (uri: vscode.Uri, content: Uint8Array) => {
-      const name = uri.path.substring(1, uri.path.length - 12);
+      vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
+      /*const name = uri.path.substring(1, uri.path.length - 12);
       const errors: ParseError[] = [];
       const config = parseJsonc(Buffer.from(content).toString(), errors);
       if (!config || errors.length) {
@@ -85,6 +86,7 @@ function createConfigFs(manager: Manager): SSHFileSystem {
         throw new Error(`This isn't supposed to happen! Config location was '${loc}' somehow`);
       }
       dialog.then(response => response === 'Connect' && manager.commandReconnect(name));
+      */
     },
   } as any;
 }
@@ -150,11 +152,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     }
     return ConfigStatus.Idle;
   }
-  public async registerFileSystem(name: string, config?: FileSystemConfig) {
-    if (name === '<config>') return;
-    await updateConfig(name, config);
-    this.onDidChangeTreeDataEmitter.fire();
-  }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     if (name === '<config>') return this.configFileSystem;
     const existing = this.fileSystems.find(fs => fs.authority === name);
@@ -166,7 +163,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
-      this.registerFileSystem(name, { ...config });
       const client = await createSSH(config);
       if (!client) return reject(null);
       let root = config!.root || '/';
@@ -330,12 +326,14 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   public async commandConfigure(name: string) {
     Logging.info(`Command received to configure ${name}`);
-    openConfigurationEditor(name);
+    // openConfigurationEditor(name);
+    vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
   }
   public commandDelete(name: string) {
     Logging.info(`Command received to delete ${name}`);
     this.commandDisconnect(name);
-    updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
+    // updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
+    vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
   }
 }
 

@@ -25,8 +25,8 @@ function replaceVariables(string?: string) {
 }
 
 export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
-  config = { ...config };
   if ('_calculated' in config) return config;
+  config = { ...config };
   (config as any)._calculated = true;
   config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
@@ -169,7 +169,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
     Logging.debug(`[${config.name}] Connecting to ${config.host}:${config.port || 22}`);
     const socket = new Socket();
-    socket.connect(config.port || 22, config.host, () => resolve(socket as NodeJS.ReadableStream));
+    socket.connect(config.port || 22, config.host!, () => resolve(socket as NodeJS.ReadableStream));
     socket.once('error', reject);
   });
 }
@@ -193,7 +193,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
         }),
       )).then(finish);
     });
-    client.once('error', (error: Error & { description?: string }) => {
+    client.on('error', (error: Error & { description?: string }) => {
       if (error.description) {
         error.message = `${error.description}\n${error.message}`;
       }

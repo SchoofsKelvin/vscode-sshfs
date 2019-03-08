@@ -1,19 +1,11 @@
 
-import { readFile } from 'fs';
+import { readFile, writeFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './fileSystemConfig';
+import { ConfigLocation, FileSystemConfig, invalidConfigName } from './fileSystemConfig';
 import * as Logging from './logging';
 import { toPromise } from './toPromise';
-
-export const skippedConfigNames: string[] = [];
-
-export function invalidConfigName(name: string) {
-  if (!name) return 'Missing a name for this SSH FS';
-  if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
-  return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
-}
 
 function randomAvailableName(configs: FileSystemConfig[], index = 0): [string, number] {
   let name = index ? `unnamed${index}` : 'unnamed';
@@ -72,7 +64,7 @@ async function readConfigFile(location: string, shouldExist = false): Promise<Fi
     vscode.window.showErrorMessage(`Couldn't parse ${location} as a 'JSON with Comments' file`);
     return [];
   }
-  parsed.forEach(c => c._locations = [location]);
+  parsed.forEach(c => c._locations = [c._location = location]);
   Logging.debug(`Read ${parsed.length} configs from ${location}`);
   return parsed;
 }
@@ -94,8 +86,8 @@ export async function loadConfigs() {
     // Note: workspaceFolderValue not used here, we do it later for all workspace folders
     layered.workspace = inspect.workspaceValue || [];
     layered.global = inspect.globalValue || [];
-    layered.workspace.forEach(c => c._locations = ['Workspace']);
-    layered.global.forEach(c => c._locations = ['Global']);
+    layered.workspace.forEach(c => c._locations = [c._location = vscode.ConfigurationTarget.Workspace]);
+    layered.global.forEach(c => c._locations = [c._location = vscode.ConfigurationTarget.Global]);
     // Get all sshfs.configpaths values into an array
     const inspect2 = config.inspect<string[]>('configpaths')!;
     configpaths.workspace = inspect2.workspaceValue || [];
@@ -115,6 +107,8 @@ export async function loadConfigs() {
     ];
   }
   // Fetch configs from opened folders (workspaces)
+  // Should we really support workspace folders, and not just workspaces?
+  /*
   const { workspaceFolders } = vscode.workspace;
   if (workspaceFolders) {
     for (const { uri } of workspaceFolders) {
@@ -123,7 +117,7 @@ export async function loadConfigs() {
       const fConfigs = fConfig && fConfig.workspaceFolderValue || [];
       if (fConfigs.length) {
         Logging.debug(`Read ${fConfigs.length} configs from workspace folder ${uri}`);
-        fConfigs.forEach(c => c._locations = [`WorkspaceFolder ${uri}`]);
+        fConfigs.forEach(c => c._locations = [c._location = `WorkspaceFolder ${uri}`]);
       }
       layered.folder = [
         ...await readConfigFile(path.resolve(uri.fsPath, 'sshfs.json')),
@@ -132,10 +126,36 @@ export async function loadConfigs() {
         ...layered.folder,
       ];
     }
-  }
-  // Start merging and cleaning up all configs
-  const all = [...layered.folder, ...layered.workspace, ...layered.global];
+  }*/
+  // Store all configs in one array, in order of importance
+  let all = [...layered.folder, ...layered.workspace, ...layered.global];
   all.forEach(c => c.name = (c.name || '').toLowerCase()); // It being undefined shouldn't happen, but better be safe
+  // Let the user do some cleaning with the raw configs
+  for (const conf of all) {
+    if (!conf.name) {
+      Logging.error(`Skipped an invalid SSH FS config (missing a name field):\n${JSON.stringify(conf, undefined, 4)}`);
+      vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
+    } else if (invalidConfigName(conf.name)) {
+      Logging.warning(`Found a SSH FS config with the invalid name "${conf.name}", prompting user how to handle`);
+      vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, 'Rename', 'Delete', 'Skip').then(async (answer) => {
+        if (answer === 'Rename') {
+          const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: invalidConfigName, placeHolder: 'New name' });
+          if (name) {
+            const oldName = conf.name;
+            Logging.info(`Renaming config "${oldName}" to "${name}"`);
+            conf.name = name;
+            return updateConfig(conf, oldName);
+          }
+        } else if (answer === 'Delete') {
+          return deleteConfig(conf);
+        }
+        Logging.warning(`Skipped SSH FS config '${conf.name}'`);
+        vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
+      });
+    }
+  }
+  // After cleaning up, ignore the configurations that are still bad
+  all = all.filter(c => !invalidConfigName(c.name));
   // Remove duplicates, merging those where the more specific config has `merge` set
   // Folder comes before Workspace, comes before Global
   const configs: FileSystemConfig[] = [];
@@ -157,66 +177,76 @@ export async function loadConfigs() {
       configs.push(conf);
     }
   }
-  // Let the user do some cleaning
-  for (const conf of configs) {
-    if (!conf.name) {
-      Logging.error(`Skipped an invalid SSH FS config (missing a name field):\n${JSON.stringify(conf, undefined, 4)}`);
-      vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
-    } else if (invalidConfigName(conf.name)) {
-      if (skippedConfigNames.indexOf(conf.name) !== -1) continue;
-      Logging.warning(`Found a SSH FS config with the invalid name "${conf.name}", prompting user how to handle`);
-      vscode.window.showErrorMessage(`Invalid SSH FS config name: ${conf.name}`, 'Rename', 'Delete', 'Skip').then(async (answer) => {
-        if (answer === 'Rename') {
-          const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: invalidConfigName, placeHolder: 'New name' });
-          if (name) {
-            const oldName = conf.name;
-            Logging.info(`Renaming config "${oldName}" to "${name}"`);
-            conf.name = name;
-            return updateConfig(oldName, conf);
-          }
-        } else if (answer === 'Delete') {
-          return updateConfig(conf.name);
-        }
-        skippedConfigNames.push(conf.name);
-        Logging.warning(`Skipped SSH FS config '${conf.name}'`);
-        vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
-      });
-    }
-  }
-  loadedConfigs = configs.filter(c => !invalidConfigName(c.name));
+  loadedConfigs = configs;
   Logging.info(`Found ${loadedConfigs.length} configurations`);
   UPDATE_LISTENERS.forEach(listener => listener(loadedConfigs));
   return loadedConfigs;
 }
 
-export function getConfigLocation(name: string) {
-  const conf = vscode.workspace.getConfiguration('sshfs');
-  const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
-  const contains = (v?: FileSystemConfig[]) => v && v.find(c => c.name === name);
-  if (contains(inspect.workspaceFolderValue)) {
-    return vscode.ConfigurationTarget.WorkspaceFolder;
-  } else if (contains(inspect.workspaceValue)) {
-    return vscode.ConfigurationTarget.Workspace;
-  } else { // if (contains(inspect.globalValue)) {
-    return vscode.ConfigurationTarget.Global;
+export type ConfigAlterer = (configs: FileSystemConfig[]) => FileSystemConfig[] | null | false;
+export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlterer) {
+  switch (location) {
+    case vscode.ConfigurationTarget.Global:
+    case vscode.ConfigurationTarget.Workspace:
+    case vscode.ConfigurationTarget.WorkspaceFolder:
+      const conf = vscode.workspace.getConfiguration('sshfs');
+      const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
+      const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][location];
+      if (!array) throw new Error(`Something very unexpected happened...`);
+      const modified = alterer(array);
+      if (!modified) return;
+      await conf.update('configs', modified, location);
+      Logging.debug(`\tUpdated configs in ${[, 'Global', 'Workspace', 'WorkspaceFolder'][location]} settings.json`);
+      return;
   }
+  if (typeof location !== 'string') throw new Error(`Invalid _location field: ${location}`);
+  const configs = await readConfigFile(location, true);
+  const altered = alterer(configs);
+  if (!altered) return;
+  const data = JSON.stringify(altered, null, 4);
+  await toPromise(cb => writeFile(location, data, cb))
+    .catch((e: NodeJS.ErrnoException) => {
+      Logging.error(`Error while writing configs to ${location}: ${e.message}`);
+      throw e;
+    });
+  Logging.debug(`\tWritten modified configs to ${location}`);
 }
 
-export async function updateConfig(name: string, config?: FileSystemConfig) {
-  const conf = vscode.workspace.getConfiguration('sshfs');
-  const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
-  // const contains = (v?: FileSystemConfig[]) => v && v.find(c => c.name === name);
-  const patch = (v: FileSystemConfig[]) => {
-    const con = v.findIndex(c => c.name === name);
-    if (!config) return v.filter(c => !c.name || c.name.toLowerCase() !== name);
-    v[con === -1 ? v.length : con] = config;
-    return v;
-  };
-  const loc = getConfigLocation(name);
-  const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][loc];
-  await conf.update('configs', patch(array || []), loc || vscode.ConfigurationTarget.Global);
-  Logging.debug(`Updated config "${name}"`);
-  return loc;
+export async function updateConfig(config: FileSystemConfig, oldName = config.name) {
+  const { name, _location } = config;
+  if (!name) throw new Error(`The given config has no name field`);
+  if (!_location) throw new Error(`The given config has no _location field`);
+  Logging.info(`Saving config ${name} to ${_location}`);
+  if (oldName !== config.name) {
+    Logging.debug(`\tSaving ${name} will try to overwrite old config ${oldName}`);
+  }
+  await alterConfigs(_location, (configs) => {
+    Logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
+    const index = configs.findIndex(c => c.name === oldName);
+    if (index === -1) {
+      Logging.debug(`\tAdding the new config to the existing configs`);
+      configs.push(config);
+    } else {
+      Logging.debug(`\tOverwriting config '${configs[index].name}' at index ${index} with the new config`);
+      configs[index] = config;
+    }
+    return configs;
+  });
+}
+
+export async function deleteConfig(config: FileSystemConfig) {
+  const { name, _location } = config;
+  if (!name) throw new Error(`The given config has no name field`);
+  if (!_location) throw new Error(`The given config has no _location field`);
+  Logging.info(`Deleting config ${name} in ${_location}`);
+  await alterConfigs(_location, (configs) => {
+    Logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
+    const index = configs.findIndex(c => c.name === name);
+    if (index === -1) throw new Error(`Config '${name}' not found in ${_location}`);
+    Logging.debug(`\tDeleting config '${configs[index].name}' at index ${index}`);
+    configs.splice(index, 1);
+    return configs;
+  });
 }
 
 export function getConfig(name: string) {
