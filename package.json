@@ -19,7 +19,6 @@
         "onCommand:sshfs.reconnect",
         "onCommand:sshfs.disconnect",
         "onCommand:sshfs.configure",
-        "onCommand:sshfs.delete",
         "onCommand:sshfs.reload",
         "onCommand:sshfs.settings"
     ],
@@ -70,11 +69,6 @@
                 "category": "SSH FS"
             },
             {
-                "command": "sshfs.delete",
-                "title": "Delete configuration",
-                "category": "SSH FS"
-            },
-            {
                 "command": "sshfs.reload",
                 "title": "Reload configurations",
                 "category": "SSH FS"
@@ -110,17 +104,12 @@
                     "when": "view == 'DISABLED'"
                 },
                 {
-                    "command": "sshfs.delete",
-                    "group": "SSH FS@6",
-                    "when": "view == 'DISABLED'"
-                },
-                {
                     "command": "sshfs.reload",
-                    "group": "SSH FS@7"
+                    "group": "SSH FS@6"
                 },
                 {
                     "command": "sshfs.settings",
-                    "group": "SSH FS@8"
+                    "group": "SSH FS@7"
                 }
             ],
             "view/item/context": [
@@ -147,11 +136,6 @@
                     "command": "sshfs.configure",
                     "when": "view == 'sshfs-configs' && viewItem && view == 'DISABLED'",
                     "group": "SSH FS@3"
-                },
-                {
-                    "command": "sshfs.delete",
-                    "when": "view == 'sshfs-configs' && viewItem && view == 'DISABLED'",
-                    "group": "SSH FS@4"
                 }
             ]
         },

@@ -253,7 +253,3 @@ export function getConfig(name: string) {
   if (name === '<config>') return null;
   return getConfigs().find(c => c.name === name);
 }
-
-export function openConfigurationEditor(name: string) {
-  vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
-}

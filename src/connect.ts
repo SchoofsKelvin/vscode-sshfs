@@ -3,7 +3,7 @@ import { Socket } from 'net';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { getConfigs, openConfigurationEditor } from './config';
+import { getConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import * as proxy from './proxy';
@@ -115,11 +115,12 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       });
     } else {
       const answer = await vscode.window.showWarningMessage(
-        `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, 'Configure', 'Ignore');
-      if (answer === 'Configure') {
+        `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, /*'Configure',*/ 'Ignore');
+      /*if (answer === 'Configure') {
+        // TODO: Link up with new UI flow (can't directly access manager.openSettings() here)
         openConfigurationEditor(config.name);
         return null;
-      }
+      }*/
     }
   } else if ((config.passphrase as any) === false) {
     // Issue with the ssh2 dependency apparently not liking false

@@ -4,10 +4,11 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as path from 'path';
 import { Client, ClientChannel, ConnectConfig } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, getConfigs, loadConfigs, openConfigurationEditor, UPDATE_LISTENERS, updateConfig } from './config';
+import { getConfig, getConfigs, loadConfigs, UPDATE_LISTENERS, updateConfig } from './config';
 import { createSSH, getSFTP } from './connect';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
+import * as settings from './settings';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
@@ -39,58 +40,6 @@ function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
   };
 }
 
-function createConfigFs(manager: Manager): SSHFileSystem {
-  return {
-    ...EMPTY_FILE_SYSTEM,
-    authority: '<config>',
-    stat: (uri: vscode.Uri) => ({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 } as vscode.FileStat),
-    readFile: async (uri: vscode.Uri) => {
-      const name = uri.path.substring(1, uri.path.length - 12);
-      let config = getConfig(name);
-      let activeButDeleted = false;
-      if (!config) {
-        config = config || manager.getActive().find(c => c.name === name);
-        activeButDeleted = true;
-      }
-      let str: string;
-      if (config) {
-        str = JSON.stringify({ ...config, name: undefined }, undefined, 4);
-        let prefix = `// If you haven't already, associate .jsonc files with "JSON with Comments (jsonc)\n`;
-        if (activeButDeleted) prefix += '// This configuration is deleted, but still active!\n';
-        str = `${prefix}${str}`;
-      } else {
-        str = await toPromise<string>(cb => readFile(path.resolve(__dirname, '../resources/defaultConfig.jsonc'), 'utf-8', cb));
-      }
-      return new Uint8Array(Buffer.from(str));
-    },
-    writeFile: async (uri: vscode.Uri, content: Uint8Array) => {
-      vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
-      /*const name = uri.path.substring(1, uri.path.length - 12);
-      const errors: ParseError[] = [];
-      const config = parseJsonc(Buffer.from(content).toString(), errors);
-      if (!config || errors.length) {
-        vscode.window.showErrorMessage(`Couldn't parse this config as JSON`);
-        return;
-      }
-      config.name = name;
-      const loc = await updateConfig(name, config);
-      manager.fireConfigChanged();
-      let dialog: Thenable<string | undefined>;
-      if (loc === vscode.ConfigurationTarget.Global) {
-        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved globally`, 'Connect', 'Okay');
-      } else if (loc === vscode.ConfigurationTarget.Workspace) {
-        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for this workspace`, 'Connect', 'Okay');
-      } else if (loc === vscode.ConfigurationTarget.WorkspaceFolder) {
-        dialog = vscode.window.showInformationMessage(`Config for '${name}' saved for the current workspace folder`, 'Connect', 'Okay');
-      } else {
-        throw new Error(`This isn't supposed to happen! Config location was '${loc}' somehow`);
-      }
-      dialog.then(response => response === 'Connect' && manager.commandReconnect(name));
-      */
-    },
-  } as any;
-}
-
 async function tryGetHome(ssh: Client): Promise<string | null> {
   const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
   const stdout = new MemoryDuplex();
@@ -108,7 +57,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
-  protected configFileSystem = createConfigFs(this);
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string>();
   constructor(public readonly context: vscode.ExtensionContext) {
@@ -153,7 +101,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return ConfigStatus.Idle;
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
-    if (name === '<config>') return this.configFileSystem;
     const existing = this.fileSystems.find(fs => fs.authority === name);
     if (existing) return existing;
     let promise = this.creatingFileSystems[name];
@@ -286,7 +233,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
     const folders = vscode.workspace.workspaceFolders || [];
     folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
-    return configs.filter((c,i) => configs.indexOf(c) === i);
+    return configs.filter((c, i) => configs.indexOf(c) === i);
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandDisconnect(name: string) {
@@ -328,12 +275,13 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     Logging.info(`Command received to configure ${name}`);
     // openConfigurationEditor(name);
     vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
+    // TODO: Make this work with the following code:
+    // this.openSettings(name);
+    // Would open the Settings UI, list all locations the (potentially) merged config originates from,
+    // and allow the user to pick (and edit) one of them. Maybe have a back-to-the-list button?
   }
-  public commandDelete(name: string) {
-    Logging.info(`Command received to delete ${name}`);
-    this.commandDisconnect(name);
-    // updateConfig(name).then(() => this.onDidChangeTreeDataEmitter.fire());
-    vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
+  public openSettings() {
+    settings.open(this.context.extensionPath);
   }
 }
 

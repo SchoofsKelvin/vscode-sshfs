@@ -63,11 +63,10 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
   registerCommand('sshfs.reconnect', (name?: string) => pickAndClick(manager.commandReconnect, name, true));
   registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
-  registerCommand('sshfs.delete', (name?: string) => pickAndClick(manager.commandDelete, name));
 
   registerCommand('sshfs.reload', loadConfigs);
 
-  registerCommand('sshfs.settings', () => settings.open(context.extensionPath));
+  registerCommand('sshfs.settings', () => manager.openSettings());
 
   vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager });
 }
