@@ -209,12 +209,14 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
       const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
       const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][location];
       if (!array) throw new Error(`Something very unexpected happened...`);
-      const modified = alterer(array);
+      let modified = alterer(array);
       if (!modified) return;
-      modified.forEach((config) => {
+      modified = modified.map((config) => {
+        const newConfig = { ...config };
         for (const key in config) {
-          if (key[0] === '_') delete config[key];
+          if (key[0] === '_') delete newConfig[key];
         }
+        return newConfig;
       });
       await conf.update('configs', modified, location);
       Logging.debug(`\tUpdated configs in ${[, 'Global', 'Workspace', 'WorkspaceFolder'][location]} settings.json`);
@@ -222,12 +224,14 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
   }
   if (typeof location !== 'string') throw new Error(`Invalid _location field: ${location}`);
   const configs = await readConfigFile(location, true);
-  const altered = alterer(configs);
+  let altered = alterer(configs);
   if (!altered) return;
-  altered.forEach((config) => {
+  altered = altered.map((config) => {
+    const newConfig = { ...config };
     for (const key in config) {
-      if (key[0] === '_') delete config[key];
+      if (key[0] === '_') delete newConfig[key];
     }
+    return newConfig;
   });
   const data = JSON.stringify(altered, null, 4);
   await toPromise(cb => writeFile(location, data, cb))
@@ -236,6 +240,7 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
       throw e;
     });
   Logging.debug(`\tWritten modified configs to ${location}`);
+  await loadConfigs();
 }
 
 export async function updateConfig(config: FileSystemConfig, oldName = config.name) {

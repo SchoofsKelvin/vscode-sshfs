@@ -1,7 +1,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as request from 'request';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
@@ -9,7 +8,9 @@ import { Message } from './webviewMessages';
 
 let webviewPanel: vscode.WebviewPanel | undefined;
 
-const DEBUG: number | undefined = 3000;
+// Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging
+const DEBUG: number | undefined = process.execArgv.find(a => a.includes('--inspect')) ? 3000 : undefined;
+if (DEBUG) console.warn('[vscode-sshfs] Detected we are running in debug mode');
 
 export function open(extensionPath: string) {
   if (!webviewPanel) {
@@ -19,13 +20,18 @@ export function open(extensionPath: string) {
     if (DEBUG) {
       // webviewPanel.webview.html = `<html><head><script>document.location="http://localhost:${DEBUG}/"</script></head></html>`;
       const URL = `http://localhost:${DEBUG}/`;
-      request.get(URL, (err, res, body) => {
-        body = body.replace(/\/static\/js\/bundle\.js/, `http://localhost:${DEBUG}/static/js/bundle.js`);
-        webviewPanel!.webview.html = body; // `<html><head><title>Test</title></head><body>Testing</body></html>`;// body
-      });
+      import('request').then(request =>
+        request.get(URL, (err, res, body) => {
+          if (err) {
+            webviewPanel!.webview.html = `<html><body>Did you start the React build server? We're running in debug mode...</body></html>`;
+            return console.error(err);
+          }
+          body = body.replace(/\/static\/js\/bundle\.js/, `http://localhost:${DEBUG}/static/js/bundle.js`);
+          webviewPanel!.webview.html = body; // `<html><head><title>Test</title></head><body>Testing</body></html>`;// body
+        }));
     } else {
-      const content = fs.readFileSync(path.resolve(extensionPath, 'resources/settings.html')).toString();
-      webviewPanel.webview.html = content.replace(/\$ROOT/g, vscode.Uri.file(path.join(extensionPath, 'resources')).with({ scheme: 'vscode-resource' }).toString());
+      const content = fs.readFileSync(path.resolve(extensionPath, 'webview/build/index.html')).toString();
+      webviewPanel.webview.html = content.replace(/\/static\//g, vscode.Uri.file(path.join(extensionPath, 'webview/build/static/')).with({ scheme: 'vscode-resource' }).toString());
     }
   }
   webviewPanel.reveal();
