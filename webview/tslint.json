@@ -13,6 +13,7 @@
     "exclude": [
       "config/**/*.js",
       "node_modules/**/*.ts",
+      "react-dev-utils/*",
       "coverage/lcov-report/*.js"
     ]
   }

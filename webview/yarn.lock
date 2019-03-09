@@ -325,6 +325,7 @@ asn1.js@^4.0.0:
 asn1@~0.2.3:
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/asn1/-/asn1-0.2.4.tgz#8d2475dfab553bb33e77b54e59e880bb8ce23136"
+  integrity sha512-jxwzQpLQjSmWXgwaCZE9Nz+glAG01yF1QnWgbhGwHI5A6FRIEY6IVqtHhIepHqI7/kyEyQEagBC5mBEFlIYvdg==
   dependencies:
     safer-buffer "~2.1.0"
 
@@ -1073,6 +1074,7 @@ batch@0.6.1:
 bcrypt-pbkdf@^1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/bcrypt-pbkdf/-/bcrypt-pbkdf-1.0.2.tgz#a4301d389b6a43f9b67ff3ca11a3f6637e360e9e"
+  integrity sha1-pDAdOJtqQ/m2f/PKEaP2Y342Dp4=
   dependencies:
     tweetnacl "^0.14.3"
 
@@ -5745,9 +5747,8 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.7:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-dev-utils@^5.0.2:
+react-dev-utils@./react-dev-utils, react-dev-utils@^5.0.2:
   version "5.0.3"
-  resolved "https://registry.yarnpkg.com/react-dev-utils/-/react-dev-utils-5.0.3.tgz#92f97668f03deb09d7fa11ea288832a8c756e35e"
   dependencies:
     address "1.0.3"
     babel-code-frame "6.26.0"

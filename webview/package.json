@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "react": "^16.8.3",
+    "react-dev-utils": "./react-dev-utils",
     "react-dom": "^16.8.3",
     "react-redux": "^6.0.1",
     "react-scripts-ts": "3.1.0",
@@ -22,5 +23,8 @@
     "@types/react-dom": "^16.8.2",
     "@types/react-redux": "^7.0.1",
     "typescript": "^3.3.3333"
+  },
+  "resolutions": {
+    "react-dev-utils": "./react-dev-utils"
   }
 }
