@@ -69,7 +69,19 @@ async function readConfigFile(location: string, shouldExist = false): Promise<Fi
   return parsed;
 }
 
-export async function loadConfigs() {
+export function getConfigLocations(): ConfigLocation[] {
+  // Fetch configs from vscode settings
+  const config = vscode.workspace.getConfiguration('sshfs');
+  const configpaths = { workspace: [] as string[], global: [] as string[] };
+  if (config) {
+    const inspect2 = config.inspect<string[]>('configpaths')!;
+    configpaths.workspace = inspect2.workspaceValue || [];
+    configpaths.global = inspect2.globalValue || [];
+  }
+  return [...configpaths.workspace, ...configpaths.global];
+}
+
+export async function loadConfigsRaw(): Promise<FileSystemConfig[]> {
   Logging.info('Loading configurations...');
   await renameNameless();
   // Keep all found configs "ordened" by layer, for proper deduplication/merging
@@ -128,7 +140,7 @@ export async function loadConfigs() {
     }
   }*/
   // Store all configs in one array, in order of importance
-  let all = [...layered.folder, ...layered.workspace, ...layered.global];
+  const all = [...layered.folder, ...layered.workspace, ...layered.global];
   all.forEach(c => c.name = (c.name || '').toLowerCase()); // It being undefined shouldn't happen, but better be safe
   // Let the user do some cleaning with the raw configs
   for (const conf of all) {
@@ -155,7 +167,11 @@ export async function loadConfigs() {
     }
   }
   // After cleaning up, ignore the configurations that are still bad
-  all = all.filter(c => !invalidConfigName(c.name));
+  return all.filter(c => !invalidConfigName(c.name));
+}
+
+export async function loadConfigs(): Promise<FileSystemConfig[]> {
+  const all = await loadConfigsRaw();
   // Remove duplicates, merging those where the more specific config has `merge` set
   // Folder comes before Workspace, comes before Global
   const configs: FileSystemConfig[] = [];
@@ -195,6 +211,11 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
       if (!array) throw new Error(`Something very unexpected happened...`);
       const modified = alterer(array);
       if (!modified) return;
+      modified.forEach((config) => {
+        for (const key in config) {
+          if (key[0] === '_') delete config[key];
+        }
+      });
       await conf.update('configs', modified, location);
       Logging.debug(`\tUpdated configs in ${[, 'Global', 'Workspace', 'WorkspaceFolder'][location]} settings.json`);
       return;
@@ -203,6 +224,11 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
   const configs = await readConfigFile(location, true);
   const altered = alterer(configs);
   if (!altered) return;
+  altered.forEach((config) => {
+    for (const key in config) {
+      if (key[0] === '_') delete config[key];
+    }
+  });
   const data = JSON.stringify(altered, null, 4);
   await toPromise(cb => writeFile(location, data, cb))
     .catch((e: NodeJS.ErrnoException) => {
@@ -222,7 +248,7 @@ export async function updateConfig(config: FileSystemConfig, oldName = config.na
   }
   await alterConfigs(_location, (configs) => {
     Logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
-    const index = configs.findIndex(c => c.name === oldName);
+    const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === oldName.toLowerCase() : false);
     if (index === -1) {
       Logging.debug(`\tAdding the new config to the existing configs`);
       configs.push(config);
@@ -241,7 +267,7 @@ export async function deleteConfig(config: FileSystemConfig) {
   Logging.info(`Deleting config ${name} in ${_location}`);
   await alterConfigs(_location, (configs) => {
     Logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
-    const index = configs.findIndex(c => c.name === name);
+    const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === name.toLowerCase() : false);
     if (index === -1) throw new Error(`Config '${name}' not found in ${_location}`);
     Logging.debug(`\tDeleting config '${configs[index].name}' at index ${index}`);
     configs.splice(index, 1);

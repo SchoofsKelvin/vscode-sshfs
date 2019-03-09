@@ -8,12 +8,46 @@ export interface ProxyConfig {
 
 export type ConfigLocation = number | string;
 
+export function formatConfigLocation(location?: ConfigLocation): string {
+  if (!location) return 'Unknown location';
+  if (typeof location === 'number') {
+    return `${[, 'Global', 'Workspace', 'WorkspaceFolder'][location] || 'Unknown'} settings.json`;
+  }
+  return location;
+}
+
+export function getLocations(configs: FileSystemConfig[]): ConfigLocation[] {
+  const res: ConfigLocation[] = [1, 2, 3];
+  for (const { _location } of configs) {
+    if (!_location) continue;
+    if (!res.find(l => l === _location)) {
+      res.push(_location);
+    }
+  }
+  return res;
+}
+
+export function groupByLocation(configs: FileSystemConfig[]): [ConfigLocation, FileSystemConfig[]][] {
+  const res: [ConfigLocation, FileSystemConfig[]][] = [];
+  function getForLoc(loc: ConfigLocation = 'Unknown') {
+    let found = res.find(([l]) => l === loc);
+    if (found) return found;
+    found = [loc, []];
+    res.push(found);
+    return found;
+  }
+  for (const config of configs) {
+    getForLoc(config._location!)[1].push(config);
+  }
+  return res;
+}
+
 export interface FileSystemConfig extends ConnectConfig {
   /* Name of the config. Can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@ */
   name: string;
   /* Optional label to display in some UI places (e.g. popups) */
   label?: string;
-  /* Whether to merge this "lower" config (e.g. from folders) into higher configs (e.g. from global settings) */
+  /* Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings) */
   merge?: boolean;
   /* Path on the remote server where the root path in vscode should point to. Defaults to / */
   root?: string;
