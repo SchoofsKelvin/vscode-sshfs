@@ -3,7 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as request from 'request';
 import * as vscode from 'vscode';
-import { loadConfigs } from './config';
+import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
+import { getLocations } from './fileSystemConfig';
 import { Message } from './webviewMessages';
 
 let webviewPanel: vscode.WebviewPanel | undefined;
@@ -39,9 +40,44 @@ async function handleMessage(message: Message): Promise<any> {
   console.log('Got message:', message);
   switch (message.type) {
     case 'requestData': {
+      const configs = await loadConfigsRaw();
+      const locations = getLocations(configs);
       return postMessage({
+        configs, locations,
         type: 'responseData',
-        configs: await loadConfigs(),
+      });
+    }
+    case 'saveConfig': {
+      const { uniqueId, config, name, remove } = message;
+      let error: string | undefined;
+      try {
+        if (remove) {
+          await deleteConfig(config);
+        } else {
+          await updateConfig(config, name);
+        }
+      } catch (e) {
+        error = e.message;
+      }
+      return postMessage({
+        uniqueId, config, error,
+        type: 'saveConfigResult',
+      });
+    }
+    case 'promptPath': {
+      const { uniqueId } = message;
+      let uri: vscode.Uri | undefined;
+      let error: string | undefined;
+      try {
+        const uris = await vscode.window.showOpenDialog({});
+        if (uris) [uri] = uris;
+      } catch (e) {
+        error = e.message;
+      }
+      return postMessage({
+        uniqueId,
+        path: uri && uri.fsPath,
+        type: 'promptPathResult',
       });
     }
   }
