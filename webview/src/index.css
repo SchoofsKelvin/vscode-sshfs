@@ -7,6 +7,39 @@ body {
   font-family: sans-serif;
 }
 
-* {
-  color: var(--vscode-foreground);
+div.App {
+  max-width: 800px;
+  padding: 20px;
+}
+
+div.Window {
+  padding: 5px;
+  margin: 5px;
+}
+
+button {
+  background: var(--vscode-settings-dropdownBackground);
+  border: 1px var(--vscode-settings-dropdownBorder);
+  color: var(--vscode-settings-dropdownForeground);
+  font-weight: 200;
+  border-radius: 3px;
+  padding: 8px;
+  margin: 5px;
+  width: auto;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: inherit;
+}
+button:hover {
+  font-weight: 500;
+}
+button.confirm {
+  background-color: rgb(156, 14, 14);
+  color: rgb(255, 255, 255);
+}
+button.confirm {
+  background-color: rgb(14, 99, 156);
+  color: rgb(255, 255, 255);
 }

@@ -1,18 +1,19 @@
-import { FileSystemConfig } from 'src/types';
+import { ConfigLocation, FileSystemConfig } from 'src/types/fileSystemConfig';
 
 export enum ActionType {
-  RECEIVED_CONFIGS = 'RECEIVED_CONFIGS',
+  RECEIVED_DATA = 'RECEIVED_DATA',
 }
 
 interface IAction {
   type: ActionType;
 }
 
-export type Action = IActionReceivedConfigs
+export type Action = IActionReceivedConfigs;
 
 export interface IActionReceivedConfigs extends IAction {
   configs: FileSystemConfig[];
+  locations: ConfigLocation[];
 }
-export function receivedConfigs(configs: FileSystemConfig[]): IActionReceivedConfigs {
-  return { configs, type: ActionType.RECEIVED_CONFIGS };
+export function receivedData(configs: FileSystemConfig[], locations: ConfigLocation[]): IActionReceivedConfigs {
+  return { configs, locations, type: ActionType.RECEIVED_DATA };
 }

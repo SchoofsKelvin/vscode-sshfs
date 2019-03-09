@@ -1,0 +1,24 @@
+
+div.ConfigEditor {
+    padding: 5px;
+}
+
+div.ConfigEditor div.header {
+    display: flex;
+}
+div.ConfigEditor div.title {
+    margin: 6px;
+    height: 100%;
+}
+
+div.ConfigEditor h3 {
+    margin: 0;
+}
+div.ConfigEditor h4 {
+    margin: 0;
+    font-size: 85%;
+}
+
+div.ConfigEditor > div.divider {
+    margin-top: 20px;
+}

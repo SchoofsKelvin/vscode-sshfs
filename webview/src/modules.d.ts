@@ -1,7 +1,4 @@
 
-export * from '../../src/fileSystemConfig';
-export * from '../../src/webviewMessages';
-
 declare module '*.svg'
 declare module '*.png'
 declare module '*.jpg'

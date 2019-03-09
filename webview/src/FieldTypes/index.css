@@ -1,0 +1,134 @@
+
+div.Field {
+    padding: 20px 9px 3px 9px;
+}
+
+div.Field > div.label {
+    display: inline-block;
+    font-size: 110%;
+    font-weight: 600;
+}
+
+div.Field > div.optional {
+    display: inline-block;
+    padding-left: 10px;
+    opacity: 0.75;
+}
+
+div.Field > div.description {
+    margin-top: 3px;
+    color: rgba(204, 204, 204, 0.9);
+}
+div.Field > div.error {
+    color: var(--vscode-errorForeground);
+    margin: 5px 0 -5px 0;
+}
+
+div.Field > div.value {
+    margin-top: 9px;
+    min-width: 200px;
+    max-width: 500px;
+}
+
+div.Field input {
+    background-color: var(--vscode-settings-textInputBackground);
+    color: var(--vscode-settings-textInputForeground);
+    height: 100%;
+    width: 100%;
+    border: none;
+    padding: 3px;
+    box-sizing: border-box;
+}
+
+div.FieldDropdown {
+    background: var(--vscode-settings-dropdownBackground);
+    color: var(--vscode-settings-dropdownForeground);
+    position: relative;
+}
+
+div.FieldDropdown > ul.list {
+    background: var(--vscode-settings-dropdownBackground);
+    color: var(--vscode-settings-dropdownForeground);
+    border: 1px solid var(--vscode-settings-dropdownBorder);
+    z-index: 1000;
+    position: absolute;
+    width: 100%;
+    max-height: 750%;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+div.FieldDropdown > .current, div.FieldDropdown ul.list > li {
+    height: 1em;
+    padding: 5px;
+    list-style: none;
+}
+div.FieldDropdown ul.list > li {
+    border-top: 1px solid var(--vscode-settings-dropdownListBorder);
+}
+
+div.FieldDropdown > div.close {
+    width: 100%;
+    height: 100%;
+    position: static;
+    z-index: 999;
+    content: " ";
+}
+
+div.FieldDropdownWithInput {
+    position: relative;
+    background: none;
+    height: 1em;
+    padding: 5px;
+}
+div.FieldDropdownWithInput > input.current {
+    position: absolute;
+    background: var(--vscode-settings-textInputBackground);
+    color: var(--vscode-settings-textInputForeground);
+    padding: 5px;
+    box-sizing: border-box;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+div.FieldDropdownWithInput ul.list {
+    top: 100%;
+    left: 0;
+}
+div.FieldDropdownWithInput p.arrow {
+    z-index: 999;
+    top: 0;
+    position: absolute;
+    padding: 5px;
+    right: 0;
+    margin: 0;
+}
+
+div.FieldPath {
+    position: relative;
+    background: none;
+    height: 1em;
+    padding: 5px;
+}
+div.FieldPath > input {
+    position: absolute;
+    background: var(--vscode-settings-textInputBackground);
+    color: var(--vscode-settings-textInputForeground);
+    padding: 5px;
+    box-sizing: border-box;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+div.FieldPath > button {
+    z-index: 999;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    position: absolute;
+    padding: 5px;
+    margin: 0;
+    border-radius: 0;
+}

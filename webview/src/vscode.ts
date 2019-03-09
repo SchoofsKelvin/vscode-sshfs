@@ -1,6 +1,6 @@
 
-import { Message, MessageTypes } from './types';
-
+import { Message, MessageTypes, PromptPathResultMessage, SaveConfigResultMessage } from 'src/types/webviewMessages';
+import { ConfigLocation, FileSystemConfig } from './types/fileSystemConfig';
 
 interface VSCodeAPI {
   postMessage(msg: Message): void;
@@ -16,8 +16,8 @@ export type Filter = string | ((message: Message) => boolean);
 let LISTENERS: Array<[Listener, Filter | undefined]> = [];
 
 export function addListener(listener: Listener): void;
-export function addListener<T extends Message, K extends Message['type']>(listener: Listener<MessageTypes[K]>, filter: K): void;
-export function addListener<T extends Message = Message>(listener: Listener<T>, filter?: Filter): void;
+export function addListener<K extends Message['type']>(listener: Listener<MessageTypes[K]>, filter: K): void;
+export function addListener<T extends Message = Message>(listener: Listener<T>, filter: Exclude<Filter, string>): void;
 export function addListener(listener: Listener, filter?: Filter) {
   LISTENERS.push([listener, filter]);
 }
@@ -38,7 +38,64 @@ window.addEventListener('message', event => {
     try {
       listener(message);
     } catch (e) {
-      console.error(`Error in message handler:\n${e}\nMessage:${message}`);
+      console.error('Error in message handler', e, message);
     }
   }
 });
+
+export function createConfig(name: string, location: ConfigLocation): Promise<FileSystemConfig> {
+  return new Promise<FileSystemConfig>((resolve, reject) => {
+    const uniqueId = `${name}-${Date.now()};`
+    function handler(message: SaveConfigResultMessage) {
+      if (message.uniqueId !== uniqueId) return;
+      removeListener(handler);
+      if (message.error) return reject(message.error);
+      resolve(message.config);
+    }
+    addListener(handler, 'saveConfigResult');
+    const config: FileSystemConfig = { name, _location: location, _locations: [location] };
+    API.postMessage({ type: 'saveConfig', config, uniqueId });
+  });
+}
+
+export function saveConfig(config: FileSystemConfig, name?: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const uniqueId = `${config.name}-${Date.now()};`
+    function handler(message: SaveConfigResultMessage) {
+      if (message.uniqueId !== uniqueId) return;
+      removeListener(handler);
+      if (message.error) return reject(message.error);
+      resolve();
+    }
+    addListener(handler, 'saveConfigResult');
+    API.postMessage({ type: 'saveConfig', config, uniqueId, name });
+  });
+}
+
+export function deleteConfig(config: FileSystemConfig): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const uniqueId = `${config.name}-${Date.now()};`
+    function handler(message: SaveConfigResultMessage) {
+      if (message.uniqueId !== uniqueId) return;
+      removeListener(handler);
+      if (message.error) return reject(message.error);
+      resolve();
+    }
+    addListener(handler, 'saveConfigResult');
+    API.postMessage({ type: 'saveConfig', config, uniqueId, remove: true });
+  });
+}
+
+export function promptPath(): Promise<string | undefined> {
+  return new Promise<string | undefined>((resolve, reject) => {
+    const uniqueId = Date.now().toString();
+    function handler(message: PromptPathResultMessage) {
+      if (message.uniqueId !== uniqueId) return;
+      removeListener(handler);
+      if (message.error) return reject(message.error);
+      resolve(message.path);
+    }
+    addListener(handler, 'promptPathResult');
+    API.postMessage({ type: 'promptPath', uniqueId });
+  });
+}

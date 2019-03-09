@@ -1,0 +1,26 @@
+
+div.ConfigList {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 0;
+}
+
+div.ConfigList > ul {
+    padding: 0;
+    margin: 0;
+}
+
+div.ConfigList > ul > li {
+    display: block;
+    margin: 0;
+    padding: 5px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-list-inactiveFocusBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+div.ConfigList > ul > li:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+div.ConfigList > ul > li:last-of-type {
+    border: none;
+}
