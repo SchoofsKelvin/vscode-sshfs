@@ -4,11 +4,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "identifier": "npm:watch",
             "type": "npm",
+            "label": "Extension - Watch",
             "script": "watch",
             "problemMatcher": [
-                "$tsc-watch"
+                "$ts-webpack"
             ],
             "isBackground": true
         }

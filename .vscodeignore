@@ -4,8 +4,8 @@
 !.vscodeignore
 !package.json
 !package-lock.json
-!node_modules
-!out/*.js
+!dist/*.js
+!dist/util
 !resources
 !media
 !webview/build/index.html

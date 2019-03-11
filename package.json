@@ -22,7 +22,7 @@
         "onCommand:sshfs.reload",
         "onCommand:sshfs.settings"
     ],
-    "main": "./out/extension.js",
+    "main": "./dist/extension.js",
     "author": {
         "name": "Kelvin Schoofs",
         "email": "schoofs.kelvin@gmail.com"
@@ -431,17 +431,24 @@
     },
     "scripts": {
         "vscode:prepublish": "npm run compile && cd webview && npm run build",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
+        "build": "webpack --mode production",
+        "compile": "webpack --mode none --info-verbosity verbose --display-modules",
+        "profile": "webpack --mode production --profile --json > stats.json",
+        "watch": "webpack --mode none --watch --info-verbosity verbose --display-modules",
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "devDependencies": {
         "@types/node": "^8.10.43",
         "@types/request": "^2.48.1",
         "@types/ssh2": "^0.5.35",
+        "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
+        "clean-webpack-plugin": "^2.0.0",
+        "ts-loader": "^5.3.3",
         "typescript": "^3.3.3",
-        "vscode": "^1.1.21"
+        "vscode": "^1.1.21",
+        "webpack": "^4.29.6",
+        "webpack-cli": "^3.2.3"
     },
     "dependencies": {
         "event-stream": "^3.3.4",
