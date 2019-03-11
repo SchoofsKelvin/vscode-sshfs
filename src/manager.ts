@@ -1,15 +1,12 @@
 
-import { readFile } from 'fs';
-import { parse as parseJsonc, ParseError } from 'jsonc-parser';
-import * as path from 'path';
-import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, getConfigs, loadConfigs, UPDATE_LISTENERS, updateConfig } from './config';
+import { getConfig, getConfigs, loadConfigs, UPDATE_LISTENERS } from './config';
 import { createSSH, getSFTP } from './connect';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import * as settings from './settings';
-import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
+import SSHFileSystem from './sshFileSystem';
 import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
 

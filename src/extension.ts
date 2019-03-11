@@ -4,7 +4,6 @@ import { loadConfigs } from './config';
 import { FileSystemConfig, invalidConfigName } from './fileSystemConfig';
 import * as Logging from './logging';
 import { Manager } from './manager';
-import * as settings from './settings';
 
 function generateDetail(config: FileSystemConfig): string | undefined {
   const { username, host, putty } = config;

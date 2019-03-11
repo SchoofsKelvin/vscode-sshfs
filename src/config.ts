@@ -1,7 +1,6 @@
 
 import { readFile, writeFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { ConfigLocation, FileSystemConfig, invalidConfigName } from './fileSystemConfig';
 import * as Logging from './logging';
