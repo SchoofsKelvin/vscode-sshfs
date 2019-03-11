@@ -1,6 +1,8 @@
 
 **
 
+!package.json
+!README.md
 !dist/*.js
 !util
 !resources/config
