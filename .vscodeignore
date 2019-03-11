@@ -1,12 +1,10 @@
 
 **
 
-!.vscodeignore
-!package.json
-!package-lock.json
 !dist/*.js
 !dist/util
-!resources
+!resources/config
+!resources/Logo.png
 !media
 !webview/build/index.html
 !webview/build/static/css/*.css
