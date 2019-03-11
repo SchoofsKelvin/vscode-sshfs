@@ -6,8 +6,6 @@ import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import * as proxy from './proxy';
-import { getSession as getPuttySession } from './putty';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -47,7 +45,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     } else {
       config.putty = replaceVariables(config.putty);
     }
-    const session = await getPuttySession(config.putty, config.host, config.username, nameOnly);
+    const session = await (await import('./putty')).getSession(config.putty, config.host, config.username, nameOnly);
     if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
     if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
     config.username = config.username || session.username;
@@ -161,9 +159,9 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
       break;
     case 'socks4':
     case 'socks5':
-      return await proxy.socks(config);
+      return await (await import ('./proxy')).socks(config);
     case 'http':
-      return await proxy.http(config);
+      return await (await import ('./proxy')).http(config);
     default:
       throw new Error(`Unknown proxy method`);
   }

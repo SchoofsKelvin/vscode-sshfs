@@ -2,12 +2,9 @@
 import { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigs, UPDATE_LISTENERS } from './config';
-import { createSSH, getSFTP } from './connect';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import * as settings from './settings';
 import SSHFileSystem from './sshFileSystem';
-import { MemoryDuplex } from './streams';
 import { catchingPromise, toPromise } from './toPromise';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
@@ -39,6 +36,7 @@ function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
 
 async function tryGetHome(ssh: Client): Promise<string | null> {
   const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
+  const { MemoryDuplex } = await import('./streams');
   const stdout = new MemoryDuplex();
   exec.stdout.pipe(stdout);
   await toPromise(cb => exec.on('close', cb));
@@ -107,6 +105,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
+      const { createSSH, getSFTP } = await import('./connect');
       const client = await createSSH(config);
       if (!client) return reject(null);
       let root = config!.root || '/';
@@ -277,8 +276,9 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     // Would open the Settings UI, list all locations the (potentially) merged config originates from,
     // and allow the user to pick (and edit) one of them. Maybe have a back-to-the-list button?
   }
-  public openSettings() {
-    settings.open(this.context.extensionPath);
+  public async openSettings() {
+    const { open } = await import('./settings');
+    return open(this.context.extensionPath);
   }
 }
 
