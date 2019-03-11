@@ -1,4 +1,5 @@
 dist
+util
 node_modules
 *.vsix
 stats.json

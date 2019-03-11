@@ -28,7 +28,7 @@ class CopyPuttyExecutable {
      */
     apply(compiler) {
         const path = resolve('./node_modules/ssh2/util/pagent.exe');
-        const target = join(compiler.options.output.path, 'util/pagent.exe');
+        const target = join(compiler.options.output.path, '../util/pagent.exe');
         compiler.hooks.beforeRun.tapPromise('CopyPuttyExecutable-BeforeRun', () => new Promise((resolve, reject) => {
             fs.exists(path, exists => exists ? resolve() : reject(`Couldn't find executable at: ${path}`));
         }));

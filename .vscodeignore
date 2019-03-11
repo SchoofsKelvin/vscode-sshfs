@@ -2,7 +2,7 @@
 **
 
 !dist/*.js
-!dist/util
+!util
 !resources/config
 !resources/Logo.png
 !media
