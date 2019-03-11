@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
+import { toPromise } from './toPromise';
 import { Message } from './webviewMessages';
 
 let webviewPanel: vscode.WebviewPanel | undefined;
@@ -12,27 +13,31 @@ let webviewPanel: vscode.WebviewPanel | undefined;
 const DEBUG: number | undefined = process.execArgv.find(a => a.includes('--inspect')) ? 3000 : undefined;
 if (DEBUG) console.warn('[vscode-sshfs] Detected we are running in debug mode');
 
-export function open(extensionPath: string) {
+async function getDebugContent(): Promise<string | false> {
+  if (!DEBUG) return false;
+  const URL = `http://localhost:${DEBUG}/`;
+  const request = await import('request').catch(() => null);
+  if (!request) throw new Error('Could not load \'request\' library');
+  return toPromise<string>(cb => request.get(URL, (err, _, body: string) => {
+    if (err) return cb(new Error('Could not connect to React dev server. Not running?'));
+    body = body.toString().replace(/\/static\/js\/bundle\.js/, `http://localhost:${DEBUG}/static/js/bundle.js`);
+    cb(null, body);
+  }));
+}
+
+export async function open(extensionPath: string) {
   if (!webviewPanel) {
-    webviewPanel = vscode.window.createWebviewPanel('sshfs-settings', 'SSH-FS Settings', vscode.ViewColumn.One, { enableScripts: true });
+    webviewPanel = vscode.window.createWebviewPanel('sshfs-settings', 'SSH-FS Settings', vscode.ViewColumn.One, { enableFindWidget: true, enableScripts: true });
     webviewPanel.onDidDispose(() => webviewPanel = undefined);
     webviewPanel.webview.onDidReceiveMessage(handleMessage);
-    if (DEBUG) {
-      // webviewPanel.webview.html = `<html><head><script>document.location="http://localhost:${DEBUG}/"</script></head></html>`;
-      const URL = `http://localhost:${DEBUG}/`;
-      import('request').then(request =>
-        request.get(URL, (err, res, body) => {
-          if (err) {
-            webviewPanel!.webview.html = `<html><body>Did you start the React build server? We're running in debug mode...</body></html>`;
-            return console.error(err);
-          }
-          body = body.replace(/\/static\/js\/bundle\.js/, `http://localhost:${DEBUG}/static/js/bundle.js`);
-          webviewPanel!.webview.html = body; // `<html><head><title>Test</title></head><body>Testing</body></html>`;// body
-        }));
-    } else {
-      const content = fs.readFileSync(path.resolve(extensionPath, 'webview/build/index.html')).toString();
-      webviewPanel.webview.html = content.replace(/\/static\//g, vscode.Uri.file(path.join(extensionPath, 'webview/build/static/')).with({ scheme: 'vscode-resource' }).toString());
+    let content = await getDebugContent().catch((e: Error) => (vscode.window.showErrorMessage(e.message), null));
+    if (!content) {
+      // If we got here, we're either not in debug mode, or something went wrong (and an error message is shown)
+      content = fs.readFileSync(path.resolve(extensionPath, 'webview/build/index.html')).toString();
+      // Built index.html has e.g. `href="/static/js/stuff.js"`, need to make it use vscode-resource: and point to the built static directory
+      content = content.replace(/\/static\//g, vscode.Uri.file(path.join(extensionPath, 'webview/build/static/')).with({ scheme: 'vscode-resource' }).toString());
     }
+    webviewPanel.webview.html = content;
   }
   webviewPanel.reveal();
 }
