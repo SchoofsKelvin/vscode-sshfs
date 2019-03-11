@@ -17,7 +17,7 @@ div.Field > div.optional {
 
 div.Field > div.description {
     margin-top: 3px;
-    color: rgba(204, 204, 204, 0.9);
+    opacity: 0.75;
 }
 div.Field > div.error {
     color: var(--vscode-errorForeground);
@@ -33,9 +33,9 @@ div.Field > div.value {
 div.Field input {
     background-color: var(--vscode-settings-textInputBackground);
     color: var(--vscode-settings-textInputForeground);
+    border: 1px solid var(--vscode-settings-textInputBorder);
     height: 100%;
     width: 100%;
-    border: none;
     padding: 3px;
     box-sizing: border-box;
 }
@@ -43,6 +43,7 @@ div.Field input {
 div.FieldDropdown {
     background: var(--vscode-settings-dropdownBackground);
     color: var(--vscode-settings-dropdownForeground);
+    border: 1px solid var(--vscode-settings-dropdownBorder);
     position: relative;
 }
 
@@ -87,6 +88,7 @@ div.FieldDropdownWithInput > input.current {
     position: absolute;
     background: var(--vscode-settings-textInputBackground);
     color: var(--vscode-settings-textInputForeground);
+    border: none;
     padding: 5px;
     box-sizing: border-box;
     height: 100%;
@@ -131,4 +133,6 @@ div.FieldPath > button {
     padding: 5px;
     margin: 0;
     border-radius: 0;
+    border: none;
+    border-left: 1px solid var(--vscode-settings-dropdownBorder);
 }

@@ -1,6 +1,6 @@
 
 div.ConfigList {
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--vscode-settings-dropdownBorder);
     border-radius: 4px;
     padding: 0;
 }
@@ -14,9 +14,9 @@ div.ConfigList > ul > li {
     display: block;
     margin: 0;
     padding: 5px;
-    border-bottom: 1px solid var(--vscode-panel-border);
-    background: var(--vscode-list-inactiveFocusBackground);
-    color: var(--vscode-list-activeSelectionForeground);
+    border-bottom: 1px solid var(--vscode-settings-dropdownListBorder);
+    background: var(--vscode-settings-dropdownBackground);
+    color: var(--vscode-settings-dropdownForeground);
 }
 div.ConfigList > ul > li:hover {
     background: var(--vscode-list-hoverBackground);

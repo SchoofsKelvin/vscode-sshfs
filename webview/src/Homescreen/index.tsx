@@ -30,7 +30,7 @@ class Homescreen extends React.Component<StateProps & DispatchProps> {
         </div>;
     }
     public createGroup(location: ConfigLocation, configs: FileSystemConfig[]) {
-        return <div>
+        return <div key={location}>
             <h3>{formatConfigLocation(location)}</h3>
             <ConfigList configs={configs} />
         </div>;
