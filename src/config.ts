@@ -206,8 +206,8 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
     case vscode.ConfigurationTarget.WorkspaceFolder:
       const conf = vscode.workspace.getConfiguration('sshfs');
       const inspect = conf.inspect<FileSystemConfig[]>('configs')!;
-      const array = [[], inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][location];
-      if (!array) throw new Error(`Something very unexpected happened...`);
+      // If the array doesn't exist, create a new empty one
+      const array = [, inspect.globalValue, inspect.workspaceValue, inspect.workspaceFolderValue][location] || [];
       let modified = alterer(array);
       if (!modified) return;
       modified = modified.map((config) => {

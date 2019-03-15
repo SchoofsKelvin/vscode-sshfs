@@ -17,7 +17,8 @@ export function formatConfigLocation(location?: ConfigLocation): string {
 }
 
 export function getLocations(configs: FileSystemConfig[]): ConfigLocation[] {
-  const res: ConfigLocation[] = [1, 2, 3];
+  const res: ConfigLocation[] = [1, 2 /*, 3*/]; // No WorkspaceFolder support (for now)
+  // TODO: Suggest creating sshfs.jsonc etc in current workspace folder(s) (UI feature?)
   for (const { _location } of configs) {
     if (!_location) continue;
     if (!res.find(l => l === _location)) {
