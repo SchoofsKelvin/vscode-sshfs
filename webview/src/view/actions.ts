@@ -9,6 +9,7 @@ export enum ActionType {
   NEWCONFIG_SETLOCATION = 'NEWCONFIG_SETLOCATION',
   // ConfigEditor
   OPEN_CONFIGEDITOR = 'OPEN_CONFIGEDITOR',
+  OPEN_CONFIGLOCATOR = 'OPEN_CONFIGLOCATOR',
   CONFIGEDITOR_SETNEWCONFIG = 'CONFIGEDITOR_SETNEWCONFIG',
   CONFIGEDITOR_SETSTATUSMESSAGE = 'CONFIGEDITOR_SETSTATUSMESSAGE',
 }
@@ -22,6 +23,7 @@ export interface ActionTypes {
   NEWCONFIG_SETLOCATION: IActionNewConfigSetLocation;
   // ConfigEditor
   OPEN_CONFIGEDITOR: IActionOpenConfigEditor;
+  OPEN_CONFIGLOCATOR: IActionOpenConfigLocator;
   CONFIGEDITOR_SETNEWCONFIG: IActionConfigEditorSetNewConfig;
   CONFIGEDITOR_SETSTATUSMESSAGE: IActionConfigEditorSetStatusMessage;
 }
@@ -44,11 +46,10 @@ export function openStartScreen(): IActionOpenStartscreen {
 
 export interface IActionOpenNewConfig extends IAction {
   type: ActionType.OPEN_NEWCONFIG;
-  locations: ConfigLocation[];
   name: string;
 }
-export function openNewConfig(locations: ConfigLocation[], name = 'unnamed'): IActionOpenNewConfig {
-  return { type: ActionType.OPEN_NEWCONFIG, locations, name };
+export function openNewConfig(name = 'unnamed'): IActionOpenNewConfig {
+  return { type: ActionType.OPEN_NEWCONFIG, name };
 }
 
 export interface IActionNewConfigSetLocation extends IAction {
@@ -75,6 +76,15 @@ export interface IActionOpenConfigEditor extends IAction {
 }
 export function openConfigEditor(config: FileSystemConfig): IActionOpenConfigEditor {
   return { type: ActionType.OPEN_CONFIGEDITOR, config };
+}
+
+export interface IActionOpenConfigLocator extends IAction {
+  type: ActionType.OPEN_CONFIGLOCATOR;
+  configs: FileSystemConfig[];
+  name: string;
+}
+export function openConfigLocator(configs: FileSystemConfig[], name: string): IActionOpenConfigLocator {
+  return { type: ActionType.OPEN_CONFIGLOCATOR, configs, name };
 }
 
 export interface IActionConfigEditorSetNewConfig extends IAction {

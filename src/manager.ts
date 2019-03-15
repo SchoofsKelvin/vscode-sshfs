@@ -1,11 +1,12 @@
 
 import { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, getConfigs, loadConfigs, UPDATE_LISTENERS } from './config';
+import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import SSHFileSystem from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
+import { Navigation } from './webviewMessages';
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);
@@ -269,16 +270,16 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   }
   public async commandConfigure(name: string) {
     Logging.info(`Command received to configure ${name}`);
-    // openConfigurationEditor(name);
-    vscode.window.showWarningMessage('Use the SSH FS config editor to modify/delete configurations');
-    // TODO: Make this work with the following code:
-    // this.openSettings(name);
-    // Would open the Settings UI, list all locations the (potentially) merged config originates from,
-    // and allow the user to pick (and edit) one of them. Maybe have a back-to-the-list button?
+    name = name.toLowerCase();
+    let configs = await loadConfigsRaw();
+    configs = configs.filter(c => c.name === name);
+    if (configs.length === 0) throw new Error('Unexpectedly found no matching configs?');
+    const config = configs.length === 1 ? configs[0] : configs;
+    this.openSettings({ config, type: 'editconfig' });
   }
-  public async openSettings() {
-    const { open } = await import('./settings');
-    return open(this.context.extensionPath);
+  public async openSettings(navigation?: Navigation) {
+    const { open, navigate } = await import('./settings');
+    return navigation ? navigate(navigation) : open();
   }
 }
 

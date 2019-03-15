@@ -1,5 +1,7 @@
 import { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
 
+/* Type of messages*/
+
 export interface RequestDataMessage {
   type: 'requestData';
 }
@@ -34,6 +36,15 @@ export interface PromptPathResultMessage {
   uniqueId?: string;
 }
 
+export interface NavigateMessage {
+  type: 'navigate';
+  navigation: Navigation;
+}
+export interface NavigatedMessage {
+  type: 'navigated';
+  navigation: Navigation;
+}
+
 export interface MessageTypes {
   requestData: RequestDataMessage;
   responseData: ResponseDataMessage;
@@ -41,6 +52,19 @@ export interface MessageTypes {
   saveConfigResult: SaveConfigResultMessage;
   promptPath: PromptPathMessage;
   promptPathResult: PromptPathResultMessage;
+  navigate: NavigateMessage;
+  navigated: NavigatedMessage;
 }
 
 export type Message = MessageTypes[keyof MessageTypes];
+
+/* Types related to NavigateMessage */
+
+export interface NewConfigNavigation {
+  type: 'newconfig';
+}
+export interface EditConfigNavigation {
+  type: 'editconfig';
+  config: FileSystemConfig | FileSystemConfig[];
+}
+export type Navigation = NewConfigNavigation | EditConfigNavigation;

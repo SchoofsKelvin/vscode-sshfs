@@ -53,10 +53,8 @@ export function activate(context: vscode.ExtensionContext) {
     if (name) func.call(manager, name);
   }
 
-  registerCommand('sshfs.new', async () => {
-    const name = await vscode.window.showInputBox({ placeHolder: 'Name for the new SSH file system', validateInput: invalidConfigName });
-    if (name) vscode.window.showTextDocument(vscode.Uri.parse(`ssh://<config>/${name}.sshfs.jsonc`), { preview: false });
-  });
+  registerCommand('sshfs.new', async () => manager.openSettings({ type: 'newconfig' }));
+  registerCommand('sshfs.settings', () => manager.openSettings());
 
   registerCommand('sshfs.connect', (name?: string) => pickAndClick(manager.commandConnect, name, false));
   registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
@@ -64,8 +62,6 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
 
   registerCommand('sshfs.reload', loadConfigs);
-
-  registerCommand('sshfs.settings', () => manager.openSettings());
 
   vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager });
 }

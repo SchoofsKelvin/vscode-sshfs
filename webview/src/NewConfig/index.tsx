@@ -2,7 +2,7 @@ import * as React from 'react';
 import { FieldDropdown } from 'src/FieldTypes/dropdown';
 import { FieldGroup } from 'src/FieldTypes/group';
 import { FieldString } from 'src/FieldTypes/string';
-import { connect, pickProperties } from 'src/redux';
+import { connect, pickProperties, State } from 'src/redux';
 import { ConfigLocation, formatConfigLocation, invalidConfigName } from 'src/types/fileSystemConfig';
 import { INewConfigState } from 'src/view';
 import { newConfigSetLocation, newConfigSetName, openConfigEditor, openStartScreen } from 'src/view/actions';
@@ -53,9 +53,13 @@ class NewConfig extends React.Component<StateProps & DispatchProps> {
     public confirm = () => this.props.confirm(this.props.name, this.props.location);
 }
 
-interface SubState { view: INewConfigState }
+interface SubState extends State { view: INewConfigState }
 export default connect(NewConfig)<StateProps, DispatchProps, SubState>(
-    (state) => pickProperties(state.view, 'location', 'locations', 'name'),
+    (state) => ({ 
+        ...pickProperties(state.view, 'name'),
+        ...pickProperties(state.data, 'locations'),
+        location: state.view.location || state.data.locations[0],
+    }),
     (dispatch) => ({
         cancel: () => dispatch(openStartScreen()),
         setLocation: loc => dispatch(newConfigSetLocation(loc)),

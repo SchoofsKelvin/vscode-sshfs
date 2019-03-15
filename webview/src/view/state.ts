@@ -7,8 +7,7 @@ interface IViewState<V extends string> {
 export type IStartScreenState = IViewState<'startscreen'>;
 
 export interface INewConfigState extends IViewState<'newconfig'> {
-  locations: ConfigLocation[];
-  location: ConfigLocation;
+  location?: ConfigLocation;
   name: string;
 }
 
@@ -18,7 +17,12 @@ export interface IConfigEditorState extends IViewState<'configeditor'> {
   statusMessage?: string;
 }
 
-export type IState = IStartScreenState | INewConfigState | IConfigEditorState;
+export interface IConfigLocatorState extends IViewState<'configlocator'> {
+  configs: FileSystemConfig[];
+  name: string;
+}
+
+export type IState = IStartScreenState | INewConfigState | IConfigEditorState | IConfigLocatorState;
 
 export const DEFAULT_STATE: IState = {
   view: 'startscreen',

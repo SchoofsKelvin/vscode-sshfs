@@ -12,6 +12,7 @@ interface DispatchProps {
 }
 interface OwnProps {
     configs?: FileSystemConfig[];
+    displayName?(config: FileSystemConfig): string | undefined;
 }
 class ConfigList extends React.Component<StateProps & DispatchProps & OwnProps> {
     public render() {
@@ -24,8 +25,10 @@ class ConfigList extends React.Component<StateProps & DispatchProps & OwnProps> 
         </div>;
     }
     public editConfigClickHandler(config: FileSystemConfig) {
+        const { displayName } = this.props;
+        const name = displayName && displayName(config) || config.label || config.name;
         const onClick = () => this.props.editConfig(config);
-        return <li key={config.name} onClick={onClick}>{config.label || config.name}</li>;
+        return <li key={config.name} onClick={onClick}>{name}</li>;
     }
 }
 

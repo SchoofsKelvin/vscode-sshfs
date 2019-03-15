@@ -8,8 +8,8 @@ export function reducer(state = DEFAULT_STATE, action: Action): IState {
       return { ...state, view: 'startscreen' };
     // New Config
     case ActionType.OPEN_NEWCONFIG: {
-      const { locations, name } = action;
-      return { ...state, view: 'newconfig', name, locations, location: locations[0] };
+      const { name } = action;
+      return { ...state, view: 'newconfig', name, location: undefined };
     }
     case ActionType.NEWCONFIG_SETNAME:
       return { ...state as INewConfigState, name: action.name };
@@ -19,6 +19,10 @@ export function reducer(state = DEFAULT_STATE, action: Action): IState {
     case ActionType.OPEN_CONFIGEDITOR: {
       const { config } = action;
       return { ...state, view: 'configeditor', oldConfig: config, newConfig: config };
+    }
+    case ActionType.OPEN_CONFIGLOCATOR: {
+      const { name, configs } = action;
+      return { ...state, view: 'configlocator', name, configs };
     }
     case ActionType.CONFIGEDITOR_SETNEWCONFIG:
       return { ...state as IConfigEditorState, newConfig: action.config };
