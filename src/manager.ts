@@ -103,10 +103,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (promise) return promise;
     config = config || (await loadConfigs()).find(c => c.name === name);
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
+      const { createSSH, getSFTP, calculateActualConfig } = await import('./connect');
+      config = config && await calculateActualConfig(config) || undefined;
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
-      const { createSSH, getSFTP } = await import('./connect');
       const client = await createSSH(config);
       if (!client) return reject(null);
       let root = config!.root || '/';
