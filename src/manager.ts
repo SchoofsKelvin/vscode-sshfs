@@ -58,14 +58,10 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-    const folderAdded = async (folder: vscode.WorkspaceFolder) => {
-      if (folder.uri.scheme !== 'ssh') return;
-      this.createFileSystem(folder.uri.authority);
-    };
-    const folders = vscode.workspace.workspaceFolders || [];
-    folders.forEach(folderAdded);
+    // In a multi-workspace environment, when the non-main folder gets removed,
+    // it might be one of ours, which we should then disconnect
+    // When one gets added, it gets connected on-demand (using stat() etc)
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
-      e.added.forEach(folderAdded);
       e.removed.forEach(async (folder) => {
         if (folder.uri.scheme !== 'ssh') return;
         this.commandDisconnect(folder.uri.authority);
@@ -101,9 +97,9 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (existing) return existing;
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
-    config = config || (await loadConfigs()).find(c => c.name === name);
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       const { createSSH, getSFTP, calculateActualConfig } = await import('./connect');
+      config = config || (await loadConfigs()).find(c => c.name === name);
       config = config && await calculateActualConfig(config) || undefined;
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
