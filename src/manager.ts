@@ -4,13 +4,44 @@ import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
-import SSHFileSystem from './sshFileSystem';
+import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
+
+const FOLDERS = vscode.workspace.workspaceFolders!;
+function isWorkspaceStale() {
+  const FOLDERS2 = vscode.workspace.workspaceFolders!;
+  if (!FOLDERS !== !FOLDERS2) return true;
+  // Both should exist here, but checking both for typechecking
+  if (!FOLDERS.length !== !FOLDERS2.length) return true;
+  const [folder1] = FOLDERS;
+  const [folder2] = FOLDERS2;
+  if (folder1 === folder2) return false;
+  const { name: name1, uri: uri1 } = folder1;
+  const { name: name2, uri: uri2 } = folder2;
+  if (name1 !== name2) return true;
+  if (uri1.toString() !== uri2.toString()) return true;
+  return false;
+}
 
 async function assertFs(man: Manager, uri: vscode.Uri) {
   const fs = await man.getFs(uri);
   if (fs) return fs;
+  // When adding one of our filesystems as the first workspace folder,
+  // it's possible (and even likely) that vscode will set
+  // vscode.workspace.workspaceFolders and prompt our filesystem
+  // for .vscode/settings.json, right before extensions get reloaded.
+  // This triggers a useless connection (and password prompting), so
+  // if we detect here the workspace is in a phase of change, resulting
+  // in extensions reload, just throw an error. vscode is fine with it.
+  if (isWorkspaceStale()) {
+    console.error('Stale workspace');
+    // Throwing an error gives the "${root} · Can not resolve workspace folder"
+    // throw vscode.FileSystemError.Unavailable('Stale workspace');
+    // So let's just act as if everything's fine, but there's only the void.
+    // The extensions (and FileSystemProviders) get reloaded soon anyway.
+    return EMPTY_FILE_SYSTEM;
+  }
   return man.createFileSystem(uri.authority);
 }
 

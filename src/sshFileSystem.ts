@@ -144,7 +144,11 @@ export default SSHFileSystem;
 export const EMPTY_FILE_SYSTEM = {
   onDidChangeFile: new vscode.EventEmitter<vscode.FileChangeEvent[]>().event,
   watch: (uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }) => new vscode.Disposable(() => { }),
-  stat: (uri: vscode.Uri) => ({ type: vscode.FileType.Unknown }) as vscode.FileStat,
+  stat: (uri: vscode.Uri) => {
+    console.warn('Checking', uri.toString());
+    if (uri.path === '/' || uri.path === '\\') return ({ type: vscode.FileType.Directory }) as vscode.FileStat;
+    throw vscode.FileSystemError.FileNotFound(uri);
+  },
   readDirectory: (uri: vscode.Uri) => [],
   createDirectory: (uri: vscode.Uri) => { },
   readFile: (uri: vscode.Uri) => new Uint8Array(0),
