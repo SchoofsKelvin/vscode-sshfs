@@ -4,6 +4,7 @@ import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { FileSystemConfig } from './fileSystemConfig';
+import * as Logging from './logging';
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
   public waitForContinue = false;
@@ -113,7 +114,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         if (e.message === 'No such file') {
           mode = this.config.newFileMode;
         } else {
-          console.log(e);
+          Logging.error(e);
           vscode.window.showWarningMessage(`Couldn't read the permissions for '${this.relative(uri.path)}', permissions might be overwritten`);
         }
       }

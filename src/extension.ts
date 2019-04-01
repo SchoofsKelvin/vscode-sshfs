@@ -37,8 +37,13 @@ async function pickConfig(manager: Manager, activeOrNot?: boolean): Promise<stri
   return pick && pick.name;
 }
 
+function getVersion(): string | undefined {
+  const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
+  return ext && ext.packageJSON && ext.packageJSON.version;
+}
+
 export function activate(context: vscode.ExtensionContext) {
-  Logging.info('Extension activated');
+  Logging.info(`Extension activated, version ${getVersion()}`);
 
   const manager = new Manager(context);
 

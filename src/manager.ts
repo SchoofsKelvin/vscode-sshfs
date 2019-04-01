@@ -161,7 +161,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         if (e instanceof vscode.FileSystemError) {
           message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
         }
-        Logging.error(message);
+        Logging.error(e);
         await vscode.window.showErrorMessage(message, 'Okay');
         return reject();
       }
@@ -179,10 +179,11 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         throw e;
       }
       Logging.error(`Error while connecting to SSH FS ${name}:\n${e.message}`);
+      Logging.error(e);
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
-          this.createFileSystem(name).catch(console.error);
+          this.createFileSystem(name).catch(() => {});
         } else if (chosen === 'Configure') {
           this.commandConfigure(name);
         } else {

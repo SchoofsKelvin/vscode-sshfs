@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
+import * as Logging from './logging';
 import { toPromise } from './toPromise';
 import { Message, Navigation } from './webviewMessages';
 
@@ -90,6 +91,7 @@ async function handleMessage(message: Message): Promise<any> {
           await updateConfig(config, name);
         }
       } catch (e) {
+        Logging.error(e);
         error = e.message;
       }
       return postMessage({
@@ -105,6 +107,7 @@ async function handleMessage(message: Message): Promise<any> {
         const uris = await vscode.window.showOpenDialog({});
         if (uris) [uri] = uris;
       } catch (e) {
+        Logging.error(e);
         error = e.message;
       }
       return postMessage({

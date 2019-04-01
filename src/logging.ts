@@ -12,7 +12,10 @@ export function info(message: string) {
 export function warning(message: string) {
   outputChannel.appendLine(`[WARNING] ${message}`);
 }
-export function error(message: string) {
+export function error(message: string | Error) {
+  if (message instanceof Error && message.stack) {
+    message = `${message.message}\n${message.stack}`;
+  }
   outputChannel.appendLine(`[ERROR] ${message}`);
 }
 
@@ -21,6 +24,7 @@ export function censorConfig(config: FileSystemConfig): FileSystemConfig {
     ...config,
     password: typeof config.password === 'string' ? '<censored>' : config.password,
     passphrase: typeof config.passphrase === 'string' ? '<censored>' : config.passphrase,
+    privateKey: config.privateKey instanceof Buffer ? `Buffer(${config.privateKey.length})` : config.privateKey,
   };
 }
 
