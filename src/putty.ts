@@ -63,7 +63,7 @@ export async function getSession(name?: string, host?: string, username?: string
   }
   if (!host) return null;
   host = host.toLowerCase();
-  const hosts = sessions.filter(s => s.hostname.toLowerCase() === host);
+  const hosts = sessions.filter(s => s.hostname && s.hostname.toLowerCase() === host);
   if (!username) return hosts[0] || null;
   username = username.toLowerCase();
   return hosts.find(s => !s.username || s.username.toLowerCase() === username) || null;
