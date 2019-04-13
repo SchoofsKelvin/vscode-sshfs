@@ -4,6 +4,7 @@ import { loadConfigs } from './config';
 import { FileSystemConfig, invalidConfigName } from './fileSystemConfig';
 import * as Logging from './logging';
 import { Manager } from './manager';
+import { SearchProvider } from './searchProvider';
 
 function generateDetail(config: FileSystemConfig): string | undefined {
   const { username, host, putty } = config;
@@ -52,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     subscribe(vscode.commands.registerCommand(command, callback, thisArg));
 
   subscribe(vscode.workspace.registerFileSystemProvider('ssh', manager, { isCaseSensitive: true }));
+  subscribe(vscode.workspace.registerFileSearchProvider('ssh', new SearchProvider(manager)));
 
   async function pickAndClick(func: (name: string) => void, name?: string, activeOrNot?: boolean) {
     name = name || await pickConfig(manager, activeOrNot);
