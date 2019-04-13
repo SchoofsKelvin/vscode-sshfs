@@ -437,6 +437,7 @@
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "devDependencies": {
+        "@types/minimatch": "^3.0.3",
         "@types/node": "^8.10.43",
         "@types/request": "^2.48.1",
         "@types/ssh2": "^0.5.35",
@@ -452,6 +453,7 @@
     "dependencies": {
         "event-stream": "^3.3.4",
         "jsonc-parser": "^2.0.0",
+        "minimatch": "^3.0.4",
         "socks": "^2.2.0",
         "ssh2": "^0.8.2",
         "winreg": "^1.2.4"
