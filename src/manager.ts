@@ -147,7 +147,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
         root = root.replace(/^~/, home.replace(/\/$/, ''));
       }
       const sftp = await getSFTP(client, config);
-      const fs = new SSHFileSystem(name, sftp, root, config!);
+      const fs = new SSHFileSystem(name, client, sftp, root, config!);
       Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);
       try {
         const rootUri = vscode.Uri.parse(`ssh://${name}/`);
@@ -311,5 +311,3 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return navigation ? navigate(navigation) : open();
   }
 }
-
-export default Manager;
