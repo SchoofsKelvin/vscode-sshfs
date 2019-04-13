@@ -3,9 +3,10 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.14.7",
+    "version": "1.14.7-insiders",
+    "enableProposedApi": true,
     "engines": {
-        "vscode": "^1.26.0"
+        "vscode": "^1.33.0"
     },
     "categories": [
         "Other"
@@ -444,7 +445,7 @@
         "clean-webpack-plugin": "^2.0.0",
         "ts-loader": "^5.3.3",
         "typescript": "^3.3.3",
-        "vscode": "^1.1.21",
+        "vscode": "^1.1.33",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },
