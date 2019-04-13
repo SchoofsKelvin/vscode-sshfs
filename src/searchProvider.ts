@@ -9,17 +9,7 @@ export class SearchProvider implements vscode.FileSearchProvider {
   constructor(protected manager: Manager) { }
   public async provideFileSearchResults(query: vscode.FileSearchQuery, options: vscode.FileSearchOptions, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
     const { folder, session } = options;
-    let cached = this.cache.find(([t]) => session === t);
-    if (!cached && session) {
-      cached = [session, this.buildTree(options, session)] as SearchProvider['cache'][0];
-      this.cache.push(cached);
-      session.onCancellationRequested(() => {
-        this.cache.splice(this.cache.indexOf(cached!));
-      });
-    } else if (!cached) {
-      cached = [token, this.buildTree(options, token)] as SearchProvider['cache'][0];
-    }
-    const paths = await cached[1];
+    const paths = await this.getTree(options, session || token, !session);
     if (token.isCancellationRequested) return [];
     const pattern = query.pattern.toLowerCase();
     return paths.map<vscode.Uri | null>((relative) => {
@@ -27,7 +17,25 @@ export class SearchProvider implements vscode.FileSearchProvider {
       return folder.with({ path: path.join(folder.path, relative.path) });
     }).filter(s => !!s) as vscode.Uri[];
   }
-  protected async buildTree(options: vscode.FileSearchOptions, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
+  protected async getTree(options: vscode.FileSearchOptions, session: vscode.CancellationToken, singleton = false): Promise<vscode.Uri[]> {
+    let cached = this.cache.find(([t]) => session === t);
+    if (cached) return await cached[1];
+    const singletonSource = singleton && new vscode.CancellationTokenSource();
+    if (singletonSource) {
+      session.onCancellationRequested(singletonSource.cancel, singletonSource);
+      singletonSource.token.onCancellationRequested(singletonSource.dispose, singletonSource);
+      session = singletonSource.token;
+    }
+    cached = [session, this.internal_buildTree(options, session)] as SearchProvider['cache'][0];
+    this.cache.push(cached);
+    session.onCancellationRequested(() => {
+      this.cache.splice(this.cache.indexOf(cached!));
+    });
+    const res = await cached[1];
+    if (singletonSource) singletonSource.cancel();
+    return res;
+  }
+  protected async internal_buildTree(options: vscode.FileSearchOptions, token: vscode.CancellationToken): Promise<vscode.Uri[]> {
     const { folder } = options;
     const fs = await this.manager.getFs(folder);
     if (!fs || token.isCancellationRequested) return [];
