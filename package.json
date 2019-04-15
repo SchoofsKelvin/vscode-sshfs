@@ -25,13 +25,17 @@
     "main": "./dist/extension.js",
     "author": {
         "name": "Kelvin Schoofs",
-        "email": "schoofs.kelvin@gmail.com"
+        "email": "schoofs.kelvin@gmail.com",
+        "url": "https://github.com/SchoofsKelvin"
     },
-    "repository": "https://github.com/SchoofsKelvin/vscode-sshfs",
-    "license": "GLP-3.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/SchoofsKelvin/vscode-sshfs"
+    },
     "bugs": {
         "url": "https://github.com/SchoofsKelvin/vscode-sshfs/issues"
     },
+    "license": "GLP-3.0",
     "icon": "resources/Logo.png",
     "contributes": {
         "views": {
@@ -170,15 +174,14 @@
                     ]
                 }
             }
-            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile && cd webview && npm run build",
         "build": "webpack --mode production",
         "compile": "webpack --mode none --info-verbosity verbose --display-modules",
         "profile": "webpack --mode production --profile --json > stats.json",
-        "watch": "webpack --mode none --watch --info-verbosity verbose --display-modules",
-        "postinstall": "node ./node_modules/vscode/bin/install"
+        "watch": "webpack --mode none --watch --info-verbosity verbose --display-modules"
     },
     "devDependencies": {
         "@types/node": "^8.10.43",
