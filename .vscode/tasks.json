@@ -4,12 +4,38 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Extension - Watch all",
+            "group": "build",
+            "dependsOn": [
+                "Extension - Watch",
+                "Extension WebView - Watch"
+            ],
+            "problemMatcher": [],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
             "type": "npm",
             "label": "Extension - Watch",
             "script": "watch",
+            "group": "build",
             "problemMatcher": [
-                "$ts-webpack"
+                // A bit difficult to get a proper one.
+                // VSCode's language service stuff usually picks errors up, though
+                // otherwise, they're quite obvious in the terminal, and we don't
+                // have to worry about them slipping into release, as the release
+                // command will fail when there are any compilation errors
             ],
+            "isBackground": true
+        },
+        {
+            "type": "shell",
+            "label": "Extension WebView - Watch",
+            "command": "cd webview; npm start",
+            "group": "build",
+            "problemMatcher": [], // Same story as in "Extension - Watch"
             "isBackground": true
         }
     ]
