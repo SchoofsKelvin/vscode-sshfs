@@ -65,7 +65,7 @@ export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): Re
 export function agent(config: FileSystemConfig, onChange: FSCChanged<'agent'>): React.ReactElement {
   const callback = (newValue: string) => onChange('agent', newValue === 'pageant' ? (true as any) : newValue);
   const description = `Path to ssh-agent's UNIX socket for ssh-agent-based user authentication. Supports 'pageant' for PuTTY's Pagent, and environment variables, e.g. $SSH_AUTH_SOCK`;
-  const values = ['pageant', '$SSH_AUTH_SOCK'];
+  const values = ['pageant', '//./pipe/openssh-ssh-agent', '$SSH_AUTH_SOCK'];
   const value = (config.agent as any) === true ? 'pageant' : config.agent;
   return <FieldDropdownWithInput key="agent" label="Agent" {...{ value, values, description }} onChange={callback} optional={true} />
 }
