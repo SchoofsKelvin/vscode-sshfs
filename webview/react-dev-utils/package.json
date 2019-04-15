@@ -1,29 +1,5 @@
 {
   "private": true,
-  "_from": "react-dev-utils@5.0.2",
-  "_id": "react-dev-utils@5.0.2",
-  "_inBundle": false,
-  "_integrity": "sha512-d2FbKvYe4XAQx5gjHBoWG+ADqC3fGZzjb7i9vxd/Y5xfLkBGtQyX7aOb8lBRQPYUhjngiD3d49LevjY1stUR0Q==",
-  "_location": "/react-dev-utils",
-  "_phantomChildren": {},
-  "_requested": {
-    "type": "version",
-    "registry": true,
-    "raw": "react-dev-utils@5.0.2",
-    "name": "react-dev-utils",
-    "escapedName": "react-dev-utils",
-    "rawSpec": "5.0.2",
-    "saveSpec": null,
-    "fetchSpec": "5.0.2"
-  },
-  "_requiredBy": [
-    "#USER",
-    "/"
-  ],
-  "_resolved": "https://registry.npmjs.org/react-dev-utils/-/react-dev-utils-5.0.2.tgz",
-  "_shasum": "7bb68d2c4f6ffe7ed1184c5b0124fcad692774d2",
-  "_spec": "react-dev-utils@5.0.2",
-  "_where": "/Users/gaearon/p/upup",
   "bugs": {
     "url": "https://github.com/facebookincubator/create-react-app/issues"
   },

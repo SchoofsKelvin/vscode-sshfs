@@ -25,6 +25,6 @@
     "typescript": "^3.3.3333"
   },
   "resolutions": {
-    "react-dev-utils": "./react-dev-utils"
+    "react-dev-utils": "file:./react-dev-utils"
   }
 }

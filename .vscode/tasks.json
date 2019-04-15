@@ -33,9 +33,34 @@
         {
             "type": "shell",
             "label": "Extension WebView - Watch",
-            "command": "cd webview; npm start",
+            "command": "npm start",
+            "options": {
+                "cwd": "./webview"
+            },
             "group": "build",
-            "problemMatcher": [], // Same story as in "Extension - Watch"
+            "problemMatcher": {
+                "source": "react-dev-utils",
+                "severity": "error",
+                "fileLocation": "absolute",
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Compiling...$",
+                    "endsPattern": "Finished compiling"
+                },
+                "pattern":[
+                    {
+                        "regexp": "^(.+)$",
+                        "file": 1
+                    },
+                    {
+                        "regexp": "^\\((\\d+),(\\d+)\\): (.+)$",
+                        "line": 1,
+                        "column": 2,
+                        "message": 3,
+                        "loop": true
+                    }
+                ]
+            },
             "isBackground": true
         }
     ]

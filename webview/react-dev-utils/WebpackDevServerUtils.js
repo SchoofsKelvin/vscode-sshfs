@@ -169,6 +169,7 @@ function createCompiler(webpack, config, appName, urls, useYarn) {
       }
       console.log(chalk.red('Failed to compile.\n'));
       console.log(messages.errors.join('\n\n'));
+      console.log('Finished compiling');
       return;
     }
 
@@ -189,6 +190,8 @@ function createCompiler(webpack, config, appName, urls, useYarn) {
           ' to the line before.\n'
       );
     }
+
+    console.log('Finished compiling');
   });
   return compiler;
 }
