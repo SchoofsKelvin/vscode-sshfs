@@ -6,9 +6,11 @@ import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import { toPromise } from './toPromise';
 
-async function resolveHostname(hostname: string): Promise<string[]> {
-  if (hostname === 'localhost') return ['127.0.0.1'];
-  return toPromise<string[]>(cb => dns.resolve(hostname, cb));
+async function resolveHostname(hostname: string): Promise<string> {
+  return toPromise<string>(cb => dns.lookup(hostname, cb)).then((ip) => {
+    Logging.debug(`Resolved hostname "${hostname}" to: ${ip}`);
+    return ip;
+  });
 }
 
 function validateConfig(config: FileSystemConfig) {
@@ -25,7 +27,7 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
     throw new Error(`Expected 'config.proxy.type' to be 'socks4' or 'socks5'`);
   }
   try {
-    const ipaddress = (await resolveHostname(config.proxy!.host))[0];
+    const ipaddress = (await resolveHostname(config.proxy!.host));
     if (!ipaddress) throw new Error(`Couldn't resolve '${config.proxy!.host}'`);
     Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${config.proxy!.type} proxy at ${ipaddress}:${config.proxy!.port}`);
     const con = await SocksClient.createConnection({
