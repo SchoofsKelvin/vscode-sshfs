@@ -22,9 +22,11 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 
 ## Usage
 Use the command `SSH FS: Create a SSH FS configuration`, or open the Settings UI using the `SSH FS: Open settings and edit configurations` and click Add:
+
 ![Create a new configuration](./media/screenshot-create-config.png)
 
 In this UI, you can also edit/delete existing configurations:
+
 ![Config Editor](./media/screenshot-config-editor.png)
 
 To connect, either rightclick the name in the Explorer tab, or use the command panel:
