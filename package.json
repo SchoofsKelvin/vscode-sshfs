@@ -113,27 +113,33 @@
             "view/item/context": [
                 {
                     "command": "sshfs.new",
-                    "when": "view == 'sshfs-configs' && !viewItem"
+                    "when": "view == 'sshfs-configs' && !viewItem",
+                    "group": "SSH FS@1"
                 },
                 {
                     "command": "sshfs.connect",
                     "when": "view == 'sshfs-configs' && viewItem == inactive",
-                    "group": "SSH FS@1"
+                    "group": "SSH FS@2"
                 },
                 {
                     "command": "sshfs.reconnect",
                     "when": "view == 'sshfs-configs' && viewItem == active",
-                    "group": "SSH FS@1"
+                    "group": "SSH FS@3"
                 },
                 {
                     "command": "sshfs.disconnect",
                     "when": "view == 'sshfs-configs' && viewItem == active",
-                    "group": "SSH FS@2"
+                    "group": "SSH FS@4"
                 },
                 {
                     "command": "sshfs.configure",
                     "when": "view == 'sshfs-configs' && viewItem",
-                    "group": "SSH FS@3"
+                    "group": "SSH FS@5"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "when": "view == 'sshfs-configs' && !viewItem",
+                    "group": "SSH FS@6"
                 }
             ]
         },
