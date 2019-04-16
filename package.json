@@ -191,7 +191,7 @@
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
         "ts-loader": "^5.3.3",
-        "typescript": "^3.3.3",
+        "typescript": "^3.4.3",
         "vscode": "^1.1.21",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
