@@ -24,6 +24,7 @@
             "problemMatcher": {
                 "source": "webpack-ts-loader",
                 "fileLocation": "absolute",
+                "applyTo": "closedDocuments",
                 "background": {
                     "activeOnStart": false,
                     "beginsPattern": "^Compilation results$",
@@ -58,6 +59,7 @@
                 "source": "react-dev-utils",
                 "severity": "error",
                 "fileLocation": "absolute",
+                "applyTo": "closedDocuments",
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": "^Compiling...$",
