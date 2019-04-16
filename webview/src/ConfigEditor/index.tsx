@@ -31,7 +31,7 @@ class ConfigEditor extends React.Component<StateProps & DispatchProps> {
                         <h4>{formatConfigLocation(oldConfig._location!)}</h4>
                     </div>
                 </div>
-                {Fields.FIELDS.map(f => f(newConfig, this.onChange)).filter(e => e)}
+                {Fields.FIELDS.map(f => f(newConfig, this.onChange, this.onChangeMultiple)).filter(e => e)}
                 <div className="divider" />
                 <FieldGroup.Consumer>{group => <React.Fragment>
                     <button className="cancel" onClick={this.props.cancel}>Cancel</button>
@@ -44,6 +44,10 @@ class ConfigEditor extends React.Component<StateProps & DispatchProps> {
     protected onChange: Fields.FSCChanged = (key, value) => {
         console.log(`Changed field '${key}' to: ${value}`);
         this.props.setNewConfig({ ...this.props.newConfig, [key]: value });
+    };
+    protected onChangeMultiple: Fields.FSCChangedMultiple = (newConfig) => {
+        console.log('Overwriting config fields:', newConfig);
+        this.props.setNewConfig({ ...this.props.newConfig, ...newConfig });
     };
 }
 

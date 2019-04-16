@@ -5,9 +5,11 @@ import { FieldNumber } from 'src/FieldTypes/number';
 import { FieldPath } from 'src/FieldTypes/path';
 import { FieldString } from 'src/FieldTypes/string';
 import { FileSystemConfig, invalidConfigName } from 'src/types/fileSystemConfig';
+import { PROXY_FIELD } from './proxyFields';
 
 export type FieldChanged<K = string, V = any> = (field: K, newValue: V) => void;
 export type FSCChanged<K extends keyof FileSystemConfig = keyof FileSystemConfig & string> = FieldChanged<K, FileSystemConfig[K]>;
+export type FSCChangedMultiple = (newConfig: Partial<FileSystemConfig>) => void;
 
 function pathValidator(value?: string): string | null {
   if (!value) return null;
@@ -100,5 +102,8 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
   return <FieldDropdownWithInput key="passphrase" label="Passphrase" {...{ value, values, description }} onChange={callback} optional={true} />
 }
 
-type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged) => React.ReactElement;
-export const FIELDS: FieldFactory[] = [name, merge, label, putty, host, port, root, agent, username, password, privateKeyPath, passphrase];
+export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
+export const FIELDS: FieldFactory[] = [
+  name, merge, label, putty, host, port,
+  root, agent, username, password, privateKeyPath, passphrase,
+  PROXY_FIELD];
