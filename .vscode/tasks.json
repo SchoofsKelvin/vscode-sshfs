@@ -21,13 +21,29 @@
             "label": "Extension - Watch",
             "script": "watch",
             "group": "build",
-            "problemMatcher": [
-                // A bit difficult to get a proper one.
-                // VSCode's language service stuff usually picks errors up, though
-                // otherwise, they're quite obvious in the terminal, and we don't
-                // have to worry about them slipping into release, as the release
-                // command will fail when there are any compilation errors
-            ],
+            "problemMatcher": {
+                "source": "webpack-ts-loader",
+                "fileLocation": "absolute",
+                "background": {
+                    "activeOnStart": false,
+                    "beginsPattern": "^Compilation results$",
+                    "endsPattern": "^End of compilation results$"
+                },
+                "pattern":[
+                    {
+                        "regexp": "^\\[TS\\] (.+) in (.+)\\((\\d+):(\\d+)\\):$",
+                        "severity": 1,
+                        "file": 2,
+                        "line": 3,
+                        "column": 4
+                    },
+                    {
+                        "regexp": "^TS(\\d+): (.+)$",
+                        "code": 1,
+                        "message": 2
+                    }
+                ]
+            },
             "isBackground": true
         },
         {
