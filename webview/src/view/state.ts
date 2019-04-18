@@ -4,7 +4,9 @@ interface IViewState<V extends string> {
   view: V;
 }
 
-export type IStartScreenState = IViewState<'startscreen'>;
+export interface IStartScreenState extends IViewState<'startscreen'> {
+  groupBy: string;
+}
 
 export interface INewConfigState extends IViewState<'newconfig'> {
   location?: ConfigLocation;
@@ -25,5 +27,6 @@ export interface IConfigLocatorState extends IViewState<'configlocator'> {
 export type IState = IStartScreenState | INewConfigState | IConfigEditorState | IConfigLocatorState;
 
 export const DEFAULT_STATE: IState = {
+  groupBy: 'group',
   view: 'startscreen',
 }

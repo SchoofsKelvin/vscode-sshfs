@@ -5,6 +5,7 @@ import { FieldNumber } from 'src/FieldTypes/number';
 import { FieldPath } from 'src/FieldTypes/path';
 import { FieldString } from 'src/FieldTypes/string';
 import { FileSystemConfig, invalidConfigName } from 'src/types/fileSystemConfig';
+import FieldConfigGroup from './configGroupField';
 import { PROXY_FIELD } from './proxyFields';
 
 export type FieldChanged<K = string, V = any> = (field: K, newValue: V) => void;
@@ -36,6 +37,12 @@ export function label(config: FileSystemConfig, onChange: FSCChanged<'label'>): 
   const callback = (value?: string) => onChange('label', value);
   const description = 'Label to display in some UI places (e.g. popups)';
   return <FieldString key="label" label="Label" value={config.label} onChange={callback} optional={true} description={description} />
+}
+
+export function group(config: FileSystemConfig, onChange: FSCChanged<'group'>): React.ReactElement {
+  const callback = (newValue: string) => onChange('group', newValue);
+  const description = 'Group for this config, to group configs together in some UI places. Allows subgroups, in the format "Group1.SubGroup1.Subgroup2"';
+  return <FieldConfigGroup key="group" label="Group" value={config.group} {...{ description }} onChange={callback} optional={true} />
 }
 
 export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): React.ReactElement {
@@ -104,6 +111,6 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
 
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
-  name, merge, label, putty, host, port,
+  name, merge, label, group, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
   PROXY_FIELD];
