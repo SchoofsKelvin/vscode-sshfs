@@ -73,7 +73,7 @@ export function merged(config: FileSystemConfig, onChange: FSCChanged, onChangeM
     const showHop = config.hop || (config as any)._hop;
     const type = config.proxy && config.proxy.type;
     const value = showHop ? 'SSH Hop' : (type && ProxyTypeToString[type]);
-    return <React.Fragment>
+    return <React.Fragment key="proxy">
         <FieldDropdown<ProxyStrings | undefined> key="proxy" label="Proxy" {...{ value, values, description }} onChange={callback} optional={true} />
         {showHop && hop(config, onChange)}
         {config.proxy && proxy(config, onChange)}
