@@ -2,7 +2,7 @@
 import { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
-import { FileSystemConfig } from './fileSystemConfig';
+import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import * as Logging from './logging';
 import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -53,13 +53,18 @@ export enum ConfigStatus {
   Error = 'Error',
 }
 
-function createTreeItem(manager: Manager, name: string): vscode.TreeItem {
-  const config = getConfig(name);
+function createTreeItem(manager: Manager, item: string | FileSystemConfig): vscode.TreeItem {
+  if (typeof item === 'string') {
+    return {
+      label: item.replace(/^.+\./, ''),
+      collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+    };
+  }
   const folders = vscode.workspace.workspaceFolders || [];
-  const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
-  const status = manager.getStatus(name);
+  const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === item.name);
+  const status = manager.getStatus(item.name);
   return {
-    label: config && config.label || name,
+    label: item && item.label || item.name,
     contextValue: isConnected ? 'active' : 'inactive',
     tooltip: status === 'Deleted' ? 'Active but deleted' : status,
     iconPath: manager.context.asAbsolutePath(`resources/config/${status}.png`),
@@ -79,7 +84,7 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
   return mat[1];
 }
 
-export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string> {
+export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string | FileSystemConfig> {
   public onDidChangeTreeData: vscode.Event<string>;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected fileSystems: SSHFileSystem[] = [];
@@ -183,7 +188,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
-          this.createFileSystem(name).catch(() => {});
+          this.createFileSystem(name).catch(() => { });
         } else if (chosen === 'Configure') {
           this.commandConfigure(name);
         } else {
@@ -251,15 +256,22 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return fs.rename(oldUri, newUri, options);
   }
   /* TreeDataProvider */
-  public getTreeItem(element: string): vscode.TreeItem | Thenable<vscode.TreeItem> {
+  public getTreeItem(element: string | FileSystemConfig): vscode.TreeItem | Thenable<vscode.TreeItem> {
     return createTreeItem(this, element);
   }
-  public getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
-    const configs = getConfigs().map(c => c.name);
-    this.fileSystems.forEach(fs => configs.indexOf(fs.authority) === -1 && configs.push(fs.authority));
-    const folders = vscode.workspace.workspaceFolders || [];
-    folders.filter(f => f.uri.scheme === 'ssh').forEach(f => configs.indexOf(f.uri.authority) === -1 && configs.push(f.uri.authority));
-    return configs.filter((c, i) => configs.indexOf(c) === i);
+  public getChildren(element: string | FileSystemConfig = ''): vscode.ProviderResult<(string | FileSystemConfig)[]> {
+    if (typeof element === 'object') return []; // FileSystemConfig, has no children
+    const configs = this.fileSystems.map(fs => fs.config);
+    configs.push(...getConfigs().filter(c => !configs.find(fs => c.name === fs.name)));
+    const matching = configs.filter(({ group }) => (group || '') === element);
+    matching.sort((a,b) => a.name > b.name ? 1 : -1);
+    let groups = getGroups(configs, true);
+    if (element) {
+      groups = groups.filter(g => g.startsWith(element) && g[element.length] === '.' && !g.includes('.', element.length + 1));
+    } else {
+      groups = groups.filter(g => !g.includes('.'));
+    }
+    return [...matching, ...groups.sort()];
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandDisconnect(name: string) {
@@ -297,11 +309,15 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${name}/`), name: `SSH FS - ${name}` });
     this.onDidChangeTreeDataEmitter.fire();
   }
-  public async commandConfigure(name: string) {
-    Logging.info(`Command received to configure ${name}`);
-    name = name.toLowerCase();
+  public async commandConfigure(target: string | FileSystemConfig) {
+    Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
+    if (typeof target === 'object') {
+      this.openSettings({ config: target, type: 'editconfig' });
+      return;
+    }
+    target = target.toLowerCase();
     let configs = await loadConfigsRaw();
-    configs = configs.filter(c => c.name === name);
+    configs = configs.filter(c => c.name === target);
     if (configs.length === 0) throw new Error('Unexpectedly found no matching configs?');
     const config = configs.length === 1 ? configs[0] : configs;
     this.openSettings({ config, type: 'editconfig' });

@@ -28,13 +28,17 @@ export function getLocations(configs: FileSystemConfig[]): ConfigLocation[] {
   return res;
 }
 
-export function getGroups(configs: FileSystemConfig[]): string[] {
+export function getGroups(configs: FileSystemConfig[], expanded = false): string[] {
   const res: string[] = [];
-  for (const { group } of configs) {
-    if (!group) continue;
+  function addGroup(group: string) {
     if (!res.find(l => l === group)) {
       res.push(group);
     }
+  }
+  for (const { group } of configs) {
+    if (!group) continue;
+    const groups = expanded ? group.split('.') : [group];
+    groups.forEach((g, i) => addGroup([...groups.slice(0, i), g].join('.')));
   }
   return res;
 }
