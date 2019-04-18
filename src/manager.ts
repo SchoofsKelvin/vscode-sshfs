@@ -4,46 +4,10 @@ import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import * as Logging from './logging';
-import SSHFileSystem, { EMPTY_FILE_SYSTEM } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
 
-const FOLDERS = vscode.workspace.workspaceFolders!;
-function isWorkspaceStale() {
-  const FOLDERS2 = vscode.workspace.workspaceFolders!;
-  if (!FOLDERS !== !FOLDERS2) return true;
-  // Both should exist here, but checking both for typechecking
-  if (!FOLDERS.length !== !FOLDERS2.length) return true;
-  const [folder1] = FOLDERS;
-  const [folder2] = FOLDERS2;
-  if (folder1 === folder2) return false;
-  const { name: name1, uri: uri1 } = folder1;
-  const { name: name2, uri: uri2 } = folder2;
-  if (name1 !== name2) return true;
-  if (uri1.toString() !== uri2.toString()) return true;
-  return false;
-}
-
-async function assertFs(man: Manager, uri: vscode.Uri) {
-  const fs = await man.getFs(uri);
-  if (fs) return fs;
-  // When adding one of our filesystems as the first workspace folder,
-  // it's possible (and even likely) that vscode will set
-  // vscode.workspace.workspaceFolders and prompt our filesystem
-  // for .vscode/settings.json, right before extensions get reloaded.
-  // This triggers a useless connection (and password prompting), so
-  // if we detect here the workspace is in a phase of change, resulting
-  // in extensions reload, just throw an error. vscode is fine with it.
-  if (isWorkspaceStale()) {
-    console.error('Stale workspace');
-    // Throwing an error gives the "${root} · Can not resolve workspace folder"
-    // throw vscode.FileSystemError.Unavailable('Stale workspace');
-    // So let's just act as if everything's fine, but there's only the void.
-    // The extensions (and FileSystemProviders) get reloaded soon anyway.
-    return EMPTY_FILE_SYSTEM;
-  }
-  return man.createFileSystem(uri.authority);
-}
+type SSHFileSystem = import('./sshFileSystem').SSHFileSystem;
 
 export enum ConfigStatus {
   Idle = 'Idle',
@@ -84,15 +48,12 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
   return mat[1];
 }
 
-export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvider<string | FileSystemConfig> {
+export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig> {
   public onDidChangeTreeData: vscode.Event<string>;
-  public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
-  protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string>();
   constructor(public readonly context: vscode.ExtensionContext) {
-    this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     // In a multi-workspace environment, when the non-main folder gets removed,
     // it might be one of ours, which we should then disconnect
@@ -104,12 +65,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       });
       this.onDidChangeTreeDataEmitter.fire();
     });
-    vscode.workspace.onDidChangeConfiguration(async (e) => {
-      // if (!e.affectsConfiguration('sshfs.configs')) return;
-      return loadConfigs();
-    });
     UPDATE_LISTENERS.push(() => this.fireConfigChanged());
-    loadConfigs();
   }
   public fireConfigChanged(): void {
     this.onDidChangeTreeDataEmitter.fire();
@@ -135,6 +91,8 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     if (promise) return promise;
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       const { createSSH, getSFTP, calculateActualConfig } = await import('./connect');
+      // tslint:disable-next-line:no-shadowed-variable (dynamic import for source splitting)
+      const { SSHFileSystem } = await import('./sshFileSystem');
       config = config || (await loadConfigs()).find(c => c.name === name);
       config = config && await calculateActualConfig(config) || undefined;
       if (!config) {
@@ -202,7 +160,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
   public getActive() {
     return this.fileSystems.map(fs => fs.config);
   }
-  public async getFs(uri: vscode.Uri) {
+  public getFs(uri: vscode.Uri): SSHFileSystem | null {
     const fs = this.fileSystems.find(f => f.authority === uri.authority);
     if (fs) return fs;
     return null;
@@ -218,43 +176,6 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
       this.commandDisconnect(name);
     }
   }
-  /* FileSystemProvider */
-  public watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
-    // TODO: Store watched files/directories in an array and periodically check if they're modified
-    /*let disp = () => {};
-    assertFs(this, uri).then((fs) => {
-      disp = fs.watch(uri, options).dispose.bind(fs);
-    }).catch(console.error);
-    return new vscode.Disposable(() => disp());*/
-    return new vscode.Disposable(() => { });
-  }
-  public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
-    return (await assertFs(this, uri)).stat(uri);
-  }
-  public async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-    return (await assertFs(this, uri)).readDirectory(uri);
-  }
-  public async createDirectory(uri: vscode.Uri): Promise<void> {
-    return (await assertFs(this, uri)).createDirectory(uri);
-  }
-  public async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-    Logging.debug(`Reading ${uri}`);
-    return (await assertFs(this, uri)).readFile(uri);
-  }
-  public async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): Promise<void> {
-    Logging.debug(`Writing ${content.length} bytes to ${uri}`);
-    return (await assertFs(this, uri)).writeFile(uri, content, options);
-  }
-  public async delete(uri: vscode.Uri, options: { recursive: boolean; }): Promise<void> {
-    Logging.debug(`Deleting ${uri}`);
-    return (await assertFs(this, uri)).delete(uri, options);
-  }
-  public async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): Promise<void> {
-    Logging.debug(`Renaming ${oldUri} to ${newUri}`);
-    const fs = await assertFs(this, oldUri);
-    if (fs !== (await assertFs(this, newUri))) throw new Error(`Can't rename between different SSH filesystems`);
-    return fs.rename(oldUri, newUri, options);
-  }
   /* TreeDataProvider */
   public getTreeItem(element: string | FileSystemConfig): vscode.TreeItem | Thenable<vscode.TreeItem> {
     return createTreeItem(this, element);
@@ -264,7 +185,7 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     const configs = this.fileSystems.map(fs => fs.config);
     configs.push(...getConfigs().filter(c => !configs.find(fs => c.name === fs.name)));
     const matching = configs.filter(({ group }) => (group || '') === element);
-    matching.sort((a,b) => a.name > b.name ? 1 : -1);
+    matching.sort((a, b) => a.name > b.name ? 1 : -1);
     let groups = getGroups(configs, true);
     if (element) {
       groups = groups.filter(g => g.startsWith(element) && g[element.length] === '.' && !g.includes('.', element.length + 1));
@@ -333,5 +254,3 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return navigation ? navigate(navigation) : open();
   }
 }
-
-export default Manager;

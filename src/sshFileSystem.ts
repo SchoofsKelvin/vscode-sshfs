@@ -13,23 +13,19 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   public copy = undefined;
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-
   constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper,
               public readonly root: string, public readonly config: FileSystemConfig) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.sftp.on('end', () => this.closed = true);
   }
-
   public disconnect() {
     this.closing = true;
     this.sftp.end();
   }
-
   public relative(relPath: string) {
     if (relPath.startsWith('/')) relPath = relPath.substr(1);
     return path.posix.resolve(this.root, relPath);
   }
-
   public continuePromise<T>(func: (cb: (err: Error | null, res?: T) => void) => boolean): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const exec = () => {
@@ -49,7 +45,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       }
     });
   }
-
+  /* FileSystemProvider */
   public watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
     // throw new Error('Method not implemented.');
     return new vscode.Disposable(() => { });
@@ -139,8 +135,6 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     return this.continuePromise(cb => this.sftp.rename(this.relative(oldUri.path), this.relative(newUri.path), cb));
   }
 }
-
-export default SSHFileSystem;
 
 export const EMPTY_FILE_SYSTEM = {
   onDidChangeFile: new vscode.EventEmitter<vscode.FileChangeEvent[]>().event,
