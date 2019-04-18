@@ -56,11 +56,14 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     // In a multi-workspace environment, when the non-main folder gets removed,
-    // it might be one of ours, which we should then disconnect
+    // it might be one of ours, which we should then disconnect if it's
+    // the only one left for the given config (name)
     // When one gets added, it gets connected on-demand (using stat() etc)
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
+      const { workspaceFolders = [] } = vscode.workspace;
       e.removed.forEach(async (folder) => {
         if (folder.uri.scheme !== 'ssh') return;
+        if (workspaceFolders.find(f => f.uri.authority === folder.uri.authority)) return;
         this.commandDisconnect(folder.uri.authority);
       });
       this.onDidChangeTreeDataEmitter.fire();
