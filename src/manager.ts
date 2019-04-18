@@ -274,39 +274,45 @@ export class Manager implements vscode.FileSystemProvider, vscode.TreeDataProvid
     return [...matching, ...groups.sort()];
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
-  public commandDisconnect(name: string) {
-    Logging.info(`Command received to disconnect ${name}`);
-    const fs = this.fileSystems.find(f => f.authority === name);
+  public commandDisconnect(target: string | FileSystemConfig) {
+    if (typeof target === 'object') target = target.name;
+    Logging.info(`Command received to disconnect ${target}`);
+    const fs = this.fileSystems.find(f => f.authority === target);
     if (fs) {
       fs.disconnect();
       this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
     }
-    delete this.creatingFileSystems[name];
+    delete this.creatingFileSystems[target];
     const folders = vscode.workspace.workspaceFolders!;
-    const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
+    const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
     if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);
     this.onDidChangeTreeDataEmitter.fire();
   }
-  public commandReconnect(name: string) {
-    Logging.info(`Command received to reconnect ${name}`);
-    const fs = this.fileSystems.find(f => f.authority === name);
+  public commandReconnect(target: string | FileSystemConfig) {
+    if (typeof target === 'object') target = target.name;
+    Logging.info(`Command received to reconnect ${target}`);
+    const fs = this.fileSystems.find(f => f.authority === target);
     if (fs) {
       fs.disconnect();
       this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
     }
-    delete this.creatingFileSystems[name];
-    this.commandConnect(name);
+    delete this.creatingFileSystems[target];
+    // Even if we got an actual config object, we're passing on the name here
+    // This allows it to pick up config changes (which is why we usually reconnect)
+    this.commandConnect(target);
   }
-  public commandConnect(name: string) {
-    Logging.info(`Command received to connect ${name}`);
-    if (this.getActive().find(fs => fs.name === name)) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+  public commandConnect(target: string | FileSystemConfig) {
+    const config = typeof target === 'object' ? target : undefined;
+    if (typeof target === 'object') target = target.name;
+    Logging.info(`Command received to connect ${target}`);
+    if (this.getActive().find(fs => fs.name === target)) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     const folders = vscode.workspace.workspaceFolders!;
-    const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
+    const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
     if (folder) {
       this.onDidChangeTreeDataEmitter.fire();
-      return this.createFileSystem(name);
+      return this.createFileSystem(target, config);
     }
-    vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${name}/`), name: `SSH FS - ${name}` });
+    vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
     this.onDidChangeTreeDataEmitter.fire();
   }
   public async commandConfigure(target: string | FileSystemConfig) {
