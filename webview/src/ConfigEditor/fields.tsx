@@ -60,7 +60,7 @@ export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): Re
 }
 
 export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): React.ReactElement {
-  const callback = (value: number) => onChange('port', value === 22 ? undefined : value);
+  const callback = (value: number) => onChange('port', value);
   const description = 'Port number of the server. Supports environment variables, e.g. $PORT';
   return <FieldNumber key="port" label="Port" value={config.port} onChange={callback} optional={true} description={description} />
 }
