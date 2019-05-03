@@ -1,11 +1,13 @@
 import { Action, ActionType } from './actions';
-import { DEFAULT_STATE, IConfigEditorState, INewConfigState, IState } from './state';
+import { DEFAULT_STATE, IConfigEditorState, INewConfigState, IStartScreenState, IState } from './state';
 
 export function reducer(state = DEFAULT_STATE, action: Action): IState {
   switch (action.type) {
     // Startscreen
-    case ActionType.OPEN_STARTSCREEN:
-      return { ...state, view: 'startscreen' };
+    case ActionType.OPEN_STARTSCREEN: {
+      const groupBy = action.groupBy || (state as IStartScreenState).groupBy || 'group';
+      return { ...state, view: 'startscreen', groupBy };
+    }
     // New Config
     case ActionType.OPEN_NEWCONFIG: {
       const { name } = action;

@@ -24,9 +24,9 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
     constructor(props: Props<T> & P) {
         super(props);
         this.state = {
-            ...this.getInitialSubState(props) as any,
             newValue: props.value,
             oldValue: props.value,
+            ...this.getInitialSubState(props) as any,
         }
     }
     public getInitialSubState(props: Props<T> & P): S {
@@ -34,6 +34,11 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
     }
     public onChange = (newValue?: T) => {
         this.setState({ newValue }, () => this.props.onChange(newValue));
+    }
+    public componentDidUpdate(oldProps: Props<T>) {
+        const { value } = this.props;
+        if (oldProps.value === value) return;
+        this.setState({ oldValue: value, newValue: value });
     }
     public abstract renderInput(): React.ReactNode;
     public getError(): string | null {

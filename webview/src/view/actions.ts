@@ -37,9 +37,10 @@ interface IAction {
 
 export interface IActionOpenStartscreen extends IAction {
   type: ActionType.OPEN_STARTSCREEN;
+  groupBy?: string;
 }
-export function openStartScreen(): IActionOpenStartscreen {
-  return { type: ActionType.OPEN_STARTSCREEN };
+export function openStartScreen(groupBy?: string): IActionOpenStartscreen {
+  return { type: ActionType.OPEN_STARTSCREEN, groupBy };
 }
 
 /* NewConfig */

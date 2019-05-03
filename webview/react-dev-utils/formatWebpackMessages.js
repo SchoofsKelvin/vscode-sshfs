@@ -16,15 +16,26 @@
 
 var chalk = require('chalk');
 var friendlySyntaxErrorLabel = 'Syntax error:';
+var path = require('path');
 
 function isLikelyASyntaxError(message) {
   return message.indexOf(friendlySyntaxErrorLabel) !== -1;
+}
+
+// VSCode problem matcher doesn't work with relative paths when they aren't workspace root
+function getAbsolutePath(p) {
+  return path.resolve(__dirname, "..", p);
 }
 
 // Cleans up webpack error messages.
 // eslint-disable-next-line no-unused-vars
 function formatMessage(message, isError) {
   var lines = message.split('\n');
+
+  // Apparently react-dev-utils can't handle TS compiling errors well
+  if (lines[0].startsWith('.')) return '';
+  lines[0] = chalk.inverse(lines[0]);
+  if (lines[0]) return lines.join('\n');
 
   if (lines.length > 2 && lines[1] === '') {
     // Remove extra newline.
@@ -86,7 +97,7 @@ function formatMessage(message, isError) {
     );
   }
 
-  lines[0] = chalk.inverse(lines[0]);
+  lines[0] = chalk.inverse(getAbsolutePath(lines[0]));
 
   // Reassemble the message.
   message = lines.join('\n');
@@ -105,10 +116,10 @@ function formatMessage(message, isError) {
 function formatWebpackMessages(json) {
   var formattedErrors = json.errors.map(function(message) {
     return formatMessage(message, true);
-  });
+  }).filter(s => !!s);
   var formattedWarnings = json.warnings.map(function(message) {
     return formatMessage(message, false);
-  });
+  }).filter(s => !!s);
   var result = {
     errors: formattedErrors,
     warnings: formattedWarnings,
@@ -117,7 +128,7 @@ function formatWebpackMessages(json) {
     // If there are any syntax errors, show just them.
     // This prevents a confusing ESLint parsing error
     // preceding a much more useful Babel syntax error.
-    result.errors = result.errors.filter(isLikelyASyntaxError);
+    // result.errors = result.errors.filter(isLikelyASyntaxError);
   }
   return result;
 }

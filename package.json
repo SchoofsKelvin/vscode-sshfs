@@ -3,9 +3,9 @@
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.15.2",
+    "version": "1.16.2",
     "engines": {
-        "vscode": "^1.26.0"
+        "vscode": "^1.33.0"
     },
     "categories": [
         "Other"
@@ -177,7 +177,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile && cd webview && npm run build",
+        "vscode:prepublish": "npm run build && cd webview && npm run build",
         "build": "webpack --mode production",
         "compile": "webpack --mode none --info-verbosity verbose --display-modules",
         "profile": "webpack --mode production --profile --json > stats.json",
@@ -191,8 +191,8 @@
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
         "ts-loader": "^5.3.3",
-        "typescript": "^3.3.3",
-        "vscode": "^1.1.21",
+        "typescript": "^3.4.3",
+        "vscode": "^1.1.33",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },

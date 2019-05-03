@@ -5,9 +5,12 @@ import { FieldNumber } from 'src/FieldTypes/number';
 import { FieldPath } from 'src/FieldTypes/path';
 import { FieldString } from 'src/FieldTypes/string';
 import { FileSystemConfig, invalidConfigName } from 'src/types/fileSystemConfig';
+import FieldConfigGroup from './configGroupField';
+import { PROXY_FIELD } from './proxyFields';
 
 export type FieldChanged<K = string, V = any> = (field: K, newValue: V) => void;
 export type FSCChanged<K extends keyof FileSystemConfig = keyof FileSystemConfig & string> = FieldChanged<K, FileSystemConfig[K]>;
+export type FSCChangedMultiple = (newConfig: Partial<FileSystemConfig>) => void;
 
 function pathValidator(value?: string): string | null {
   if (!value) return null;
@@ -36,6 +39,12 @@ export function label(config: FileSystemConfig, onChange: FSCChanged<'label'>): 
   return <FieldString key="label" label="Label" value={config.label} onChange={callback} optional={true} description={description} />
 }
 
+export function group(config: FileSystemConfig, onChange: FSCChanged<'group'>): React.ReactElement {
+  const callback = (newValue: string) => onChange('group', newValue);
+  const description = 'Group for this config, to group configs together in some UI places. Allows subgroups, in the format "Group1.SubGroup1.Subgroup2"';
+  return <FieldConfigGroup key="group" label="Group" value={config.group} {...{ description }} onChange={callback} optional={true} />
+}
+
 export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): React.ReactElement {
   const callback = (newValue: string) => onChange('putty', newValue === '<Auto-detect>' ? true : newValue);
   const description = 'A name of a PuTTY session, or `true` to find the PuTTY session from the host address';
@@ -51,7 +60,7 @@ export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): Re
 }
 
 export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): React.ReactElement {
-  const callback = (value: number) => onChange('port', value === 22 ? undefined : value);
+  const callback = (value: number) => onChange('port', value);
   const description = 'Port number of the server. Supports environment variables, e.g. $PORT';
   return <FieldNumber key="port" label="Port" value={config.port} onChange={callback} optional={true} description={description} />
 }
@@ -112,6 +121,9 @@ export function debugPreLaunch(config: FileSystemConfig, onChange: FSCChanged<'d
   return <FieldString key="debugPreLaunch" label="Debug Launch" value={config.debugPreLaunch} onChange={callback} optional={true} description={description} />
 }
 
-
-type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged) => React.ReactElement;
-export const FIELDS: FieldFactory[] = [name, merge, label, putty, host, port, root, agent, username, password, privateKeyPath, passphrase, debugPort, debugPreLaunch];
+export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
+export const FIELDS: FieldFactory[] = [
+  name, merge, label, group, putty, host, port,
+  root, agent, username, password, privateKeyPath, passphrase,
+  PROXY_FIELD,
+  debugPort, debugPreLaunch];

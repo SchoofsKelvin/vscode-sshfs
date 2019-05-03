@@ -38,7 +38,10 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
                 {displayName ? displayName(item) : item.toString()}
             </li>
         };
-        return <ul className="list">{values.map(generateItem)}</ul>;
+        return <ul className="list">
+            {this.props.optional && <li onClick={this.select.bind(this, null)} />}
+            {values.map(generateItem)}
+        </ul>;
     }
     public select(newValue: T) {
         this.setState({ newValue, open: false }, () => this.props.onChange(newValue));

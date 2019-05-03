@@ -4,12 +4,81 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Extension - Watch all",
+            "group": "build",
+            "dependsOn": [
+                "Extension - Watch",
+                "Extension WebView - Watch"
+            ],
+            "problemMatcher": [],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
             "type": "npm",
             "label": "Extension - Watch",
             "script": "watch",
-            "problemMatcher": [
-                "$ts-webpack"
-            ],
+            "group": "build",
+            "problemMatcher": {
+                "source": "webpack-ts-loader",
+                "fileLocation": "absolute",
+                "applyTo": "closedDocuments",
+                "background": {
+                    "activeOnStart": false,
+                    "beginsPattern": "^Compilation results$",
+                    "endsPattern": "^End of compilation results$"
+                },
+                "pattern":[
+                    {
+                        "regexp": "^\\[TS\\] (.+) in (.+)\\((\\d+):(\\d+)\\):$",
+                        "severity": 1,
+                        "file": 2,
+                        "line": 3,
+                        "column": 4
+                    },
+                    {
+                        "regexp": "^TS(\\d+): (.+)$",
+                        "code": 1,
+                        "message": 2
+                    }
+                ]
+            },
+            "isBackground": true
+        },
+        {
+            "type": "shell",
+            "label": "Extension WebView - Watch",
+            "command": "npm start",
+            "options": {
+                "cwd": "./webview"
+            },
+            "group": "build",
+            "problemMatcher": {
+                "source": "react-dev-utils",
+                "severity": "error",
+                "fileLocation": "absolute",
+                "applyTo": "closedDocuments",
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Compiling...$",
+                    "endsPattern": "Finished compiling"
+                },
+                "pattern":[
+                    {
+                        "regexp": "^(.+)$",
+                        "file": 1
+                    },
+                    {
+                        "regexp": "^\\((\\d+),(\\d+)\\): (.+)$",
+                        "line": 1,
+                        "column": 2,
+                        "message": 3,
+                        "loop": true
+                    }
+                ]
+            },
             "isBackground": true
         }
     ]

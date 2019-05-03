@@ -283,3 +283,9 @@ export function getConfig(name: string) {
   if (name === '<config>') return null;
   return getConfigs().find(c => c.name === name);
 }
+
+vscode.workspace.onDidChangeConfiguration(async (e) => {
+  // if (!e.affectsConfiguration('sshfs.configs')) return;
+  return loadConfigs();
+});
+loadConfigs();
