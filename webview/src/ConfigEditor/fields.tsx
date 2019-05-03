@@ -112,13 +112,13 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
 export function debugPort(config: FileSystemConfig, onChange: FSCChanged<'debugPort'>): React.ReactElement {
   const callback = (value?: number) => onChange('debugPort', value);
   const description = 'Debug port to attach';
-  return <FieldNumber key="debugPort" label="Debug port" value={config.debugPort} onChange={callback} optional={true} description={description} />  
+  return <FieldNumber key="debugPort" label="Remote Debugging Port" value={config.debugPort} onChange={callback} optional={true} description={description} />  
 }
 
 export function debugPreLaunch(config: FileSystemConfig, onChange: FSCChanged<'debugPreLaunch'>): React.ReactElement {
   const callback = (value?: string) => onChange('debugPreLaunch', value);
   const description = 'Task to run before debug session starts. SSH command: e.g. `/opt/vistec/python/bin/python -m ptvsd --host ${config.host} --port ${config.debugPort} --wait ${file}`';
-  return <FieldString key="debugPreLaunch" label="Debug Launch" value={config.debugPreLaunch} onChange={callback} optional={true} description={description} />
+  return <FieldString key="debugPreLaunch" label="Remote Debugging PreLaunch" value={config.debugPreLaunch} onChange={callback} optional={true} description={description} />
 }
 
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
