@@ -84,6 +84,8 @@ export interface FileSystemConfig extends ConnectConfig {
   merge?: boolean;
   /** Path on the remote server where the root path in vscode should point to. Defaults to / */
   root?: string;
+  /** Filesystem is on OpenVSM with versioning, Set if not init and root starts with '/DISK$' */
+  openvms?: boolean;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
   putty?: string | boolean;
   /** Optional object defining a proxy to use */

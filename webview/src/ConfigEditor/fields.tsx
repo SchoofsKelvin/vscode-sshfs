@@ -71,6 +71,14 @@ export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): Re
   return <FieldString key="root" label="Root" value={config.root} onChange={callback} optional={true} validator={pathValidator} description={description} />
 }
 
+export function openvms(config: FileSystemConfig, onChange: FSCChanged<'openvms'>): React.ReactElement {
+  const callback = (newValue: string) => onChange('openvms', newValue === 'Yes' || undefined);
+  const description = 'Filesystem is on OpenVSM with versioning, Set if not init and root starts with "/DISK$"';
+  const values = ['Yes', 'No'];
+  const value = config.openvms ? 'Yes' : 'No';
+  return <FieldDropdown key="openvms" label="OpenVMS" {...{ value, values, description }} onChange={callback} />
+}
+
 export function agent(config: FileSystemConfig, onChange: FSCChanged<'agent'>): React.ReactElement {
   const callback = (newValue: string) => onChange('agent', newValue === 'pageant' ? (true as any) : newValue);
   const description = `Path to ssh-agent's UNIX socket for ssh-agent-based user authentication. Supports 'pageant' for PuTTY's Pagent, and environment variables, e.g. $SSH_AUTH_SOCK`;
@@ -124,6 +132,6 @@ export function debugPreLaunch(config: FileSystemConfig, onChange: FSCChanged<'d
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
   name, merge, label, group, putty, host, port,
-  root, agent, username, password, privateKeyPath, passphrase,
+  root, openvms, agent, username, password, privateKeyPath, passphrase,
   PROXY_FIELD,
   debugPort, debugPreLaunch];

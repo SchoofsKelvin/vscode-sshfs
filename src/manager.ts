@@ -101,6 +101,24 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       if (!config) {
         throw new Error(`A SSH filesystem with the name '${name}' doesn't exist`);
       }
+
+      // auto detect OpenVMS with root path prefix
+      if (config.openvms === undefined) {
+        if (config.root && config.root.startsWith('/DISK$'))
+          config.openvms = true;
+      }
+
+      // hides default OpenVMS settings
+      if (config.openvms) {
+        config.algorithms = config.algorithms || {};
+        config.algorithms.kex = config.algorithms.kex || [];
+        config.algorithms.kex.push("diffie-hellman-group1-sha1");
+        config.algorithms.cipher = config.algorithms.cipher || [];
+        config.algorithms.cipher.push("aes256-cbc");
+        config.algorithms.serverHostKey = config.algorithms.serverHostKey || [];
+        config.algorithms.serverHostKey.push("ssh-dss");
+      } 
+
       const client = await createSSH(config);
       if (!client) return reject(null);
       let root = config!.root || '/';

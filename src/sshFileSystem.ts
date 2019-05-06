@@ -17,7 +17,49 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
               public readonly root: string, public readonly config: FileSystemConfig) {
     this.onDidChangeFile = this.onDidChangeFileEmitter.event;
     this.sftp.on('end', () => this.closed = true);
+
+    if (this.config.openvms) {
+      const subscriptions = [];
+      vscode.workspace.onDidSaveTextDocument((doc: vscode.TextDocument) => {
+        if ((this.config.openvms) && (doc.uri.scheme === "ssh") && (this.authority === doc.uri.authority)) {
+          console.log("Handle OpenVMS document after save. doc.uri: " + JSON.stringify(doc.uri));     
+          this._onSavedOpenVMSDocument(doc)
+        }}, this, subscriptions);
+    }
   }
+
+  public async _onSavedOpenVMSDocument(doc: vscode.TextDocument) {   
+      let vmsfolder = doc.uri.path.substring(0, doc.uri.path.lastIndexOf('/'));
+      const entries = await this.continuePromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(this.relative(vmsfolder), cb)).catch((e) => {
+        throw e === 2 ? vscode.FileSystemError.FileNotFound(doc.uri) : e;
+      });
+
+      let idxNoVersion = doc.uri.path.lastIndexOf(';');
+      if (idxNoVersion === -1) // new file have no version
+        idxNoVersion = doc.uri.path.length;
+      let fileName = doc.uri.path.substring(vmsfolder.length + 1, idxNoVersion);
+      let newVersionNumber = 0;
+      let newFileNameWithVersion = "";
+      entries.map(async (file) => {
+        if (file.filename.toLowerCase().indexOf(fileName.toLowerCase()) === 0) {
+          let version = parseInt(file.filename.substring(fileName.length + 1));
+          if (version > newVersionNumber) {
+            newVersionNumber = version;
+            newFileNameWithVersion = file.filename;
+          }
+        }
+      });
+
+      // close old file or created new file
+      vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+
+      // create new file uri and open
+      const newFileUri = vscode.Uri.parse(doc.uri.scheme + "://" + doc.uri.authority + vmsfolder + "/" + newFileNameWithVersion);
+      vscode.workspace.openTextDocument(newFileUri).then(newdoc => {
+        vscode.window.showTextDocument(newdoc, { "preview": false });
+      });    
+  }
+  
   public disconnect() {
     this.closing = true;
     this.sftp.end();
@@ -78,6 +120,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       const link = (file.attrs.mode & 61440) === 40960 ? vscode.FileType.SymbolicLink : 0;
       try {
         const type = (await this.stat(furi)).type;
+
+        if (this.config.openvms)
+          if (type & vscode.FileType.Directory)
+              return [file.filename.substring(0, file.filename.length - 6), type | link] as [string, vscode.FileType];
+
         // tslint:disable-next-line:no-bitwise
         return [file.filename, type | link] as [string, vscode.FileType];
       } catch (e) {
@@ -107,15 +154,22 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
         mode = stat.mode;
       } catch (e) {
-        if (e.message === 'No such file') {
+         // message from openvms with more detail
+         if (e.message.toLowerCase().includes('no such file')) {     
           mode = this.config.newFileMode;
         } else {
           Logging.error(e);
           vscode.window.showWarningMessage(`Couldn't read the permissions for '${this.relative(uri.path)}', permissions might be overwritten`);
         }
       }
-      mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this
-      const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode, flags: 'w' });
+      mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this      
+      let filepath = uri.path
+      if (this.config.openvms) { // write without versioning number, openvms creates new number
+          let idx = filepath.lastIndexOf(';');
+          if (idx > 0) // new file have no version
+              filepath = filepath.substring(0, idx);
+      }            
+      const stream = this.sftp.createWriteStream(this.relative(filepath), { mode, flags: 'w' }); 
       stream.on('error', reject);
       stream.end(content, resolve);
     });

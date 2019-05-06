@@ -19,6 +19,7 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 * Easily create configurations that reference a PuTTY session/configuration
 * Have multiple SSH (and regular) workspace folders at once
 * Make use of SOCKS 4/5 and HTTP proxies and connection hopping
+* Support for OpenVMS versioning filesystem
 
 ## Usage
 Use the command `SSH FS: Create a SSH FS configuration`, or open the Settings UI using the `SSH FS: Open settings and edit configurations` and click Add:
