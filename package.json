@@ -2,7 +2,7 @@
     "name": "vscode-sshfs",
     "displayName": "SSH FS",
     "description": "File system provider using SSH",
-    "publisher": "Kelvin",
+    "publisher": "vistec",
     "version": "1.16.2",
     "engines": {
         "vscode": "^1.33.0"
