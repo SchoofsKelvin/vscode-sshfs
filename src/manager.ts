@@ -5,6 +5,7 @@ import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } 
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import * as Logging from './logging';
 import { catchingPromise, toPromise } from './toPromise';
+import { openTerminal } from './connectTerminal';
 import { Navigation } from './webviewMessages';
 
 type SSHFileSystem = import('./sshFileSystem').SSHFileSystem;
@@ -356,5 +357,10 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
   public async openSettings(navigation?: Navigation) {
     const { open, navigate } = await import('./settings');
     return navigation ? navigate(navigation) : open();
+  }
+  public commandConnectTerminal(target: string | FileSystemConfig) {
+    if (typeof target === 'object') target = target.name;
+    Logging.info(`Command received to open terminal ${target}`);
+    openTerminal(target);
   }
 }

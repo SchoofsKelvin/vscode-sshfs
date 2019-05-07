@@ -20,7 +20,8 @@
         "onCommand:sshfs.disconnect",
         "onCommand:sshfs.configure",
         "onCommand:sshfs.reload",
-        "onCommand:sshfs.settings"
+        "onCommand:sshfs.settings",
+        "onCommand:sshfs.connectTerminal"
     ],
     "main": "./dist/extension.js",
     "author": {
@@ -81,6 +82,11 @@
                 "command": "sshfs.settings",
                 "title": "Open settings and edit configurations",
                 "category": "SSH FS"
+            },
+            {
+                "command": "sshfs.connectTerminal",
+                "title": "Connect SSH Terminal",
+                "category": "SSH FS"
             }
         ],
         "menus": {
@@ -112,6 +118,10 @@
                 {
                     "command": "sshfs.settings",
                     "group": "SSH FS@7"
+                },
+                {
+                    "command": "sshfs.connectTerminal",
+                    "group": "SSH FS@8"
                 }
             ],
             "view/item/context": [
@@ -144,6 +154,11 @@
                     "command": "sshfs.settings",
                     "when": "view == 'sshfs-configs' && !viewItem",
                     "group": "SSH FS@6"
+                },
+                {
+                    "command": "sshfs.connectTerminal",
+                    "when": "view == 'sshfs-configs' && viewItem",
+                    "group": "SSH FS@7"
                 }
             ]
         },

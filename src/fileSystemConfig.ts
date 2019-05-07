@@ -108,6 +108,8 @@ export interface FileSystemConfig extends ConnectConfig {
   debugPort?: number;
   /** Task to run before debug session starts. SSH command: e.g. `/opt/vistec/python/bin/python -m ptvsd --host ${config.host} --port ${config.debugPort} --wait ${file}` */
   debugPreLaunch?: string;
+  /** Commands that run right after the terminal opens, e.g. 'sd [.-.gs.dcl]' */
+  customTerminalCommands?: string[];
 }
 
 export function invalidConfigName(name: string) {

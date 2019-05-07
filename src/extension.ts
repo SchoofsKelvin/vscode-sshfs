@@ -67,6 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
   registerCommand('sshfs.reconnect', (name?: string) => pickAndClick(manager.commandReconnect, name, true));
   registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
+  registerCommand('sshfs.connectTerminal', (name?: string) => pickAndClick(manager.commandConnectTerminal, name));
 
   registerCommand('sshfs.reload', loadConfigs);
 }
