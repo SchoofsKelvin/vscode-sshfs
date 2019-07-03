@@ -97,7 +97,7 @@ export function password(config: FileSystemConfig, onChange: FSCChanged<'passwor
 
 export function privateKeyPath(config: FileSystemConfig, onChange: FSCChanged<'privateKeyPath'>): React.ReactElement {
   const callback = (value?: string) => onChange('privateKeyPath', value);
-  const description = 'A path to a private key. Supports environment variables, e.g. `$HOMEDRIVE$HOMEPATH/.ssh/myKey.ppk` or `$HOME/.ssh/myKey`';
+  const description = 'A path to a private key. Supports environment variables, e.g. `$USERPROFILE/.ssh/myKey.ppk` or `$HOME/.ssh/myKey`';
   return <FieldPath key="privateKeyPath" label="Private key" value={config.privateKeyPath} onChange={callback} optional={true} description={description} />
 }
 
