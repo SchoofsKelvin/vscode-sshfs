@@ -82,7 +82,7 @@ export function agent(config: FileSystemConfig, onChange: FSCChanged<'agent'>): 
 export function username(config: FileSystemConfig, onChange: FSCChanged<'username'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('username', newValue === '<Prompt>' ? (true as any) : newValue);
   const description = 'Username for authentication. Supports environment variables, e.g. $USERNAME';
-  const values = ['<Prompt>'];
+  const values = ['<Prompt>', '$USERNAME'];
   const value = (config.username as any) === true ? '<Prompt>' : config.username;
   return <FieldDropdownWithInput key="username" label="Username" {...{ value, values, description }} onChange={callback} optional={true} />
 }
