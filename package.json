@@ -5,7 +5,7 @@
     "publisher": "Kelvin",
     "version": "1.16.3",
     "engines": {
-        "vscode": "^1.33.0"
+        "vscode": "^1.40.0"
     },
     "categories": [
         "Other"
@@ -187,12 +187,12 @@
         "@types/node": "^8.10.43",
         "@types/request": "^2.48.1",
         "@types/ssh2": "^0.5.41",
+        "@types/vscode": "1.40.0",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
         "ts-loader": "^6.2.1",
         "typescript": "^3.4.3",
-        "vscode": "^1.1.33",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },
