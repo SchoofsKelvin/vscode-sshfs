@@ -50,7 +50,7 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
         }
         return validator ? validator(newValue!) : null;
     }
-    public getValue(): T {
+    public getValue(): T | undefined {
         const { newValue, oldValue } = this.state;
         if (newValue === undefined) {
             return this.props.optional ? newValue : oldValue;

@@ -26,7 +26,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     if (relPath.startsWith('/')) relPath = relPath.substr(1);
     return path.posix.resolve(this.root, relPath);
   }
-  public continuePromise<T>(func: (cb: (err: Error | null, res?: T) => void) => boolean): Promise<T> {
+  public continuePromise<T>(func: (cb: (err: Error | null | undefined, res?: T) => void) => boolean): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const exec = () => {
         this.waitForContinue = false;

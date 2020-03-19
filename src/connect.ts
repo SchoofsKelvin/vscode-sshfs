@@ -147,6 +147,10 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
           Logging.debug(`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`);
           err.message = `Couldn't connect through the hop:\n${err.message}`;
           return reject(err);
+        } else if (!channel) {
+          err = new Error('Did not receive a channel');
+          Logging.debug(`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`);
+          return reject(err);
         }
         channel.once('close', () => ssh.destroy());
         resolve(channel);
@@ -159,9 +163,9 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
       break;
     case 'socks4':
     case 'socks5':
-      return await (await import ('./proxy')).socks(config);
+      return await (await import('./proxy')).socks(config);
     case 'http':
-      return await (await import ('./proxy')).http(config);
+      return await (await import('./proxy')).http(config);
     default:
       throw new Error(`Unknown proxy method`);
   }
