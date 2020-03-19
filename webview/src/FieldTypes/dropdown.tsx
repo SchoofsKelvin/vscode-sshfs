@@ -23,7 +23,7 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
     public renderInput() {
         const { newValue, open } = this.state;
         const { displayName } = this.props;
-        const display = newValue ? (displayName ? displayName(newValue) : newValue.toString()) : '';
+        const display = newValue ? (displayName ? displayName(newValue) : `${newValue}`) : '';
         return <div className="FieldDropdown" ref={this.mainDivRef}>
             <p style={{ float: 'right', margin: 5 }}>▼</p>
             <div className="current" onClick={this.toggle}>{display}</div>
@@ -35,7 +35,7 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
         const generateItem = (item: T, index: number) => {
             const style = displayStyle && displayStyle(item);
             return <li key={index} style={style} onClick={this.select.bind(this, item)}>
-                {displayName ? displayName(item) : item.toString()}
+                {displayName ? displayName(item) : `${item}`}
             </li>
         };
         return <ul className="list">
