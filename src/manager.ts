@@ -112,6 +112,89 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
         }
         root = root.replace(/^~/, home.replace(/\/$/, ''));
       }
+      
+      vscode.debug.registerDebugConfigurationProvider("*", {
+        resolveDebugConfiguration(folder: vscode.WorkspaceFolder, debugConfig: vscode.DebugConfiguration) {
+
+          if ((folder.uri.scheme === 'ssh') && config) {
+            debugConfig['request'] = 'attach';
+            debugConfig['pathMappings'] = [];
+            debugConfig['pathMappings'].push({ 'localRoot': 'ssh://' + config.name, 'remoteRoot': config.root });
+
+            if (config.debugPort) {
+              if (debugConfig['port'] && (debugConfig['port'] !== config.port))
+                Logging.warning(`Invalid port in 'launch.json' working on '${config.name}'`);
+              debugConfig['port'] = config.debugPort;
+
+              if (debugConfig['host'] && (debugConfig['host'] !== config.host))
+                Logging.warning(`Invalid host in 'launch.json' working on '${config.name}'`);
+              debugConfig['host'] = config.host;
+            }
+
+            if (debugConfig['port'] === undefined)
+              Logging.error(`Missing property "debugPort" for remote debugging on '${config.name}'`);
+
+            let workspaceFolder = root;
+            let file = "${file}"; // default to get error message to open an editor
+            if (vscode.window.activeTextEditor)
+              file = root + vscode.window.activeTextEditor.document.uri.path; // '${file}' can not be resolved per default              
+            if (debugConfig['program'])
+              debugConfig['program'] = eval('`' + debugConfig['program'] + '`'); // resolve ${file}, ${workspaceFolder}   
+            else
+              debugConfig['program'] = file;  
+          }                      
+          return debugConfig;
+        }
+      });
+
+     
+      vscode.debug.registerDebugAdapterTrackerFactory('*', {
+        createDebugAdapterTracker(session: vscode.DebugSession) {
+          if (config && config.debugPreLaunch) {
+            return {
+              onWillStartSession: () => {                
+                if (config && config.debugPreLaunch) {                 
+                  const file = session.configuration['program'];                  
+                  const command = eval('`' + config.debugPreLaunch + '`'); // resolve ${file} and config.              
+                  
+                  new Promise((resolve, reject) => {
+                    Logging.info(`Start preLaunch Task for remote debugging: ${command}`);
+                    client.exec(command, (err, stream) => {
+                      if (err) return reject(err);
+                      stream.stderr.on('data', (d) => {
+                        Logging.error(`Stderr from remote debugging: ${d}`);
+                      })
+                      stream.on('data', (d) => {
+                        Logging.debug(`Stdout from remote debugging: ${d}`);
+                      })
+                      stream.on('error', reject);
+                      stream.on('close', (exitCode, signal) => {
+                        if (exitCode || signal) {
+                          return reject(new Error("error listing directory"));
+                        }
+                        resolve();
+                      });
+                    });
+                  });
+            }}};
+          }}
+      });
+
+      vscode.debug.registerDebugAdapterTrackerFactory('*', {
+        createDebugAdapterTracker(session: vscode.DebugSession) {
+          if (session.configuration['dapTrace']) {          
+            return {
+              onWillStartSession: () => console.log(`start: ${session.id}`),                  
+              onWillReceiveMessage: m => console.log(`===> ${JSON.stringify(m, undefined, 2)}`),
+              onDidSendMessage: m => console.log(`<=== ${JSON.stringify(m, undefined, 2)}`),
+              onWillStopSession: () => console.log(`stop: ${session.id}`),
+              onError: err => console.log(`error: ${err}`),
+              onExit: (code, signal) => console.log(`exit: ${code}`)
+            };
+          }
+        }
+      });
+
       const sftp = await getSFTP(client, config);
       const fs = new SSHFileSystem(name, sftp, root, config!);
       Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);

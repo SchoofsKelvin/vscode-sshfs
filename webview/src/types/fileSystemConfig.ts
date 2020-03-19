@@ -102,6 +102,10 @@ export interface FileSystemConfig extends ConnectConfig {
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
   _locations: ConfigLocation[];
+  /** Debug port to attach */
+  debugPort?: number;
+  /** Task to run before debug session starts. SSH command: e.g. `/opt/vistec/python/bin/python -m ptvsd --host ${config.host} --port ${config.debugPort} --wait ${file}` */
+  debugPreLaunch?: string;
 }
 
 export function invalidConfigName(name: string) {
