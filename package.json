@@ -35,7 +35,7 @@
     "bugs": {
         "url": "https://github.com/SchoofsKelvin/vscode-sshfs/issues"
     },
-    "license": "GLP-3.0",
+    "license": "GPL-3.0",
     "icon": "resources/Logo.png",
     "contributes": {
         "views": {
