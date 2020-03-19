@@ -177,7 +177,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run build && cd webview && npm run build",
+        "vscode:prepublish": "yarn run build && cd webview && yarn run build",
         "build": "webpack --mode production",
         "compile": "webpack --mode none --info-verbosity verbose --display-modules",
         "profile": "webpack --mode production --profile --json > stats.json",
