@@ -238,6 +238,32 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     }
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
     this.onDidChangeTreeDataEmitter.fire();
+    this.commandTerminal(target);
+  }
+  public commandTerminal(target: string | FileSystemConfig) {
+    //const config = typeof target === 'object' ? target : undefined;
+    if (typeof target === 'object') target = target.name;
+    const config = getConfig(target);
+    Logging.info(`Command received to open terminal to ${target}`);
+
+    let sshcmd = `${config?.username}@${config?.host}`;
+    if (config?.port) { sshcmd += `-p ${config?.port}` }
+    Logging.debug(`\Opening terminal to ${sshcmd}`);
+    if (config?.root) {
+        // If you don't use -t then no prompt will appear.
+        // If you don't add ; bash then the connection will
+        // get closed and return control to your local machine
+        sshcmd += ` -t "cd ${config?.root}; exec \\$SHELL" `;
+    }
+    //if (this.getActive().find(fs => fs.name === target)) {
+    const folders = vscode.workspace.workspaceFolders;
+    const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
+    if (folder) {
+      let sshterm = vscode.window.createTerminal(`SSH Terminal - ${target}`);
+      sshterm.sendText('ssh ' + sshcmd);
+     // sshterm.sendText(`${config?.password}`);
+      sshterm.show();
+    }
   }
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
