@@ -157,7 +157,7 @@
                 },
                 {
                     "command": "sshfs.terminal",
-                    "when": "view == 'sshfs-configs' && viewItem",
+                    "when": "view == 'sshfs-configs' && viewItem == active",
                     "group": "SSH FS@7"
                 }
             ]
