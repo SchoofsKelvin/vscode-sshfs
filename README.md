@@ -3,7 +3,7 @@
 
 ![Logo](./resources/Logo.png)
 
-[![GitHub package version](./media/github.png)](https://github.com/SchoofsKelvin/vscode-sshfs) 
+[![GitHub package version](./media/github.png)](https://github.com/SchoofsKelvin/vscode-sshfs)
 [![Visual Studio Marketplace](https://vsmarketplacebadge.apphb.com/version-short/Kelvin.vscode-sshfs.svg)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
  [![Donate](./media/paypal.png)](https://www.paypal.me/KSchoofs)
 
@@ -19,6 +19,7 @@ This extension makes use of the new FileSystemProvider, added in version 1.23.0 
 * Easily create configurations that reference a PuTTY session/configuration
 * Have multiple SSH (and regular) workspace folders at once
 * Make use of SOCKS 4/5 and HTTP proxies and connection hopping
+* Easily open a SSH Terminal from VSCode
 
 ## Usage
 Use the command `SSH FS: Create a SSH FS configuration`, or open the Settings UI using the `SSH FS: Open settings and edit configurations` and click Add:
@@ -36,4 +37,3 @@ To connect, either rightclick the name in the Explorer tab, or use the command p
 This will add a Workspace folder linked to a SSH (SFTP) session:
 
 ![Workspace folder added](./media/screenshot-explorer.png)
-
