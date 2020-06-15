@@ -70,6 +70,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerCommand('sshfs.reload', loadConfigs);
 
-  registerCommand('sshfs.terminal', (name?: string) => pickAndClick(manager.commandTerminal, name, false));
+  registerCommand('sshfs.terminal', (name?: string) => pickAndClick(manager.commandTerminal, name, true));
 
 }
