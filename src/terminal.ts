@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import * as Logging from './logging';
-//import { getConfig, getConfigs, loadConfigs } from './config';
-import { calculateActualConfig } from './connect';
 import { FileSystemConfig } from './fileSystemConfig';
 
 //export async function openTerminal(name: string) {
