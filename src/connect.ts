@@ -7,6 +7,7 @@ import { getConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
 import * as Logging from './logging';
 import { toPromise } from './toPromise';
+import { openTerminal } from './terminal';
 
 // tslint:disable-next-line:variable-name
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
@@ -209,6 +210,14 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     } catch (e) {
       reject(e);
     }
+    try {
+        Logging.info(`[${config.name}] Opening SSH terminal`);
+        openTerminal(config);
+    } catch (e) {
+        reject(e);
+    }
+
+
   });
 }
 
