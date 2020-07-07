@@ -10,7 +10,7 @@ export class MemoryDuplex extends Duplex {
   }
   // tslint:disable-next-line:function-name
   public _write(chunk: any, encoding: string, callback: (err?: Error) => void) {
-    const buffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk, encoding);
+    const buffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk.toString(), encoding as BufferEncoding);
     const end = this.buffered + buffer.length;
     if (end > this.size) {
       return callback(new Error('Buffer overflow'));
@@ -32,12 +32,12 @@ export class MemoryDuplex extends Duplex {
 }
 
 export class WritableFunctionStream extends Writable {
-  constructor(protected func: (data: Buffer) => void) {
+  constructor(protected func: (data: Buffer) => void | Promise<void>) {
     super();
   }
   // tslint:disable-next-line:function-name
   public async _write(chunk: any, encoding: string, callback: (err?: Error) => void) {
-    const buffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk, encoding);
+    const buffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk.toString(), encoding as BufferEncoding);
     try {
       await this.func(buffer);
       callback();

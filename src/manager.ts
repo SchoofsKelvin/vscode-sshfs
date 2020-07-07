@@ -49,10 +49,10 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
 }
 
 export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig> {
-  public onDidChangeTreeData: vscode.Event<string>;
+  public onDidChangeTreeData: vscode.Event<string | null>;
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
-  protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string>();
+  protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string | null>();
   constructor(public readonly context: vscode.ExtensionContext) {
     this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     // In a multi-workspace environment, when the non-main folder gets removed,
@@ -66,12 +66,12 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
         if (workspaceFolders.find(f => f.uri.authority === folder.uri.authority)) return;
         this.commandDisconnect(folder.uri.authority);
       });
-      this.onDidChangeTreeDataEmitter.fire();
+      this.onDidChangeTreeDataEmitter.fire(null);
     });
     UPDATE_LISTENERS.push(() => this.fireConfigChanged());
   }
   public fireConfigChanged(): void {
-    this.onDidChangeTreeDataEmitter.fire();
+    this.onDidChangeTreeDataEmitter.fire(null);
     // TODO: Offer to reconnect everything
   }
   public getStatus(name: string): ConfigStatus {
@@ -134,11 +134,11 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       this.fileSystems.push(fs);
       delete this.creatingFileSystems[name];
       vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-      this.onDidChangeTreeDataEmitter.fire();
+      this.onDidChangeTreeDataEmitter.fire(null);
       client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
       return resolve(fs);
     }).catch((e) => {
-      this.onDidChangeTreeDataEmitter.fire();
+      this.onDidChangeTreeDataEmitter.fire(null);
       if (!e) {
         delete this.creatingFileSystems[name];
         this.commandDisconnect(name);
@@ -210,7 +210,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     const folders = vscode.workspace.workspaceFolders!;
     const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
     if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);
-    this.onDidChangeTreeDataEmitter.fire();
+    this.onDidChangeTreeDataEmitter.fire(null);
   }
   public commandReconnect(target: string | FileSystemConfig) {
     if (typeof target === 'object') target = target.name;
@@ -233,11 +233,11 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
     if (folder) {
-      this.onDidChangeTreeDataEmitter.fire();
+      this.onDidChangeTreeDataEmitter.fire(null);
       return this.createFileSystem(target, config);
     }
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
-    this.onDidChangeTreeDataEmitter.fire();
+    this.onDidChangeTreeDataEmitter.fire(null);
   }
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);

@@ -22,28 +22,10 @@
             "script": "watch",
             "group": "build",
             "problemMatcher": {
+                "base": "$ts-webpack-watch",
                 "source": "webpack-ts-loader",
-                "fileLocation": "absolute",
-                "applyTo": "closedDocuments",
-                "background": {
-                    "activeOnStart": false,
-                    "beginsPattern": "^Compilation results$",
-                    "endsPattern": "^End of compilation results$"
-                },
-                "pattern":[
-                    {
-                        "regexp": "^\\[TS\\] (.+) in (.+)\\((\\d+):(\\d+)\\):$",
-                        "severity": 1,
-                        "file": 2,
-                        "line": 3,
-                        "column": 4
-                    },
-                    {
-                        "regexp": "^TS(\\d+): (.+)$",
-                        "code": 1,
-                        "message": 2
-                    }
-                ]
+                "owner": "webpack-ts-loader",
+                "applyTo": "allDocuments"
             },
             "isBackground": true
         },

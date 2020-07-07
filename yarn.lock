@@ -36,10 +36,10 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-13.9.2.tgz#ace1880c03594cc3e80206d96847157d8e7fa349"
   integrity sha512-bnoqK579sAYrQbp73wwglccjJ4sfRdKU7WNEZ5FW4K2U6Kc0/eZ5kvXG0JKsEKFB50zrFmfFt52/cvBbZa7eXg==
 
-"@types/node@^8.10.43":
-  version "8.10.59"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-8.10.59.tgz#9e34261f30183f9777017a13d185dfac6b899e04"
-  integrity sha512-8RkBivJrDCyPpBXhVZcjh7cQxVBSmRk9QM7hOketZzp6Tg79c0N8kkpAIito9bnJ3HCVCHVYz+KHTEbfQNfeVQ==
+"@types/node@^12.7.12":
+  version "12.7.12"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.7.12.tgz#7c6c571cc2f3f3ac4a59a5f2bd48f5bdbc8653cc"
+  integrity sha512-KPYGmfD0/b1eXurQ59fXD1GBzhSQfz6/lKBxkaHX9dKTzjXbK68Zt7yGUxUsCS1jeTy/8aL+d9JEr+S54mpkWQ==
 
 "@types/request@^2.48.1":
   version "2.48.4"
@@ -88,10 +88,10 @@
   dependencies:
     source-map "^0.6.1"
 
-"@types/vscode@1.40.0":
-  version "1.40.0"
-  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.40.0.tgz#47d19e9e32da512c986f579fe6afbc8d3e6e0c55"
-  integrity sha512-5kEIxL3qVRkwhlMerxO7XuMffa+0LBl+iG2TcRa0NsdoeSFLkt/9hJ02jsi/Kvc6y8OVF2N2P2IHP5S4lWf/5w==
+"@types/vscode@^1.46":
+  version "1.46.0"
+  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.46.0.tgz#53f2075986e901ed25cd1ec5f3ffa5db84a111b3"
+  integrity sha512-8m9wPEB2mcRqTWNKs9A9Eqs8DrQZt0qNFO8GkxBOnyW6xR//3s77SoMgb/nY1ctzACsZXwZj3YRTDsn4bAoaUw==
 
 "@types/webpack-sources@*":
   version "0.1.6"
@@ -2855,10 +2855,10 @@ typedarray@^0.0.6:
   resolved "https://registry.yarnpkg.com/typedarray/-/typedarray-0.0.6.tgz#867ac74e3864187b1d3d47d996a78ec5c8830777"
   integrity sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=
 
-typescript@^3.4.3:
-  version "3.8.3"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.8.3.tgz#409eb8544ea0335711205869ec458ab109ee1061"
-  integrity sha512-MYlEfn5VrLNsgudQTVJeNaQFUAI7DkhnOjdpAp4T+ku1TfQClewlbSuTVHiA+8skNBgaf02TL/kLOvig4y3G8w==
+typescript@^3.9.6:
+  version "3.9.6"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.9.6.tgz#8f3e0198a34c3ae17091b35571d3afd31999365a"
+  integrity sha512-Pspx3oKAPJtjNwE92YS05HQoY7z2SFyOpHo9MqJor3BXAGNaPUs83CuVp9VISFkSjyRfiTpmKuAYGJB7S7hOxw==
 
 union-value@^1.0.0:
   version "1.0.1"

@@ -184,15 +184,15 @@
         "watch": "webpack --mode none --watch --info-verbosity verbose --display-modules"
     },
     "devDependencies": {
-        "@types/node": "^8.10.43",
+        "@types/node": "^12.7.12",
         "@types/request": "^2.48.1",
         "@types/ssh2": "^0.5.41",
-        "@types/vscode": "1.40.0",
+        "@types/vscode": "^1.46",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
         "ts-loader": "^6.2.1",
-        "typescript": "^3.4.3",
+        "typescript": "^3.9.6",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },

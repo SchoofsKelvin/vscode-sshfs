@@ -23,12 +23,17 @@ function getExtensionPath(): string | undefined {
 async function getDebugContent(): Promise<string | false> {
   if (!DEBUG) return false;
   const URL = `http://localhost:${DEBUG}/`;
-  const request = await import('request').catch(() => null);
-  if (!request) throw new Error('Could not load \'request\' library');
-  return toPromise<string>(cb => request.get(URL, (err, _, body: string) => {
-    if (err) return cb(new Error('Could not connect to React dev server. Not running?'));
-    body = body.toString().replace(/\/static\/js\/bundle\.js/, `http://localhost:${DEBUG}/static/js/bundle.js`);
+  const http = await import('http');
+  return toPromise<string>(cb => http.get(URL, async (message) => {
+    if (message.statusCode !== 200) return cb(new Error(`Error code ${message.statusCode} (${message.statusMessage}) connecting to React dev server}`));
+    let body = '';
+    message.on('data', chunk => body += chunk);
+    await toPromise(cb => message.on('end', cb));
+    body = body.toString().replace(/\/static\/js\/bundle\.js/, `${URL}/static/js/bundle.js`);
     cb(null, body);
+  }).on('error', err => {
+    console.warn('Error connecting to React dev server:', err);
+    cb(new Error('Could not connect to React dev server. Not running?'));
   }));
 }
 

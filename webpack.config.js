@@ -44,32 +44,6 @@ class CopyPuttyExecutable {
     }
 }
 
-class ProblemMatcherSupport {
-    /**
-     * @param {webpack.Compiler} compiler
-     */
-    apply(compiler) {
-        let lastHash = '';
-        compiler.hooks.afterEmit.tap('ProblemMatcher-AfterEmit', (comp) => {
-            const stats = comp.getStats();
-            if (stats.hash === lastHash) return;
-            lastHash = stats.hash;
-            console.log('Compilation results');
-            comp.warnings.forEach(msg => console.warn(msg.message));
-            comp.errors.forEach(msg => console.error(msg.message));
-            console.log('End of compilation results');
-        });
-    }
-}
-
-
-/**@type {Partial<import('ts-loader').Options>}*/
-const tsLoaderOptions = {
-    errorFormatter(message, colors) {
-        return `[TS] ${message.severity} in ${message.file}(${message.line}:${message.character}):\nTS${message.code}: ${message.content}`;
-    }
-};
-
 /**@type {webpack.Configuration}*/
 const config = {
     target: 'node',
@@ -98,14 +72,12 @@ const config = {
             include: /src/,
             use: [{
                 loader: 'ts-loader',
-                options: tsLoaderOptions,
             }]
         }]
     },
     plugins: [
         new CleanWebpackPlugin(),
         new CopyPuttyExecutable(),
-        new ProblemMatcherSupport(),
     ],
 }
 
