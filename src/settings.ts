@@ -30,6 +30,9 @@ async function getDebugContent(): Promise<string | false> {
     message.on('data', chunk => body += chunk);
     await toPromise(cb => message.on('end', cb));
     body = body.toString().replace(/\/static\/js\/bundle\.js/, `${URL}/static/js/bundle.js`);
+    // Make sure the CSP meta tag also includes the React dev server (including connect-src for the socket, which uses both http:// and ws://)
+    body = body.replace(/\$WEBVIEW_CSPSOURCE/g, `$WEBVIEW_CSPSOURCE ${URL}`);
+    body = body.replace(/\$WEBVIEW_CSPEXTRA/g, `connect-src ${URL} ${URL.replace('http://', 'ws://')};`);
     cb(null, body);
   }).on('error', err => {
     console.warn('Error connecting to React dev server:', err);
@@ -41,7 +44,8 @@ export async function open() {
   if (!webviewPanel) {
     webviewPanel = vscode.window.createWebviewPanel('sshfs-settings', 'SSH-FS Settings', vscode.ViewColumn.One, { enableFindWidget: true, enableScripts: true });
     webviewPanel.onDidDispose(() => webviewPanel = undefined);
-    webviewPanel.webview.onDidReceiveMessage(handleMessage);
+    const { webview } = webviewPanel;
+    webview.onDidReceiveMessage(handleMessage);
     let content = await getDebugContent().catch((e: Error) => (vscode.window.showErrorMessage(e.message), null));
     if (!content) {
       const extensionPath = getExtensionPath();
@@ -49,9 +53,15 @@ export async function open() {
       // If we got here, we're either not in debug mode, or something went wrong (and an error message is shown)
       content = fs.readFileSync(path.resolve(extensionPath, 'webview/build/index.html')).toString();
       // Built index.html has e.g. `href="/static/js/stuff.js"`, need to make it use vscode-resource: and point to the built static directory
-      content = content.replace(/\/static\//g, vscode.Uri.file(path.join(extensionPath, 'webview/build/static/')).with({ scheme: 'vscode-resource' }).toString());
+      // Scrap that last part, vscode-resource: is deprecated and we need to use Webview.asWebviewUri
+      //content = content.replace(/\/static\//g, vscode.Uri.file(path.join(extensionPath, 'webview/build/static/')).with({ scheme: 'vscode-resource' }).toString());
+      content = content.replace(/\/static\//g, webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'webview/build/static/'))).toString());
     }
-    webviewPanel.webview.html = content;
+    // Make sure the CSP meta tag has the right cspSource
+    content = content.replace(/\$WEBVIEW_CSPSOURCE/g, webview.cspSource);
+    // The EXTRA tag is used in debug mode to define connect-src. By default we can (and should) just delete it
+    content = content.replace(/\$WEBVIEW_CSPEXTRA/g, '');
+    webview.html = content;
   }
   webviewPanel.reveal();
 }
