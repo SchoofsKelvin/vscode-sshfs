@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as Logging from './logging';
+import { Logging } from './logging';
 import { Manager } from './manager';
 
 const FOLDERS = vscode.workspace.workspaceFolders!;

@@ -193,7 +193,7 @@
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
-        "ts-loader": "^6.2.1",
+        "source-map-support": "^0.5.19",
         "typescript": "^3.9.6",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"

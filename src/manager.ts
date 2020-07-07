@@ -3,7 +3,7 @@ import { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
-import * as Logging from './logging';
+import { Logging } from './logging';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
 

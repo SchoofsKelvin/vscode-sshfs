@@ -5,7 +5,7 @@ import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
-import * as Logging from './logging';
+import { Logging, censorConfig } from './logging';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -24,6 +24,7 @@ function replaceVariables(string?: string) {
 
 export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
   if ('_calculated' in config) return config;
+  const logging = Logging.here();
   config = { ...config };
   (config as any)._calculated = true;
   config.username = replaceVariables(config.username);
@@ -32,10 +33,10 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   if (port) config.port = Number(port);
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
-  Logging.info(`[${config.name}] Calculating actual config`);
+  logging.info(`Calculating actual config`);
   if (config.putty) {
     if (process.platform !== 'win32') {
-      Logging.warning(`[${config.name}] \tConfigurating uses putty, but platform is ${process.platform}`);
+      logging.warning(`\tConfigurating uses putty, but platform is ${process.platform}`);
     }
     let nameOnly = true;
     if (config.putty === true) {
@@ -76,13 +77,13 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       default:
         throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
     }
-    Logging.debug(`[${config.name}] \tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
+    logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
   }
   if (config.privateKeyPath) {
     try {
       const key = await toPromise<Buffer>(cb => readFile(config.privateKeyPath!, cb));
       config.privateKey = key;
-      Logging.debug(`[${config.name}] \tRead private key from ${config.privateKeyPath}`);
+      logging.debug(`\tRead private key from ${config.privateKeyPath}`);
     } catch (e) {
       throw new Error(`Error while reading the keyfile at:\n${config.privateKeyPath}`);
     }
@@ -124,32 +125,33 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     // Issue with the ssh2 dependency apparently not liking false
     delete config.passphrase;
   }
-  Logging.debug(`[${config.name}] \tFinal configuration:\n${JSON.stringify(Logging.censorConfig(config), null, 4)}`);
+  logging.debug(`\tFinal configuration:\n${JSON.stringify(censorConfig(config), null, 4)}`);
   return config;
 }
 
 export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
-  Logging.info(`[${config.name}] Creating socket`);
+  const logging = Logging.here(`createSocket(${config.name})`);
+  logging.info(`Creating socket`);
   if (config.hop) {
-    Logging.debug(`\tHopping through ${config.hop}`);
+    logging.debug(`\tHopping through ${config.hop}`);
     const hop = getConfigs().find(c => c.name === config.hop);
     if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
     const ssh = await createSSH(hop);
     if (!ssh) {
-      Logging.debug(`[${config.name}] \tFailed in connecting to hop ${config.hop}`);
+      logging.debug(`\tFailed in connecting to hop ${config.hop}`);
       return null;
     }
     return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
       ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
         if (err) {
-          Logging.debug(`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`);
+          logging.debug(`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`);
           err.message = `Couldn't connect through the hop:\n${err.message}`;
           return reject(err);
         } else if (!channel) {
           err = new Error('Did not receive a channel');
-          Logging.debug(`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`);
+          logging.debug(`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`);
           return reject(err);
         }
         channel.once('close', () => ssh.destroy());
@@ -170,7 +172,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
       throw new Error(`Unknown proxy method`);
   }
   return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
-    Logging.debug(`[${config.name}] Connecting to ${config.host}:${config.port || 22}`);
+    logging.debug(`Connecting to ${config.host}:${config.port || 22}`);
     const socket = new Socket();
     socket.connect(config.port || 22, config.host!, () => resolve(socket as NodeJS.ReadableStream));
     socket.once('error', reject);
@@ -182,29 +184,30 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
   if (!config) return null;
   sock = sock || (await createSocket(config))!;
   if (!sock) return null;
+  const logging = Logging.here(`createSSH(${config.name})`);
   return new Promise<Client>((resolve, reject) => {
     const client = new Client();
     client.once('ready', () => resolve(client));
     client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${config.name}'`)));
     client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
-      Logging.debug(`[${config.name}] Received keyboard-interactive request with prompts "${JSON.stringify(prompts)}"`);
+      logging.debug(`Received keyboard-interactive request with prompts "${JSON.stringify(prompts)}"`);
       Promise.all<string>(prompts.map(prompt =>
         vscode.window.showInputBox({
           password: true, // prompt.echo was false for me while testing password prompting
           ignoreFocusOut: true,
           prompt: prompt.prompt.replace(/:\s*$/, ''),
         }),
-      )).then(finish);
+      )).then(finish).catch(e => logging.error(e));
     });
     client.on('error', (error: Error & { description?: string }) => {
       if (error.description) {
         error.message = `${error.description}\n${error.message}`;
       }
-      Logging.error(`[${config.name}] ${error.message || error}`);
+      logging.error(`${error.message || error}`);
       reject(error);
     });
     try {
-      Logging.info(`[${config.name}] Creating SSH session over the opened socket`);
+      logging.info(`Creating SSH session over the opened socket`);
       client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock }, DEFAULT_CONFIG));
     } catch (e) {
       reject(e);
@@ -213,14 +216,14 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
 }
 
 function startSudo(shell: ClientChannel, config: FileSystemConfig, user: string | boolean = true): Promise<void> {
-  Logging.debug(`[${config.name}] Turning shell into a sudo shell for ${typeof user === 'string' ? `'${user}'` : 'default sudo user'}`);
+  Logging.debug(`Turning shell into a sudo shell for ${typeof user === 'string' ? `'${user}'` : 'default sudo user'}`);
   return new Promise((resolve, reject) => {
     function stdout(data: Buffer | string) {
       data = data.toString();
       if (data.trim() === 'SUDO OK') {
         return cleanup(), resolve();
       } else {
-        Logging.debug(`[${config.name}] Unexpected STDOUT: ${data}`);
+        Logging.debug(`Unexpected STDOUT: ${data}`);
       }
     }
     async function stderr(data: Buffer | string) {
@@ -270,19 +273,20 @@ function stripSudo(cmd: string) {
 export async function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
   config = (await calculateActualConfig(config))!;
   if (!config) throw new Error('Couldn\'t calculate the config');
+  const logging = Logging.here(`getSFTP(${config.name})`);
   if (config.sftpSudo && !config.sftpCommand) {
-    Logging.warning(`[${config.name}] sftpSudo is set without sftpCommand. Assuming /usr/lib/openssh/sftp-server`);
+    logging.warning(`sftpSudo is set without sftpCommand. Assuming /usr/lib/openssh/sftp-server`);
     config.sftpCommand = '/usr/lib/openssh/sftp-server';
   }
   if (!config.sftpCommand) {
-    Logging.info(`[${config.name}] Creating SFTP session using standard sftp subsystem`);
+    logging.info(`Creating SFTP session using standard sftp subsystem`);
     return toPromise<SFTPWrapper>(cb => client.sftp(cb));
   }
   let cmd = config.sftpCommand;
-  Logging.info(`[${config.name}] Creating SFTP session using specified command: ${cmd}`);
+  logging.info(`Creating SFTP session using specified command: ${cmd}`);
   const shell = await toPromise<ClientChannel>(cb => client.shell(false, cb));
-  // shell.stdout.on('data', (d: string | Buffer) => Logging.debug(`[${config.name}][SFTP-STDOUT] ${d}`));
-  // shell.stderr.on('data', (d: string | Buffer) => Logging.debug(`[${config.name}][SFTP-STDERR] ${d}`));
+  // shell.stdout.on('data', (d: string | Buffer) => logging.debug(`[SFTP-STDOUT] ${d}`));
+  // shell.stderr.on('data', (d: string | Buffer) => logging.debug(`[SFTP-STDERR] ${d}`));
   // Maybe the user hasn't specified `sftpSudo`, but did put `sudo` in `sftpCommand`
   // I can't find a good way of differentiating welcome messages, SFTP traffic, sudo password prompts, ...
   // so convert the `sftpCommand` to make use of `sftpSudo`, since that seems to work
@@ -292,7 +296,7 @@ export async function getSFTP(client: Client, config: FileSystemConfig): Promise
     config.sftpSudo = mat ? mat[1] : true;
     // Now the tricky part of splitting the sudo and sftp command
     config.sftpCommand = cmd = stripSudo(cmd);
-    Logging.warning(`[${config.name}] Reformed sftpCommand due to sudo to: ${cmd}`);
+    logging.warning(`Reformed sftpCommand due to sudo to: ${cmd}`);
   }
   // If the user wants sudo, we'll first convert this shell into a sudo shell
   if (config.sftpSudo) await startSudo(shell, config, config.sftpSudo);

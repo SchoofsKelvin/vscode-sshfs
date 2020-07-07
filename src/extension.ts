@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { loadConfigs } from './config';
 import { FileSystemConfig, invalidConfigName } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
-import * as Logging from './logging';
+import { Logging } from './logging';
 import { Manager } from './manager';
 
 function generateDetail(config: FileSystemConfig): string | undefined {

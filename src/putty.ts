@@ -1,6 +1,6 @@
 
 import * as Winreg from 'winreg';
-import * as Logging from './logging';
+import { Logging } from './logging';
 import { toPromise } from './toPromise';
 
 const winreg = new Winreg({

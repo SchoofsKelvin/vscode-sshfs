@@ -4,7 +4,7 @@ import * as ssh2 from 'ssh2';
 import * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { FileSystemConfig } from './fileSystemConfig';
-import * as Logging from './logging';
+import { Logging } from './logging';
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
   public waitForContinue = false;

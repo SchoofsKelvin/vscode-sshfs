@@ -4,16 +4,12 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
-import * as Logging from './logging';
+import { Logging, DEBUG } from './logging';
 import { toPromise } from './toPromise';
 import { Message, Navigation } from './webviewMessages';
 
 let webviewPanel: vscode.WebviewPanel | undefined;
 let pendingNavigation: Navigation | undefined;
-
-// Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging
-const DEBUG: number | undefined = process.execArgv.find(a => a.includes('--inspect')) ? 3000 : undefined;
-if (DEBUG) console.warn('[vscode-sshfs] Detected we are running in debug mode');
 
 function getExtensionPath(): string | undefined {
   const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');

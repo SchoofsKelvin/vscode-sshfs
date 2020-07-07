@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as vscode from 'vscode';
 import { ConfigLocation, FileSystemConfig, invalidConfigName } from './fileSystemConfig';
-import * as Logging from './logging';
+import { Logging } from './logging';
 import { toPromise } from './toPromise';
 
 function randomAvailableName(configs: FileSystemConfig[], index = 0): [string, number] {
