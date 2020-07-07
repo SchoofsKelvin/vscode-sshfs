@@ -114,12 +114,19 @@
                     "group": "SSH FS@7"
                 }
             ],
-            "view/item/context": [
+            "view/title": [
                 {
                     "command": "sshfs.new",
-                    "when": "view == 'sshfs-configs' && !viewItem",
+                    "when": "view == 'sshfs-configs'",
                     "group": "SSH FS@1"
                 },
+                {
+                    "command": "sshfs.settings",
+                    "when": "view == 'sshfs-configs' && !(viewItem)",
+                    "group": "SSH FS@6"
+                }
+            ],
+            "view/item/context": [
                 {
                     "command": "sshfs.connect",
                     "when": "view == 'sshfs-configs' && viewItem == inactive",
@@ -139,11 +146,6 @@
                     "command": "sshfs.configure",
                     "when": "view == 'sshfs-configs' && viewItem",
                     "group": "SSH FS@5"
-                },
-                {
-                    "command": "sshfs.settings",
-                    "when": "view == 'sshfs-configs' && !viewItem",
-                    "group": "SSH FS@6"
                 }
             ]
         },
