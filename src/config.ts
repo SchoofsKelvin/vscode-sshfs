@@ -284,6 +284,30 @@ export function getConfig(name: string) {
   return getConfigs().find(c => c.name === name);
 }
 
+function valueMatches(a: any, b: any): boolean {
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return a === b;
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => valueMatches(value, b[index]));
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (!valueMatches(a[key], b[key])) return false;
+  }
+  return true;
+}
+
+export function configMatches(a: FileSystemConfig, b: FileSystemConfig): boolean {
+  // This is kind of the easiest and most robust way of checking if configs are identical.
+  // If it wasn't for `loadedConfigs` (and its contents) regularly being fully recreated, we
+  // could just use === between the two configs. This'll do for now.
+  return valueMatches(a, b);
+}
+
 vscode.workspace.onDidChangeConfiguration(async (e) => {
   // if (!e.affectsConfiguration('sshfs.configs')) return;
   return loadConfigs();

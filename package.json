@@ -68,6 +68,11 @@
                 "category": "SSH FS"
             },
             {
+                "command": "sshfs.terminal",
+                "title": "Open a remote SSH terminal",
+                "category": "SSH FS"
+            },
+            {
                 "command": "sshfs.configure",
                 "title": "Edit configuration",
                 "category": "SSH FS"
@@ -102,16 +107,20 @@
                     "group": "SSH FS@4"
                 },
                 {
-                    "command": "sshfs.configure",
+                    "command": "sshfs.terminal",
                     "group": "SSH FS@5"
                 },
                 {
-                    "command": "sshfs.reload",
+                    "command": "sshfs.configure",
                     "group": "SSH FS@6"
                 },
                 {
-                    "command": "sshfs.settings",
+                    "command": "sshfs.reload",
                     "group": "SSH FS@7"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "group": "SSH FS@8"
                 }
             ],
             "view/title": [
@@ -130,16 +139,21 @@
                 {
                     "command": "sshfs.connect",
                     "when": "view == 'sshfs-configs' && viewItem == inactive",
-                    "group": "SSH FS@2"
+                    "group": "SSH FS@1"
                 },
                 {
                     "command": "sshfs.reconnect",
                     "when": "view == 'sshfs-configs' && viewItem == active",
-                    "group": "SSH FS@3"
+                    "group": "SSH FS@2"
                 },
                 {
                     "command": "sshfs.disconnect",
                     "when": "view == 'sshfs-configs' && viewItem == active",
+                    "group": "SSH FS@3"
+                },
+                {
+                    "command": "sshfs.terminal",
+                    "when": "view == 'sshfs-configs' && viewItem",
                     "group": "SSH FS@4"
                 },
                 {

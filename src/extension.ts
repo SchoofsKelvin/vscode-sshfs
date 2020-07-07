@@ -20,15 +20,15 @@ function generateDetail(config: FileSystemConfig): string | undefined {
   return `${host}${port}`;
 }
 
-async function pickConfig(manager: Manager, activeOrNot?: boolean): Promise<string | undefined> {
-  let names = manager.getActive();
+async function pickConfig(manager: Manager, activeFileSystem?: boolean): Promise<string | undefined> {
+  let fsConfigs = manager.getActiveFileSystems().map(fs => fs.config);
   const others = await loadConfigs();
-  if (activeOrNot === false) {
-    names = others.filter(c => !names.find(cc => cc.name === c.name));
-  } else if (activeOrNot === undefined) {
-    others.forEach(n => !names.find(c => c.name === n.name) && names.push(n));
+  if (activeFileSystem === false) {
+    fsConfigs = others.filter(c => !fsConfigs.find(cc => cc.name === c.name));
+  } else if (activeFileSystem === undefined) {
+    others.forEach(n => !fsConfigs.find(c => c.name === n.name) && fsConfigs.push(n));
   }
-  const options: (vscode.QuickPickItem & { name: string })[] = names.map(config => ({
+  const options: (vscode.QuickPickItem & { name: string })[] = fsConfigs.map(config => ({
     name: config.name,
     description: config.name,
     label: config.label || config.name,
@@ -66,6 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.connect', (name?: string) => pickAndClick(manager.commandConnect, name, false));
   registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
   registerCommand('sshfs.reconnect', (name?: string) => pickAndClick(manager.commandReconnect, name, true));
+  registerCommand('sshfs.terminal', (name?: string) => pickAndClick(manager.commandTerminal, name));
   registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
 
   registerCommand('sshfs.reload', loadConfigs);

@@ -5,7 +5,7 @@ import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import { FileSystemConfig } from './fileSystemConfig';
-import { Logging, censorConfig } from './logging';
+import { censorConfig, Logging } from './logging';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -22,11 +22,12 @@ function replaceVariables(string?: string) {
   return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
 }
 
-export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
-  if ('_calculated' in config) return config;
+export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig> {
+  if (config._calculated) return config;
   const logging = Logging.here();
-  config = { ...config };
-  (config as any)._calculated = true;
+  // Add the internal _calculated field to cache the actual config for the next calculateActualConfig call
+  // (and it also allows accessing the original config that generated this actual config, if ever necessary)
+  config = { ...config, _calculated: config };
   config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');

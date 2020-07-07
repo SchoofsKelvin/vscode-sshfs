@@ -102,6 +102,8 @@ export interface FileSystemConfig extends ConnectConfig {
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
   _locations: ConfigLocation[];
+  /** Internal property keeping track of whether this config is an actually calculated one, and if so, which config it originates from (normally itself) */
+  _calculated?: FileSystemConfig;
 }
 
 export function invalidConfigName(name: string) {
