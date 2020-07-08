@@ -164,11 +164,11 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     if (promise) return promise;
     let con: Connection | undefined;
     promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
-    config = config || (await getConfigs()).find(c => c.name === name);
-    if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
+      config = config || (await getConfigs()).find(c => c.name === name);
+      if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
       con = await this.createConnection(name, config);
-    con.pendingUserCount++;
-    config = con.actualConfig;
+      con.pendingUserCount++;
+      config = con.actualConfig;
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
       // Query/calculate the root directory
@@ -344,12 +344,12 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     const config = typeof target === 'object' ? target : undefined;
     if (typeof target === 'object') target = target.name;
     Logging.info(`Command received to connect ${target}`);
-    const existing = this.fileSystems.find(fs => fs.config.name === target);
-    if (existing) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
     if (folder) {
       this.onDidChangeTreeDataEmitter.fire(null);
+      const existing = this.fileSystems.find(fs => fs.config.name === target);
+      if (existing) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
       return this.createFileSystem(target, config);
     }
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
