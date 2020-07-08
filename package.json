@@ -204,7 +204,10 @@
                         "description": "The command to run on the server"
                     }
                 },
-                "required": ["host", "command"]
+                "required": [
+                    "host",
+                    "command"
+                ]
             }
         ]
     },
@@ -224,6 +227,7 @@
         "@types/winreg": "^1.2.30",
         "clean-webpack-plugin": "^2.0.0",
         "source-map-support": "^0.5.19",
+        "ts-loader": "^7.0.5",
         "typescript": "^3.9.6",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
