@@ -240,12 +240,14 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     // Create connection (early so we have .actualConfig.root)
     const con = await this.createConnection(name, config);
     // Calculate working directory if applicable
-    let workingDirectory: string | undefined = uri ? uri.path : con.actualConfig.root || '/';
+    let workingDirectory: string | undefined = uri && uri.path;
     if (workingDirectory) {
       // Normally there should be a fs, as (currently) workingDirectory is only provided
       // when the user uses "Open remote SSH terminal" on a directory in the explorer view
       const fs = this.fileSystems.find(fs => fs.config.name === name);
-      workingDirectory = fs ? fs.relative(workingDirectory) : undefined;
+      workingDirectory = fs ? fs.relative(workingDirectory) : (con.actualConfig.root || '/');
+      // If we don't have an FS (e.g. SSH View > Open Terminal without an active FS), we
+      // just use the declared `root` field, which _hopefully_ works out nicely with `cd`
     }
     // Create pseudo terminal
     con.pendingUserCount++;
@@ -372,11 +374,11 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     const name = typeof target === 'string' ? target : target.name;
     uri = uri || vscode.Uri.parse(`ssh://${name}/`, true);
     try {
-    if (typeof target === 'string') {
-      await this.createTerminal(target, undefined, uri);
-    } else {
-      await this.createTerminal(target.label || target.name, target, uri);
-    }
+      if (typeof target === 'string') {
+        await this.createTerminal(target, undefined, uri);
+      } else {
+        await this.createTerminal(target.label || target.name, target, uri);
+      }
     } catch (e) {
       const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
         `Couldn't start a terminal for ${name}: ${e.message || e}`,

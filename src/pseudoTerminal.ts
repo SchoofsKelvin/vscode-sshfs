@@ -29,7 +29,16 @@ export async function createTerminal(client: Client, config: FileSystemConfig, w
     // Hopefully the exit event fires first
     channel.on('close', () => onDidClose.fire(0));
     // There isn't a proper way of setting the working directory, but this should work in most cases
-    if (workingDirectory) channel.write(`cd "${workingDirectory}"\n`);
+    if (workingDirectory) {
+        if (workingDirectory.startsWith('~')) {
+            // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
+            // `"~"` would also fail but `~/""` works fine it seems
+            workingDirectory = `~/"${workingDirectory.substr(2)}"`;
+        } else {
+            workingDirectory = `"${workingDirectory}"`;
+        }
+        channel.write(`cd ${workingDirectory}\n`);
+    }
     const pseudo: SSHPseudoTerminal = {
         config, client, channel,
         onDidWrite: onDidWrite.event,
