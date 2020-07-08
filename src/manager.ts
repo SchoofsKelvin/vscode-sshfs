@@ -162,12 +162,13 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     if (existing) return existing;
     let promise = this.creatingFileSystems[name];
     if (promise) return promise;
+    let con: Connection | undefined;
+    promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
     config = config || (await getConfigs()).find(c => c.name === name);
     if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
-    const con = await this.createConnection(name, config);
+      con = await this.createConnection(name, config);
     con.pendingUserCount++;
     config = con.actualConfig;
-    promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
       // Query/calculate the root directory
@@ -210,7 +211,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       con.pendingUserCount--;
       return resolve(fs);
     }).catch((e) => {
-      con.pendingUserCount--; // I highly doubt resolve(fs) will error
+      if (con) con.pendingUserCount--; // I highly doubt resolve(fs) will error
       this.onDidChangeTreeDataEmitter.fire(null);
       if (!e) {
         delete this.creatingFileSystems[name];
