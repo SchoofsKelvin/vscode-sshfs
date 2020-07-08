@@ -368,10 +368,20 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     this.onDidChangeTreeDataEmitter.fire(null);
   }
   public async commandTerminal(target: string | FileSystemConfig, uri?: vscode.Uri) {
+    // If no Uri is given, default to ssh://<target>/ which should respect config.root
+    const name = typeof target === 'string' ? target : target.name;
+    uri = uri || vscode.Uri.parse(`ssh://${name}/`, true);
+    try {
     if (typeof target === 'string') {
       await this.createTerminal(target, undefined, uri);
     } else {
       await this.createTerminal(target.label || target.name, target, uri);
+    }
+    } catch (e) {
+      const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
+        `Couldn't start a terminal for ${name}: ${e.message || e}`,
+        { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
+      if (choice && choice.title === 'Retry') return this.commandTerminal(target, uri);
     }
   }
   public async commandConfigure(target: string | FileSystemConfig) {
