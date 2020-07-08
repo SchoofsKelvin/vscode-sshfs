@@ -100,12 +100,17 @@ class Logger {
   }
 }
 
-export function censorConfig(config: FileSystemConfig): FileSystemConfig {
+export interface CensoredFileSystemConfig extends Omit<FileSystemConfig, 'sock'> {
+  sock?: string;
+}
+
+export function censorConfig(config: FileSystemConfig): CensoredFileSystemConfig {
   return {
     ...config,
     password: typeof config.password === 'string' ? '<censored>' : config.password,
     passphrase: typeof config.passphrase === 'string' ? '<censored>' : config.passphrase,
     privateKey: config.privateKey instanceof Buffer ? `Buffer(${config.privateKey.length})` : config.privateKey,
+    sock: config.sock ? '<socket>' : config.sock,
   };
 }
 

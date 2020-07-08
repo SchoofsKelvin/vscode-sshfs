@@ -287,6 +287,7 @@ export function getConfig(name: string) {
 function valueMatches(a: any, b: any): boolean {
   if (typeof a !== typeof b) return false;
   if (typeof a !== 'object') return a === b;
+  if (!a || !b) return a === b;
   if (Array.isArray(a)) {
     if (!Array.isArray(b)) return false;
     if (a.length !== b.length) return false;

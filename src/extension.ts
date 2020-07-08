@@ -56,19 +56,19 @@ export function activate(context: vscode.ExtensionContext) {
   subscribe(vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
 
-  async function pickAndClick(func: (name: string) => void, name?: string, activeOrNot?: boolean) {
+  async function pickAndClick(func: (name: string | FileSystemConfig) => void, name?: string | FileSystemConfig, activeOrNot?: boolean) {
     name = name || await pickConfig(manager, activeOrNot);
     if (name) func.call(manager, name);
   }
 
-  registerCommand('sshfs.new', async () => manager.openSettings({ type: 'newconfig' }));
+  registerCommand('sshfs.new', () => manager.openSettings({ type: 'newconfig' }));
   registerCommand('sshfs.settings', () => manager.openSettings());
 
-  registerCommand('sshfs.connect', (name?: string) => pickAndClick(manager.commandConnect, name, false));
-  registerCommand('sshfs.disconnect', (name?: string) => pickAndClick(manager.commandDisconnect, name, true));
-  registerCommand('sshfs.reconnect', (name?: string) => pickAndClick(manager.commandReconnect, name, true));
-  registerCommand('sshfs.terminal', (name?: string) => pickAndClick(manager.commandTerminal, name));
-  registerCommand('sshfs.configure', (name?: string) => pickAndClick(manager.commandConfigure, name));
+  registerCommand('sshfs.connect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandConnect, name, false));
+  registerCommand('sshfs.disconnect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandDisconnect, name, true));
+  registerCommand('sshfs.reconnect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandReconnect, name, true));
+  registerCommand('sshfs.terminal', (name?: string | FileSystemConfig) => pickAndClick(manager.commandTerminal, name));
+  registerCommand('sshfs.configure', (name?: string | FileSystemConfig) => pickAndClick(manager.commandConfigure, name));
 
   registerCommand('sshfs.reload', loadConfigs);
 }
