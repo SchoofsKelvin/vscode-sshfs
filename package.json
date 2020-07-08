@@ -37,6 +37,7 @@
     },
     "license": "GPL-3.0",
     "icon": "resources/Logo.png",
+    "keywords": ["remote", "ssh", "sshfs", "sync", "filesystem", "terminal"],
     "contributes": {
         "views": {
             "explorer": [
