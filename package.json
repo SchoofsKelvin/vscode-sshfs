@@ -190,7 +190,23 @@
                     ]
                 }
             }
-        }
+        },
+        "taskDefinitions": [
+            {
+                "type": "ssh-shell",
+                "properties": {
+                    "host": {
+                        "type": "string",
+                        "description": "The configuration (name) to run this task on"
+                    },
+                    "command": {
+                        "type": "string",
+                        "description": "The command to run on the server"
+                    }
+                },
+                "required": ["host", "command"]
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "yarn run build && cd webview && yarn run build",

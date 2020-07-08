@@ -1,7 +1,7 @@
 
 import * as vscode from 'vscode';
 import { loadConfigs } from './config';
-import { FileSystemConfig, invalidConfigName } from './fileSystemConfig';
+import { FileSystemConfig } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
 import { Logging } from './logging';
 import { Manager } from './manager';
@@ -54,6 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   subscribe(vscode.workspace.registerFileSystemProvider('ssh', new FileSystemRouter(manager), { isCaseSensitive: true }));
   subscribe(vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager, showCollapseAll: true }));
+  subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
 
   async function pickAndClick(func: (name: string) => void, name?: string, activeOrNot?: boolean) {
     name = name || await pickConfig(manager, activeOrNot);

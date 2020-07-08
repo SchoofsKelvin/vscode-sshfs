@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { configMatches, getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import { Logging } from './logging';
-import { SSHPseudoTerminal } from './pseudoTerminal';
+import { createTaskTerminal, SSHPseudoTerminal } from './pseudoTerminal';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
 
@@ -58,7 +58,7 @@ interface Connection {
   pendingUserCount: number;
 }
 
-export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig> {
+export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig>, vscode.TaskProvider {
   public onDidChangeTreeData: vscode.Event<string | null>;
   protected connections: Connection[] = [];
   protected pendingConnections: { [name: string]: Promise<Connection> } = {};
@@ -280,6 +280,31 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       groups = groups.filter(g => !g.includes('.'));
     }
     return [...matching, ...groups.sort()];
+  }
+  /* TaskProvider */
+  public provideTasks(token?: vscode.CancellationToken | undefined): vscode.ProviderResult<vscode.Task[]> {
+    return [];
+  }
+  public async resolveTask(task: vscode.Task, token?: vscode.CancellationToken | undefined): Promise<vscode.Task> {
+    const { host, command } = task.definition as { host?: string, command?: string };
+    if (!host) throw new Error('Missing field \'host\' for ssh-shell task');
+    if (!command) throw new Error('Missing field \'command\' for ssh-shell task');
+    const config = getConfig(host);
+    if (!config) throw new Error(`No configuration with the name '${host}' found for ssh-shell task`);
+    return new vscode.Task(
+      task.definition,
+      vscode.TaskScope.Workspace,
+      `SSH Task for ${host}`,
+      'ssh',
+      new vscode.CustomExecution(async () => {
+        const connection = await this.createConnection(host);
+        return createTaskTerminal({
+          command,
+          client: connection.client,
+          config: connection.actualConfig,
+        })
+      })
+    )
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandDisconnect(target: string | FileSystemConfig) {
