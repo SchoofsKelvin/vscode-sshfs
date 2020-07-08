@@ -47,12 +47,16 @@ The configurations for SSH file systems can now also be used to spawn terminals:
 
 ![Terminals](./media/terminals.png)
 
-Currently the working directory will always be the user's home directory, similar to directly connecting to the server over ssh. I'm thinking about making it automatically move to the `root` directory if possible.
+Opening a terminal automatically sets the working directory to the `root` directory, unless a directory was explicitly selected to open the terminal in:
+
+![Explorer Terminal](./media/explorer-terminal.png)
+
+This replaces the built-in "Open terminal" context menu option that isn't provided for remote field systems. For non-ssh:// file systems, the original "Open terminal" menu item is still displayed, the remote version only affects ssh:// file systems.
 
 ### New task type
 This extension adds a new task type `ssh-shell` which can be used to run commands on a configured remote host:
 
-![Terminals](./media/tasks.png)
+![Tasks](./media/tasks.png)
 
 Currently only the `command` field is supported. The goal is to replicate part of the `shell` task structure, e.g. an `args` array, support for `${workspaceFolder}`, ...
 

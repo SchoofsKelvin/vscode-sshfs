@@ -67,7 +67,20 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.connect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandConnect, name, false));
   registerCommand('sshfs.disconnect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandDisconnect, name, true));
   registerCommand('sshfs.reconnect', (name?: string | FileSystemConfig) => pickAndClick(manager.commandReconnect, name, true));
-  registerCommand('sshfs.terminal', (name?: string | FileSystemConfig) => pickAndClick(manager.commandTerminal, name));
+  registerCommand('sshfs.terminal', async (configOrUri?: string | FileSystemConfig | vscode.Uri) => {
+    // SSH FS view context menu: [ config, null ]
+    // Explorer context menu: [ uri, [uri] ]
+    // Command: [ ]
+    // And just in case, supporting [ configName ] too
+    let config = configOrUri;
+    let uri: vscode.Uri | undefined;
+    if (config instanceof vscode.Uri) {
+      uri = config;
+      config = config.authority;
+    }
+    config = config || await pickConfig(manager);
+    if (config) manager.commandTerminal(config, uri);
+  });
   registerCommand('sshfs.configure', (name?: string | FileSystemConfig) => pickAndClick(manager.commandConfigure, name));
 
   registerCommand('sshfs.reload', loadConfigs);

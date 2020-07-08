@@ -131,7 +131,7 @@
                 },
                 {
                     "command": "sshfs.settings",
-                    "when": "view == 'sshfs-configs' && !(viewItem)",
+                    "when": "view == 'sshfs-configs'",
                     "group": "SSH FS@6"
                 }
             ],
@@ -160,6 +160,13 @@
                     "command": "sshfs.configure",
                     "when": "view == 'sshfs-configs' && viewItem",
                     "group": "SSH FS@5"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "sshfs.terminal",
+                    "when": "explorerResourceIsFolder && resourceScheme == ssh",
+                    "group": "navigation@30"
                 }
             ]
         },

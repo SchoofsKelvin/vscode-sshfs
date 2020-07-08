@@ -7,6 +7,7 @@ import { Logging } from './logging';
 import { createTaskTerminal, SSHPseudoTerminal } from './pseudoTerminal';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
+import * as path from 'path';
 
 type SSHFileSystem = import('./sshFileSystem').SSHFileSystem;
 
@@ -234,14 +235,25 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     });
     return this.creatingFileSystems[name] = promise;
   }
-  public async createTerminal(name: string, config?: FileSystemConfig): Promise<void> {
+  public async createTerminal(name: string, config?: FileSystemConfig, uri?: vscode.Uri): Promise<void> {
     const { createTerminal } = await import('./pseudoTerminal');
+    // Create connection (early so we have .actualConfig.root)
     const con = await this.createConnection(name, config);
+    // Calculate working directory if applicable
+    let workingDirectory: string | undefined = uri ? uri.path : con.actualConfig.root || '/';
+    if (workingDirectory) {
+      // Normally there should be a fs, as (currently) workingDirectory is only provided
+      // when the user uses "Open remote SSH terminal" on a directory in the explorer view
+      const fs = this.fileSystems.find(fs => fs.config.name === name);
+      workingDirectory = fs ? fs.relative(workingDirectory) : undefined;
+    }
+    // Create pseudo terminal
     con.pendingUserCount++;
-    const pty = await createTerminal(con.client, con.actualConfig);
+    const pty = await createTerminal(con.client, con.actualConfig, workingDirectory);
     pty.onDidClose(() => con.terminals = con.terminals.filter(t => t !== pty));
     con.terminals.push(pty);
     con.pendingUserCount--;
+    // Create and show the graphical representation
     const terminal = vscode.window.createTerminal({ name, pty });
     terminal.show();
   }
@@ -355,11 +367,11 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
     this.onDidChangeTreeDataEmitter.fire(null);
   }
-  public async commandTerminal(target: string | FileSystemConfig) {
+  public async commandTerminal(target: string | FileSystemConfig, uri?: vscode.Uri) {
     if (typeof target === 'string') {
-      await this.createTerminal(target);
+      await this.createTerminal(target, undefined, uri);
     } else {
-      await this.createTerminal(target.label || target.name, target);
+      await this.createTerminal(target.label || target.name, target, uri);
     }
   }
   public async commandConfigure(target: string | FileSystemConfig) {
