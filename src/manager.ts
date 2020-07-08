@@ -299,11 +299,16 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       'ssh',
       new vscode.CustomExecution(async () => {
         const connection = await this.createConnection(host);
-        return createTaskTerminal({
+        connection.pendingUserCount++;
+        const psy = await createTaskTerminal({
           command,
           client: connection.client,
           config: connection.actualConfig,
-        })
+        });
+        connection.pendingUserCount--;
+        connection.terminals.push(psy);
+        psy.onDidClose(() => connection.terminals = connection.terminals.filter(t => t !== psy));
+        return psy;
       })
     )
   }
