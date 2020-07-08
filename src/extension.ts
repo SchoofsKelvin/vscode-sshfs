@@ -21,7 +21,7 @@ function generateDetail(config: FileSystemConfig): string | undefined {
 }
 
 async function pickConfig(manager: Manager, activeFileSystem?: boolean): Promise<string | undefined> {
-  let fsConfigs = manager.getActiveFileSystems().map(fs => fs.config);
+  let fsConfigs = manager.getActiveFileSystems().map(fs => fs.config).map(c => c._calculated || c);
   const others = await loadConfigs();
   if (activeFileSystem === false) {
     fsConfigs = others.filter(c => !fsConfigs.find(cc => cc.name === c.name));
