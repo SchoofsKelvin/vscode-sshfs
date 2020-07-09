@@ -284,7 +284,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
   }
   public getChildren(element: string | FileSystemConfig = ''): vscode.ProviderResult<(string | FileSystemConfig)[]> {
     if (typeof element === 'object') return []; // FileSystemConfig, has no children
-    const configs = this.fileSystems.map(fs => fs.config);
+    const configs = this.fileSystems.map(fs => fs.config).map(c => c._calculated || c);
     configs.push(...getConfigs().filter(c => !configs.find(fs => c.name === fs.name)));
     const matching = configs.filter(({ group }) => (group || '') === element);
     matching.sort((a, b) => a.name > b.name ? 1 : -1);
