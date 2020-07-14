@@ -4,12 +4,10 @@ import * as vscode from 'vscode';
 import { configMatches, getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import { Logging } from './logging';
-import { createTaskTerminal, SSHPseudoTerminal } from './pseudoTerminal';
+import type { SSHPseudoTerminal } from './pseudoTerminal';
+import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
-import * as path from 'path';
-
-type SSHFileSystem = import('./sshFileSystem').SSHFileSystem;
 
 export enum ConfigStatus {
   Idle = 'Idle',
@@ -314,6 +312,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       new vscode.CustomExecution(async () => {
         const connection = await this.createConnection(host);
         connection.pendingUserCount++;
+        const { createTaskTerminal } = await import('./pseudoTerminal');
         const psy = await createTaskTerminal({
           command,
           client: connection.client,
