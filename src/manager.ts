@@ -107,7 +107,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     return config ? undefined : this.connections.find(con => con.config.name === name);
   }
   public async createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
-    const logging = Logging.here(`createConnection(${name},${config && 'config'})`);
+    const logging = Logging.scope(`createConnection(${name},${config && 'config'})`);
     let con = this.getActiveConnection(name, config);
     if (con) return con;
     let promise = this.pendingConnections[name];
@@ -369,6 +369,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     this.onDidChangeTreeDataEmitter.fire(null);
   }
   public async commandTerminal(target: string | FileSystemConfig, uri?: vscode.Uri) {
+    Logging.info(`Command received to open a terminal for ${typeof target === 'string' ? target : target.name}${uri ? ` in ${uri}` : ''}`);
     // If no Uri is given, default to ssh://<target>/ which should respect config.root
     const name = typeof target === 'string' ? target : target.name;
     uri = uri || vscode.Uri.parse(`ssh://${name}/`, true);

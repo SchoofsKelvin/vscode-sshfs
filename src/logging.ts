@@ -9,9 +9,9 @@ if (DEBUG) {
   import('source-map-support/register').catch(e => console.warn('Could not register source-map-support:', e));
 }
 
-const outputChannel = vscode.window.createOutputChannel('ssh-fs');
+const outputChannel = vscode.window.createOutputChannel('SSH FS');
 
-interface LoggingOptions {
+export interface LoggingOptions {
   /** The level of outputting the logger's name/stacktrace:
    * 0: Don't report anything
    * 1: Only report the name (or first line of stacktrace if missing)
@@ -24,14 +24,28 @@ interface LoggingOptions {
    * N: Only output the first N frames
   */
   callStacktrace: number;
+  /** Used with .callStacktrace to skip the given amount of stacktraces in the beginning.
+   * Useful when .info() etc is called from a helper function which itself isn't worth logging the stacktrace of.
+   * Defaults to 0 meaning no offset.
+   */
+  callStacktraceOffset: number;
 }
 
+export const LOGGING_NO_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 0 };
+export const LOGGING_SINGLE_LINE_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 1 };
+
+export type LoggerDefaultLevels = 'debug' | 'info' | 'warning' | 'error';
 class Logger {
   protected parent?: Logger;
   protected stack?: string;
   protected defaultLoggingOptions: LoggingOptions = {
     reportedFromLevel: 0,
     callStacktrace: 0,
+    callStacktraceOffset: 0,
+  };
+  public overriddenTypeOptions: { [type in LoggerDefaultLevels]?: Partial<LoggingOptions> } = {
+    warning: { callStacktrace: 3, reportedFromLevel: 2 },
+    error: { callStacktrace: 5, reportedFromLevel: 2 },
   };
   protected constructor(protected name?: string, generateStack: number | boolean = false) {
     if (generateStack) {
@@ -63,26 +77,32 @@ class Logger {
     outputChannel.appendLine(msg);
     if (DEBUG) (console[type.toLowerCase()] || console.log).call(console, msg);
   }
-  protected print(type: string, message: string | Error, options: Partial<LoggingOptions>) {
-    options = { ...this.defaultLoggingOptions, ...options };
+  protected print(type: string, message: string | Error, partialOptions?: Partial<LoggingOptions>) {
+    const options: LoggingOptions = { ...this.defaultLoggingOptions, ...this.overriddenTypeOptions[type], ...partialOptions };
     // Format errors with stacktraces to display the stacktrace
     if (message instanceof Error && message.stack) {
-      message = `${message.message}\n${message.stack}`;
+      let json: string = '';
+      try {
+        json = JSON.stringify(message);
+      } finally {
+        json = json ? `\nJSON: ${json}` : '';
+        message = `${message.message}${json}\n${message.stack}`;
+      }
     }
     // Do we need to also output a stacktrace?
-    const { reportedFromLevel = 0 } = options;
-    if (reportedFromLevel) {
+    const { callStacktrace, callStacktraceOffset = 0 } = options;
+    if (callStacktrace) {
       let stack = new Error().stack;
       let split = stack && stack.split('\n');
-      split = split && split.slice(3, reportedFromLevel > 0 ? 3 + reportedFromLevel : undefined);
+      split = split && split.slice(callStacktraceOffset + 3, callStacktrace > 0 ? callStacktraceOffset + 3 + callStacktrace : undefined);
       stack = split ? split.join('\n') : '<stack unavailable>';
       message += `\nLogged at:\n${stack}`;
     }
     // Start the (recursive parent-related) printing
     this.do_print(type, `${message}`, options as LoggingOptions)
   }
-  public here(name?: string) {
-    const logger = new Logger(name, true);
+  public scope(name?: string, generateStack: number | boolean = false) {
+    const logger = new Logger(name, generateStack);
     logger.parent = this;
     return logger;
   }
@@ -93,11 +113,17 @@ class Logger {
     this.print('INFO', message, options);
   }
   public warning(message: string, options: Partial<LoggingOptions> = {}) {
-    this.print('WARNING', message, { callStacktrace: 3, reportedFromLevel: 2, ...options });
+    this.print('WARNING', message, options);
   }
   public error(message: string | Error, options: Partial<LoggingOptions> = {}) {
-    this.print('ERROR', message, { callStacktrace: 5, reportedFromLevel: 2, ...options });
+    this.print('ERROR', message, options);
   }
+}
+
+export type { Logger };
+
+export function withStacktraceOffset(amount: number = 1, options: Partial<LoggingOptions> = {}): Partial<LoggingOptions> {
+  return { ...options, callStacktraceOffset: (options.callStacktraceOffset || 0) + amount };
 }
 
 export interface CensoredFileSystemConfig extends Omit<FileSystemConfig, 'sock' | '_calculated'> {

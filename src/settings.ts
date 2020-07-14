@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
-import { Logging, DEBUG } from './logging';
+import { Logging, DEBUG, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './toPromise';
 import { Message, Navigation } from './webviewMessages';
 
@@ -102,6 +102,8 @@ async function handleMessage(message: Message): Promise<any> {
           await updateConfig(config, name);
         }
       } catch (e) {
+        Logging.error('Error handling saveConfig message for settings UI:', LOGGING_NO_STACKTRACE);
+        Logging.error(JSON.stringify(message), LOGGING_NO_STACKTRACE);
         Logging.error(e);
         error = e.message;
       }
@@ -118,6 +120,8 @@ async function handleMessage(message: Message): Promise<any> {
         const uris = await vscode.window.showOpenDialog({});
         if (uris) [uri] = uris;
       } catch (e) {
+        Logging.error('Error handling promptPath message for settings UI:', LOGGING_NO_STACKTRACE);
+        Logging.error(JSON.stringify(message), LOGGING_NO_STACKTRACE);
         Logging.error(e);
         error = e.message;
       }

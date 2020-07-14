@@ -24,7 +24,7 @@ function replaceVariables(string?: string) {
 
 export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig> {
   if (config._calculated) return config;
-  const logging = Logging.here();
+  const logging = Logging.scope();
   // Add the internal _calculated field to cache the actual config for the next calculateActualConfig call
   // (and it also allows accessing the original config that generated this actual config, if ever necessary)
   config = { ...config, _calculated: config };
@@ -133,7 +133,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
 export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
-  const logging = Logging.here(`createSocket(${config.name})`);
+  const logging = Logging.scope(`createSocket(${config.name})`);
   logging.info(`Creating socket`);
   if (config.hop) {
     logging.debug(`\tHopping through ${config.hop}`);
@@ -185,7 +185,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
   if (!config) return null;
   sock = sock || (await createSocket(config))!;
   if (!sock) return null;
-  const logging = Logging.here(`createSSH(${config.name})`);
+  const logging = Logging.scope(`createSSH(${config.name})`);
   return new Promise<Client>((resolve, reject) => {
     const client = new Client();
     client.once('ready', () => resolve(client));
@@ -274,7 +274,7 @@ function stripSudo(cmd: string) {
 export async function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
   config = (await calculateActualConfig(config))!;
   if (!config) throw new Error('Couldn\'t calculate the config');
-  const logging = Logging.here(`getSFTP(${config.name})`);
+  const logging = Logging.scope(`getSFTP(${config.name})`);
   if (config.sftpSudo && !config.sftpCommand) {
     logging.warning(`sftpSudo is set without sftpCommand. Assuming /usr/lib/openssh/sftp-server`);
     config.sftpCommand = '/usr/lib/openssh/sftp-server';
