@@ -217,6 +217,10 @@
                     "command": {
                         "type": "string",
                         "description": "The command to run on the server"
+                    },
+                    "workingDirectory": {
+                        "type": "string",
+                        "description": "The working directory (relative to the config-defined root) to run the command in"
                     }
                 },
                 "required": [

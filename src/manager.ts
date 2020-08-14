@@ -8,6 +8,7 @@ import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 import { Navigation } from './webviewMessages';
+import * as path from 'path';
 
 export enum ConfigStatus {
   Idle = 'Idle',
@@ -55,6 +56,12 @@ interface Connection {
   terminals: SSHPseudoTerminal[];
   filesystems: SSHFileSystem[];
   pendingUserCount: number;
+}
+
+interface SSHShellTaskOptions {
+  host: string;
+  command: string;
+  workingDirectory?: string;
 }
 
 export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig>, vscode.TaskProvider {
@@ -233,20 +240,21 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     });
     return this.creatingFileSystems[name] = promise;
   }
+  public getRemotePath(config: FileSystemConfig, relativePath: string) {
+    if (relativePath.startsWith('/')) relativePath = relativePath.substr(1);
+    if (!config.root) return '/' + relativePath;
+    const result = path.posix.join(config.root, relativePath);
+    if (result.startsWith('~')) return result; // Home directory, leave the ~/
+    if (result.startsWith('/')) return result; // Already starts with /
+    return '/' + result; // Add the / to make sure it isn't seen as a relative path
+  }
   public async createTerminal(name: string, config?: FileSystemConfig, uri?: vscode.Uri): Promise<void> {
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
     const con = await this.createConnection(name, config);
     // Calculate working directory if applicable
     let workingDirectory: string | undefined = uri && uri.path;
-    if (workingDirectory) {
-      // Normally there should be a fs, as (currently) workingDirectory is only provided
-      // when the user uses "Open remote SSH terminal" on a directory in the explorer view
-      const fs = this.fileSystems.find(fs => fs.config.name === name);
-      workingDirectory = fs ? fs.relative(workingDirectory) : (con.actualConfig.root || '/');
-      // If we don't have an FS (e.g. SSH View > Open Terminal without an active FS), we
-      // just use the declared `root` field, which _hopefully_ works out nicely with `cd`
-    }
+    if (workingDirectory) workingDirectory = this.getRemotePath(con.actualConfig, workingDirectory);
     // Create pseudo terminal
     con.pendingUserCount++;
     const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
@@ -299,11 +307,13 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     return [];
   }
   public async resolveTask(task: vscode.Task, token?: vscode.CancellationToken | undefined): Promise<vscode.Task> {
-    const { host, command } = task.definition as { host?: string, command?: string };
+    let { host, command, workingDirectory } = task.definition as unknown as SSHShellTaskOptions;
     if (!host) throw new Error('Missing field \'host\' for ssh-shell task');
     if (!command) throw new Error('Missing field \'command\' for ssh-shell task');
     const config = getConfig(host);
     if (!config) throw new Error(`No configuration with the name '${host}' found for ssh-shell task`);
+    // Calculate working directory if applicable
+    if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
     return new vscode.Task(
       task.definition,
       vscode.TaskScope.Workspace,
@@ -314,7 +324,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
         connection.pendingUserCount++;
         const { createTerminal } = await import('./pseudoTerminal');
         const psy = await createTerminal({
-          command,
+          command, workingDirectory,
           client: connection.client,
           config: connection.actualConfig,
         });

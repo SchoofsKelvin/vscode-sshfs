@@ -23,8 +23,9 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
 export interface TerminalOptions {
     client: Client;
     config: FileSystemConfig;
+    /** If absent, this defaults to config.root if present, otherwise whatever the remote shell picks as default */
     workingDirectory?: string;
-    /** The command to run in the remote shell. If undefined, a (regular interactive) shell is started instead */
+    /** The command to run in the remote shell. If undefined, a (regular interactive) shell is started instead by running $SHELL*/
     command?: string;
 }
 
@@ -54,9 +55,10 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             console.log('Called pseudo.open');
             onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
             try {
-                let setupCommand: string | undefined;
+                let commands = [options.command || '$SHELL'];
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
+                workingDirectory = workingDirectory || config.root;
                 if (workingDirectory) {
                     if (workingDirectory.startsWith('~')) {
                         // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
@@ -65,14 +67,11 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     } else {
                         workingDirectory = `"${workingDirectory}"`;
                     }
-                    setupCommand = `cd ${workingDirectory}`;
+                    commands.unshift(`cd ${workingDirectory}`);
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const channel = await toPromise<ClientChannel | undefined>(cb => command ?
-                    client.exec(setupCommand ? `${setupCommand}; ${command}` : command, { pty: pseudoTtyOptions }, cb) :
-                    client.shell(pseudoTtyOptions, cb));
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(commands.join(';'), { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
-                if (!command && setupCommand) channel.write(setupCommand + '\n');
                 pseudo.channel = channel;
                 channel.on('exit', onDidClose.fire);
                 channel.on('close', () => onDidClose.fire(0));
