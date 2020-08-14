@@ -124,9 +124,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   public writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Promise<void> {
     return new Promise(async (resolve, reject) => {
       let mode: number | string | undefined;
+      let fileExists = false;
       try {
         const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
         mode = stat.mode;
+        fileExists = true;
       } catch (e) {
         if (e.message === 'No such file') {
           mode = this.config.newFileMode;
@@ -138,22 +140,33 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this
       const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode, flags: 'w' });
       stream.on('error', e => this.handleError(uri, e, reject));
-      stream.end(content, resolve);
+      stream.end(content, () => {
+        this.onDidChangeFileEmitter.fire([{ uri, type: fileExists ? vscode.FileChangeType.Changed : vscode.FileChangeType.Created }]);
+        resolve();
+      });
     });
   }
   public async delete(uri: vscode.Uri, options: { recursive: boolean; }): Promise<any> {
     const stats = await this.stat(uri);
+    const fireEvent = () => this.onDidChangeFileEmitter.fire([{ uri, type: vscode.FileChangeType.Deleted }]);
     // tslint:disable no-bitwise */
     if (stats.type & (vscode.FileType.SymbolicLink | vscode.FileType.File)) {
-      return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb)).catch(e => this.handleError(uri, e, true));
+      return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb))
+        .then(fireEvent).catch(e => this.handleError(uri, e, true));
     } else if ((stats.type & vscode.FileType.Directory) && options.recursive) {
-      return this.continuePromise(cb => this.sftp.rmdir(this.relative(uri.path), cb)).catch(e => this.handleError(uri, e, true));
+      return this.continuePromise(cb => this.sftp.rmdir(this.relative(uri.path), cb))
+        .then(fireEvent).catch(e => this.handleError(uri, e, true));
     }
-    return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb)).catch(e => this.handleError(uri, e, true));
+    return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb))
+      .then(fireEvent).catch(e => this.handleError(uri, e, true));
     // tslint:enable no-bitwise */
   }
   public rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Promise<void> {
     return this.continuePromise<void>(cb => this.sftp.rename(this.relative(oldUri.path), this.relative(newUri.path), cb))
+      .then(() => this.onDidChangeFileEmitter.fire([
+        { uri: oldUri, type: vscode.FileChangeType.Deleted },
+        { uri: newUri, type: vscode.FileChangeType.Created }
+      ]))
       .catch(e => this.handleError(newUri, e, true));
   }
   // Helper function to handle/report errors with proper (and minimal) stacktraces and such
