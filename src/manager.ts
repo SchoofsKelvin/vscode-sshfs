@@ -249,7 +249,7 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     }
     // Create pseudo terminal
     con.pendingUserCount++;
-    const pty = await createTerminal(con.client, con.actualConfig, workingDirectory);
+    const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
     pty.onDidClose(() => con.terminals = con.terminals.filter(t => t !== pty));
     con.terminals.push(pty);
     con.pendingUserCount--;
@@ -312,8 +312,8 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       new vscode.CustomExecution(async () => {
         const connection = await this.createConnection(host);
         connection.pendingUserCount++;
-        const { createTaskTerminal } = await import('./pseudoTerminal');
-        const psy = await createTaskTerminal({
+        const { createTerminal } = await import('./pseudoTerminal');
+        const psy = await createTerminal({
           command,
           client: connection.client,
           config: connection.actualConfig,
