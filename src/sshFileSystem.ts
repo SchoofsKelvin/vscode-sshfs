@@ -6,7 +6,23 @@ import * as vscode from 'vscode';
 import { FileSystemConfig } from './fileSystemConfig';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 
-const LOGGING_HANDLE_ERROR = withStacktraceOffset(1, LOGGING_SINGLE_LINE_STACKTRACE);
+// This makes it report a single line of the stacktrace of where the e.g. logger.info() call happened
+// while also making it that if we're logging an error, only the first 4 lines of the stack (including the error message) are shown
+// (usually the errors we report on happen deep inside ssh2 or ssh2-streams, we don't really care that much about it)
+const LOGGING_HANDLE_ERROR = withStacktraceOffset(1, { ...LOGGING_SINGLE_LINE_STACKTRACE, maxErrorStack: 4 });
+
+// All absolute paths (relative to the FS root)
+// If it ends with /, .startsWith is used, otherwise a raw equal
+const IGNORE_NOT_FOUND: string[] = [
+  '/.vscode',
+  '/.vscode/',
+  '/.git/',
+  '/node_modules',
+  '/pom.xml',
+];
+function shouldIgnoreNotFound(path: string) {
+  return IGNORE_NOT_FOUND.some(entry => entry === path || entry.endsWith('/') && path.startsWith(entry));
+}
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
   public waitForContinue = false;
@@ -142,6 +158,12 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   // Helper function to handle/report errors with proper (and minimal) stacktraces and such
   protected handleError(uri: vscode.Uri, e: Error & { code?: any }, doThrow: (boolean | ((error: any) => void)) = false): any {
+    if (e.code === 2 && shouldIgnoreNotFound(uri.path)) {
+      // Whenever a workspace opens, VSCode (and extensions) (indirectly) stat a bunch of files
+      // (.vscode/tasks.json etc, .git/, node_modules for NodeJS, pom.xml for Maven, ...)
+      this.logging.debug(`Ignored FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
+      if (doThrow === true) throw e; else if (doThrow) return doThrow(e); else return;
+    }
     Logging.error(`Error handling uri: ${uri}`, LOGGING_NO_STACKTRACE);
     Logging.error(e, LOGGING_HANDLE_ERROR);
     // Convert SSH2Stream error codes into VS Code errors

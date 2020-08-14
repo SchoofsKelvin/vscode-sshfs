@@ -29,6 +29,13 @@ export interface LoggingOptions {
    * Defaults to 0 meaning no offset.
    */
   callStacktraceOffset: number;
+  /** Used when the "message" to be logged is an Error object with a stack.
+   * 0: Don't output the stack
+   * -1: Output the whole stack
+   * N: Only output the first N lines
+   * The stack gets stringified in the first logger, so child loggers don't inherit, it uses the default (which is 0)
+   */
+  maxErrorStack: number;
 }
 
 export const LOGGING_NO_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 0 };
@@ -42,6 +49,7 @@ class Logger {
     reportedFromLevel: 0,
     callStacktrace: 0,
     callStacktraceOffset: 0,
+    maxErrorStack: 0,
   };
   public overriddenTypeOptions: { [type in LoggerDefaultLevels]?: Partial<LoggingOptions> } = {
     warning: { callStacktrace: 3, reportedFromLevel: 2 },
@@ -79,15 +87,21 @@ class Logger {
   }
   protected print(type: string, message: string | Error, partialOptions?: Partial<LoggingOptions>) {
     const options: LoggingOptions = { ...this.defaultLoggingOptions, ...this.overriddenTypeOptions[type], ...partialOptions };
-    // Format errors with stacktraces to display the stacktrace
+    // Format errors with stacktraces to display the JSON and the stacktrace if needed
     if (message instanceof Error && message.stack) {
-      let json: string = '';
+      let msg = message.message;
       try {
-        json = JSON.stringify(message);
-      } finally {
-        json = json ? `\nJSON: ${json}` : '';
-        message = `${message.message}${json}\n${message.stack}`;
+        msg += `\nJSON: ${JSON.stringify(message)}`;
+      } finally { }
+      const { maxErrorStack } = options;
+      if (message.stack && maxErrorStack) {
+        let { stack } = message;
+        if (maxErrorStack > 0) {
+          stack = stack.split(/\n/g).slice(0, maxErrorStack).join('\n');
+        }
+        msg += '\n' + stack;
       }
+      message = msg;
     }
     // Do we need to also output a stacktrace?
     const { callStacktrace, callStacktraceOffset = 0 } = options;
