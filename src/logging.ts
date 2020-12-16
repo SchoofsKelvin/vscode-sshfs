@@ -41,7 +41,7 @@ export interface LoggingOptions {
 export const LOGGING_NO_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 0 };
 export const LOGGING_SINGLE_LINE_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 1 };
 
-export type LoggerDefaultLevels = 'debug' | 'info' | 'warning' | 'error';
+export type LoggerDefaultLevels = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 class Logger {
   protected parent?: Logger;
   protected stack?: string;
@@ -52,8 +52,8 @@ class Logger {
     maxErrorStack: 0,
   };
   public overriddenTypeOptions: { [type in LoggerDefaultLevels]?: Partial<LoggingOptions> } = {
-    warning: { callStacktrace: 3, reportedFromLevel: 2 },
-    error: { callStacktrace: 5, reportedFromLevel: 2 },
+    WARNING: { callStacktrace: 3, reportedFromLevel: 2 },
+    ERROR: { callStacktrace: 5, reportedFromLevel: 2, maxErrorStack: 10 },
   };
   protected constructor(protected name?: string, generateStack: number | boolean = false) {
     if (generateStack) {
@@ -86,6 +86,7 @@ class Logger {
     if (DEBUG) (console[type.toLowerCase()] || console.log).call(console, msg);
   }
   protected print(type: string, message: string | Error, partialOptions?: Partial<LoggingOptions>) {
+    type = type.toUpperCase();
     const options: LoggingOptions = { ...this.defaultLoggingOptions, ...this.overriddenTypeOptions[type], ...partialOptions };
     // Format errors with stacktraces to display the JSON and the stacktrace if needed
     if (message instanceof Error && message.stack) {
