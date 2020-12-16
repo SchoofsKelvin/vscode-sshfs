@@ -1,21 +1,13 @@
 import * as vscode from 'vscode';
 import { Logging } from './logging';
-import { Manager } from './manager';
+import type { Manager } from './manager';
 
-const FOLDERS = vscode.workspace.workspaceFolders!;
-function isWorkspaceStale() {
-  const FOLDERS2 = vscode.workspace.workspaceFolders!;
-  if (!FOLDERS !== !FOLDERS2) return true;
-  // Both should exist here, but checking both for typechecking
-  if (!FOLDERS.length !== !FOLDERS2.length) return true;
-  const [folder1] = FOLDERS;
-  const [folder2] = FOLDERS2;
-  if (folder1 === folder2) return false;
-  const { name: name1, uri: uri1 } = folder1;
-  const { name: name2, uri: uri2 } = folder2;
-  if (name1 !== name2) return true;
-  if (uri1.toString() !== uri2.toString()) return true;
-  return false;
+function isWorkspaceStale(uri: vscode.Uri) {
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    if (folder.uri.scheme !== 'ssh') continue;
+    if (folder.uri.authority === uri.authority) return false;
+  }
+  return true;
 }
 
 export class FileSystemRouter implements vscode.FileSystemProvider {
@@ -27,19 +19,14 @@ export class FileSystemRouter implements vscode.FileSystemProvider {
   public async assertFs(uri: vscode.Uri): Promise<vscode.FileSystemProvider> {
     const fs = this.manager.getFs(uri);
     if (fs) return fs;
-    // When adding one of our filesystems as the first workspace folder,
-    // it's possible (and even likely) that vscode will set
-    // vscode.workspace.workspaceFolders and prompt our filesystem
-    // for .vscode/settings.json, right before extensions get reloaded.
-    // This triggers a useless connection (and password prompting), so
-    // if we detect here the workspace is in a phase of change, resulting
-    // in extensions reload, just throw an error. vscode is fine with it.
-    if (isWorkspaceStale()) {
-      console.error('Stale workspace');
+    // There are some edge cases where vscode tries to access files of a WorkspaceFolder
+    // that's (being) removed, or it's being added but the window is supposed to reload.
+    // We only check the first case here
+    if (isWorkspaceStale(uri)) {
+      Logging.warning(`Stale workspace for '${uri}', returning empty file system`);
       // Throwing an error gives the "${root} · Can not resolve workspace folder"
       // throw vscode.FileSystemError.Unavailable('Stale workspace');
       // So let's just act as if everything's fine, but there's only the void.
-      // The extensions (and FileSystemProviders) get reloaded soon anyway.
       return (await import('./sshFileSystem')).EMPTY_FILE_SYSTEM;
     }
     return this.manager.createFileSystem(uri.authority);
