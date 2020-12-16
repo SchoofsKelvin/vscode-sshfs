@@ -31,8 +31,14 @@ export interface TerminalOptions {
     command?: string;
 }
 
+function joinCommands(commands?: string | string[]): string | undefined {
+    if (!commands) return undefined;
+    if (typeof commands === 'string') return commands;
+    return commands.join(';');
+}
+
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
-    const { client, config, command } = options;
+    const { client, config } = options;
     const onDidWrite = new vscode.EventEmitter<string>();
     const onDidClose = new vscode.EventEmitter<number>();
     const onDidOpen = new vscode.EventEmitter<void>();
@@ -57,7 +63,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         async open(dims) {
             onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
             try {
-                let commands = [options.command || '$SHELL'];
+                let commands: string[] = [options.command || joinCommands(options.config.terminalCommand) || '$SHELL'];
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
                 workingDirectory = workingDirectory || config.root;
@@ -72,7 +78,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     commands.unshift(`cd ${workingDirectory}`);
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(commands.join(';'), { pty: pseudoTtyOptions }, cb));
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands)!, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
                 channel.on('exit', onDidClose.fire);

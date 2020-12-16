@@ -96,6 +96,8 @@ export interface FileSystemConfig extends ConnectConfig {
   sftpCommand?: string;
   /** Whether to use a sudo shell (and for which user) to run the sftpCommand in (sftpCommand defaults to /usr/lib/openssh/sftp-server if missing) */
   sftpSudo?: string | boolean;
+  /** The command(s) to run when a new SSH terminals gets created. Defaults to `$SHELL`. Internally the command `cd ...` is run first */
+  terminalCommand?: string | string[];
   /** The filemode to assign to created files */
   newFileMode?: number | string;
   /** Internal property saying where this config comes from. Undefined if this config is merged or something */
