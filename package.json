@@ -14,13 +14,17 @@
         "onFileSystem:ssh",
         "onFileSystemAccess:ssh",
         "onView:sshfs-configs",
+        "onView:sshfs-connections",
         "onCommand:sshfs.new",
-        "onCommand:sshfs.connect",
-        "onCommand:sshfs.reconnect",
+        "onCommand:sshfs.add",
         "onCommand:sshfs.disconnect",
+        "onCommand:sshfs.terminal",
+        "onCommand:sshfs.focusTerminal",
+        "onCommand:sshfs.closeTerminal",
         "onCommand:sshfs.configure",
         "onCommand:sshfs.reload",
-        "onCommand:sshfs.settings"
+        "onCommand:sshfs.settings",
+        "onCommand:sshfs.refresh"
     ],
     "main": "./dist/extension.js",
     "author": {
@@ -47,10 +51,29 @@
     ],
     "contributes": {
         "views": {
-            "explorer": [
+            "sshfs": [
                 {
                     "id": "sshfs-configs",
-                    "name": "SSH File Systems"
+                    "name": "Configurations",
+                    "contextualTitle": "SSH FS - Configurations",
+                    "icon": "resources/icon.svg",
+                    "visibility": "visible"
+                },
+                {
+                    "id": "sshfs-connections",
+                    "name": "Connections",
+                    "contextualTitle": "SSH FS - Connections",
+                    "icon": "resources/icon.svg",
+                    "visibility": "visible"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "sshfs",
+                    "title": "SSH FS",
+                    "icon": "resources/icon.svg"
                 }
             ]
         },
@@ -58,42 +81,62 @@
             {
                 "command": "sshfs.new",
                 "title": "Create a SSH FS configuration",
-                "category": "SSH FS"
+                "category": "SSH FS",
+                "icon": "$(new-file)"
             },
             {
-                "command": "sshfs.connect",
-                "title": "Connect as Workspace folder",
-                "category": "SSH FS"
-            },
-            {
-                "command": "sshfs.reconnect",
-                "title": "Reconnect Workspace folder",
-                "category": "SSH FS"
+                "command": "sshfs.add",
+                "title": "Add as Workspace folder",
+                "category": "SSH FS",
+                "icon": "$(new-folder)"
             },
             {
                 "command": "sshfs.disconnect",
-                "title": "Disconnect Workspace folder",
-                "category": "SSH FS"
+                "title": "Disconnect",
+                "category": "SSH FS",
+                "icon": "$(debug-disconnect)"
             },
             {
                 "command": "sshfs.terminal",
-                "title": "Open a remote SSH terminal",
-                "category": "SSH FS"
+                "title": "Open remote SSH terminal",
+                "category": "SSH FS",
+                "icon": "$(terminal)"
             },
             {
                 "command": "sshfs.configure",
                 "title": "Edit configuration",
-                "category": "SSH FS"
+                "category": "SSH FS",
+                "icon": "$(settings-gear)"
             },
             {
                 "command": "sshfs.reload",
                 "title": "Reload configurations",
-                "category": "SSH FS"
+                "category": "SSH FS",
+                "icon": "$(refresh)"
             },
             {
                 "command": "sshfs.settings",
                 "title": "Open settings and edit configurations",
-                "category": "SSH FS"
+                "category": "SSH FS",
+                "icon": "$(settings)"
+            },
+            {
+                "command": "sshfs.refresh",
+                "title": "Refresh",
+                "category": "SSH FS",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "sshfs.focusTerminal",
+                "title": "Focus terminal",
+                "category": "SSH FS",
+                "icon": "$(eye)"
+            },
+            {
+                "command": "sshfs.closeTerminal",
+                "title": "Close terminal",
+                "category": "SSH FS",
+                "icon": "$(close)"
             }
         ],
         "menus": {
@@ -103,71 +146,99 @@
                     "group": "SSH FS@1"
                 },
                 {
-                    "command": "sshfs.connect",
+                    "command": "sshfs.add",
                     "group": "SSH FS@2"
                 },
                 {
-                    "command": "sshfs.reconnect",
+                    "command": "sshfs.disconnect",
                     "group": "SSH FS@3"
                 },
                 {
-                    "command": "sshfs.disconnect",
+                    "command": "sshfs.terminal",
                     "group": "SSH FS@4"
                 },
                 {
-                    "command": "sshfs.terminal",
+                    "command": "sshfs.configure",
                     "group": "SSH FS@5"
                 },
                 {
-                    "command": "sshfs.configure",
+                    "command": "sshfs.reload",
                     "group": "SSH FS@6"
                 },
                 {
-                    "command": "sshfs.reload",
+                    "command": "sshfs.settings",
                     "group": "SSH FS@7"
                 },
                 {
-                    "command": "sshfs.settings",
-                    "group": "SSH FS@8"
+                    "command": "sshfs.focusTerminal",
+                    "when": "false"
+                },
+                {
+                    "command": "sshfs.closeTerminal",
+                    "when": "false"
+                },
+                {
+                    "command": "sshfs.refresh",
+                    "when": "false"
                 }
             ],
             "view/title": [
                 {
+                    "command": "sshfs.refresh",
+                    "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
+                    "group": "navigation@1"
+                },
+                {
                     "command": "sshfs.new",
                     "when": "view == 'sshfs-configs'",
-                    "group": "SSH FS@1"
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "sshfs.add",
+                    "when": "view == 'sshfs-connections'",
+                    "group": "navigation@2"
                 },
                 {
                     "command": "sshfs.settings",
-                    "when": "view == 'sshfs-configs'",
-                    "group": "SSH FS@6"
+                    "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
+                    "group": "navigation@3"
                 }
             ],
             "view/item/context": [
                 {
-                    "command": "sshfs.connect",
-                    "when": "view == 'sshfs-configs' && viewItem == inactive",
-                    "group": "SSH FS@1"
-                },
-                {
-                    "command": "sshfs.reconnect",
-                    "when": "view == 'sshfs-configs' && viewItem == active",
-                    "group": "SSH FS@2"
-                },
-                {
-                    "command": "sshfs.disconnect",
-                    "when": "view == 'sshfs-configs' && viewItem == active",
-                    "group": "SSH FS@3"
+                    "command": "sshfs.add",
+                    "when": "view == 'sshfs-configs' && viewItem == config",
+                    "group": "inline@1"
                 },
                 {
                     "command": "sshfs.terminal",
-                    "when": "view == 'sshfs-configs' && viewItem",
-                    "group": "SSH FS@4"
+                    "when": "view == 'sshfs-configs' && viewItem == config",
+                    "group": "inline@2"
                 },
                 {
                     "command": "sshfs.configure",
-                    "when": "view == 'sshfs-configs' && viewItem",
-                    "group": "SSH FS@5"
+                    "when": "view == 'sshfs-configs' && viewItem == config",
+                    "group": "inline@3"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "when": "view == 'sshfs-configs' && viewItem == config",
+                    "group": "inline@4"
+                },
+                {
+                    "command": "sshfs.terminal",
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "sshfs.closeTerminal",
+                    "when": "view == 'sshfs-connections' && viewItem == terminal",
+                    "group": "inline@1"
                 }
             ],
             "explorer/context": [

@@ -6,7 +6,7 @@ import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
 import { Logging, DEBUG, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './toPromise';
-import { Message, Navigation } from './webviewMessages';
+import type { Message, Navigation } from './webviewMessages';
 
 let webviewPanel: vscode.WebviewPanel | undefined;
 let pendingNavigation: Navigation | undefined;

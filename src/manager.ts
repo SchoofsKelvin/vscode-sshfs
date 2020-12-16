@@ -1,40 +1,14 @@
 
-import { Client, ClientChannel } from 'ssh2';
+import * as path from 'path';
+import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { configMatches, getConfig, getConfigs, loadConfigs, loadConfigsRaw, UPDATE_LISTENERS } from './config';
-import { FileSystemConfig, getGroups } from './fileSystemConfig';
+import { getConfig, getConfigs, loadConfigsRaw } from './config';
+import { Connection, ConnectionManager } from './connection';
+import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
-import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
-import { Navigation } from './webviewMessages';
-import * as path from 'path';
-
-export enum ConfigStatus {
-  Idle = 'Idle',
-  Active = 'Active',
-  Deleted = 'Deleted',
-  Connecting = 'Connecting',
-  Error = 'Error',
-}
-
-function createTreeItem(manager: Manager, item: string | FileSystemConfig): vscode.TreeItem {
-  if (typeof item === 'string') {
-    return {
-      label: item.replace(/^.+\./, ''),
-      collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-    };
-  }
-  const folders = vscode.workspace.workspaceFolders || [];
-  const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === item.name);
-  const status = manager.getStatus(item.name);
-  return {
-    label: item && item.label || item.name,
-    contextValue: isConnected ? 'active' : 'inactive',
-    tooltip: status === 'Deleted' ? 'Active but deleted' : status,
-    iconPath: manager.context.asAbsolutePath(`resources/config/${status}.png`),
-  };
-}
+import type { Navigation } from './webviewMessages';
 
 async function tryGetHome(ssh: Client): Promise<string | null> {
   const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
@@ -49,13 +23,11 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
   return mat[1];
 }
 
-interface Connection {
-  config: FileSystemConfig;
-  actualConfig: FileSystemConfig;
-  client: Client;
-  terminals: SSHPseudoTerminal[];
-  filesystems: SSHFileSystem[];
-  pendingUserCount: number;
+function commandArgumentToName(arg?: string | FileSystemConfig | Connection): string {
+  if (!arg) return 'undefined';
+  if (typeof arg === 'string') return arg;
+  if ('client' in arg) return `Connection(${arg.actualConfig.name})`;
+  return `FileSystemConfig(${arg.name})`;
 }
 
 interface SSHShellTaskOptions {
@@ -64,15 +36,11 @@ interface SSHShellTaskOptions {
   workingDirectory?: string;
 }
 
-export class Manager implements vscode.TreeDataProvider<string | FileSystemConfig>, vscode.TaskProvider {
-  public onDidChangeTreeData: vscode.Event<string | null>;
-  protected connections: Connection[] = [];
-  protected pendingConnections: { [name: string]: Promise<Connection> } = {};
+export class Manager implements vscode.TaskProvider {
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
-  protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<string | null>();
+  public readonly connectionManager = new ConnectionManager();
   constructor(public readonly context: vscode.ExtensionContext) {
-    this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     // In a multi-workspace environment, when the non-main folder gets removed,
     // it might be one of ours, which we should then disconnect if it's
     // the only one left for the given config (name)
@@ -82,98 +50,20 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       e.removed.forEach(async (folder) => {
         if (folder.uri.scheme !== 'ssh') return;
         if (workspaceFolders.find(f => f.uri.authority === folder.uri.authority)) return;
-        this.commandDisconnect(folder.uri.authority);
+        const fs = this.fileSystems.find(fs => fs.authority === folder.uri.authority);
+        if (fs) fs.disconnect();
       });
-      this.onDidChangeTreeDataEmitter.fire(null);
     });
-    UPDATE_LISTENERS.push(() => this.fireConfigChanged());
-  }
-  public fireConfigChanged(): void {
-    this.onDidChangeTreeDataEmitter.fire(null);
-    // TODO: Offer to reconnect everything
-  }
-  /** This purely looks at whether a filesystem with the given name is available/connecting */
-  public getStatus(name: string): ConfigStatus {
-    const config = getConfig(name);
-    const folders = vscode.workspace.workspaceFolders || [];
-    const isActive = this.getActiveFileSystems().find(fs => fs.config.name === name);
-    const isConnected = folders.some(f => f.uri.scheme === 'ssh' && f.uri.authority === name);
-    if (!config) return isActive ? ConfigStatus.Deleted : ConfigStatus.Error;
-    if (isConnected) {
-      if (isActive) return ConfigStatus.Active;
-      if (this.creatingFileSystems[name]) return ConfigStatus.Connecting;
-      return ConfigStatus.Error;
-    }
-    return ConfigStatus.Idle;
-  }
-  public getActiveConnection(name: string, config?: FileSystemConfig): Connection | undefined {
-    let con = config && this.connections.find(con => configMatches(con.config, config));
-    // If a config was given and we have a connection with the same-ish config, return it
-    if (con) return con;
-    // Otherwise if no config was given, just any config with the same name is fine
-    return config ? undefined : this.connections.find(con => con.config.name === name);
-  }
-  public async createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
-    const logging = Logging.scope(`createConnection(${name},${config && 'config'})`);
-    let con = this.getActiveConnection(name, config);
-    if (con) return con;
-    let promise = this.pendingConnections[name];
-    if (promise) return promise;
-    return this.pendingConnections[name] = (async (): Promise<Connection> => {
-      logging.info(`Creating a new connection for '${name}'`);
-      const { createSSH, calculateActualConfig } = await import('./connect');
-      config = config || (await loadConfigs()).find(c => c.name === name);
-      if (!config) throw new Error(`No configuration with name '${name}' found`);
-      const actualConfig = await calculateActualConfig(config);
-      const client = await createSSH(actualConfig);
-      if (!client) throw new Error(`Could not create SSH session for '${name}'`);
-      con = {
-        config, client, actualConfig,
-        terminals: [],
-        filesystems: [],
-        pendingUserCount: 0,
-      };
-      this.connections.push(con);
-      let timeoutCounter = 0;
-      // Start a timer that'll automatically close the connection once it hasn't been used in a while (about 5s)
-      const timer = setInterval(() => {
-        timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;
-        // If something's initiating on the connection, keep it alive
-        // (the !con is just for intellisense purposes, should never be undefined)
-        if (!con || con.pendingUserCount) return;
-        con.filesystems = con.filesystems.filter(fs => !fs.closed && !fs.closing);
-        if (con.filesystems.length) return; // Still got active filesystems on this connection
-        // When the manager creates a terminal, it also links up an event to remove it from .terminals when it closes
-        if (con.terminals.length) return; // Still got active terminals on this connection
-        // Next iteration, if the connection is still unused, close it
-        // First iteration here = 2
-        // Next iteration = 1
-        //   If nothing of the "active" if-statements returned, it'll be 1 here
-        // After that = 0
-        if (timeoutCounter !== 1) {
-          timeoutCounter = 2;
-          return;
-        }
-        // timeoutCounter == 1, so it's been inactive for at least 5 seconds, close it!
-        logging.info(`Closing connection to '${name}' due to no active filesystems/terminals`);
-        clearInterval(timer);
-        this.connections = this.connections.filter(c => c !== con);
-        con.client.destroy();
-      }, 5e3);
-      return con;
-    })().finally(() => delete this.pendingConnections[name]);
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
     const existing = this.fileSystems.find(fs => fs.authority === name);
     if (existing) return existing;
-    let promise = this.creatingFileSystems[name];
-    if (promise) return promise;
     let con: Connection | undefined;
-    promise = catchingPromise<SSHFileSystem>(async (resolve, reject) => {
-      config = config || (await getConfigs()).find(c => c.name === name);
+    return this.creatingFileSystems[name] ||= catchingPromise<SSHFileSystem>(async (resolve, reject) => {
+      config = config || getConfigs().find(c => c.name === name);
       if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
-      con = await this.createConnection(name, config);
-      con.pendingUserCount++;
+      const con = await this.connectionManager.createConnection(name, config);
+      this.connectionManager.update(con, con => con.pendingUserCount++);
       config = con.actualConfig;
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
@@ -208,17 +98,19 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
         await vscode.window.showErrorMessage(message, 'Okay');
         return reject();
       }
-      con.filesystems.push(fs);
+      this.connectionManager.update(con, con => con.filesystems.push(fs));
       this.fileSystems.push(fs);
       delete this.creatingFileSystems[name];
+      fs.onClose(() => {
+        this.fileSystems = this.fileSystems.filter(f => f !== fs);
+        this.connectionManager.update(con, con => con.filesystems = con.filesystems.filter(f => f !== fs));
+      });
       vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-      this.onDidChangeTreeDataEmitter.fire(null);
-      con.client.once('close', hadError => hadError ? this.commandReconnect(name) : (!fs.closing && this.promptReconnect(name)));
-      con.pendingUserCount--;
+      // con.client.once('close', hadError => !fs.closing && this.promptReconnect(name));
+      this.connectionManager.update(con, con => con.pendingUserCount--);
       return resolve(fs);
     }).catch((e) => {
-      if (con) con.pendingUserCount--; // I highly doubt resolve(fs) will error
-      this.onDidChangeTreeDataEmitter.fire(null);
+      if (con) this.connectionManager.update(con, con => con.pendingUserCount--); // I highly doubt resolve(fs) will error
       if (!e) {
         delete this.creatingFileSystems[name];
         this.commandDisconnect(name);
@@ -238,7 +130,6 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
       });
       throw e;
     });
-    return this.creatingFileSystems[name] = promise;
   }
   public getRemotePath(config: FileSystemConfig, relativePath: string) {
     if (relativePath.startsWith('/')) relativePath = relativePath.substr(1);
@@ -248,21 +139,21 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     if (result.startsWith('/')) return result; // Already starts with /
     return '/' + result; // Add the / to make sure it isn't seen as a relative path
   }
-  public async createTerminal(name: string, config?: FileSystemConfig, uri?: vscode.Uri): Promise<void> {
+  public async createTerminal(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<void> {
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
-    const con = await this.createConnection(name, config);
+    const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
     // Calculate working directory if applicable
     let workingDirectory: string | undefined = uri && uri.path;
     if (workingDirectory) workingDirectory = this.getRemotePath(con.actualConfig, workingDirectory);
     // Create pseudo terminal
-    con.pendingUserCount++;
+    this.connectionManager.update(con, con => con.pendingUserCount++);
     const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
-    pty.onDidClose(() => con.terminals = con.terminals.filter(t => t !== pty));
-    con.terminals.push(pty);
-    con.pendingUserCount--;
+    pty.onDidClose(() => this.connectionManager.update(con, con => con.terminals = con.terminals.filter(t => t !== pty)));
+    this.connectionManager.update(con, con => (con.terminals.push(pty), con.pendingUserCount--));
     // Create and show the graphical representation
     const terminal = vscode.window.createTerminal({ name, pty });
+    pty.terminal = terminal;
     terminal.show();
   }
   public getActiveFileSystems(): readonly SSHFileSystem[] {
@@ -277,30 +168,8 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     const config = getConfig(name);
     console.log('config', name, config);
     if (!config) return;
-    const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Reconnect', 'Disconnect');
-    if (choice === 'Reconnect') {
-      this.commandReconnect(name);
-    } else {
-      this.commandDisconnect(name);
-    }
-  }
-  /* TreeDataProvider */
-  public getTreeItem(element: string | FileSystemConfig): vscode.TreeItem | Thenable<vscode.TreeItem> {
-    return createTreeItem(this, element);
-  }
-  public getChildren(element: string | FileSystemConfig = ''): vscode.ProviderResult<(string | FileSystemConfig)[]> {
-    if (typeof element === 'object') return []; // FileSystemConfig, has no children
-    const configs = this.fileSystems.map(fs => fs.config).map(c => c._calculated || c);
-    configs.push(...getConfigs().filter(c => !configs.find(fs => c.name === fs.name)));
-    const matching = configs.filter(({ group }) => (group || '') === element);
-    matching.sort((a, b) => a.name > b.name ? 1 : -1);
-    let groups = getGroups(configs, true);
-    if (element) {
-      groups = groups.filter(g => g.startsWith(element) && g[element.length] === '.' && !g.includes('.', element.length + 1));
-    } else {
-      groups = groups.filter(g => !g.includes('.'));
-    }
-    return [...matching, ...groups.sort()];
+    const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Ignore', 'Disconnect');
+    if (choice === 'Disconnect') this.commandDisconnect(name);
   }
   /* TaskProvider */
   public provideTasks(token?: vscode.CancellationToken | undefined): vscode.ProviderResult<vscode.Task[]> {
@@ -317,81 +186,68 @@ export class Manager implements vscode.TreeDataProvider<string | FileSystemConfi
     return new vscode.Task(
       task.definition,
       vscode.TaskScope.Workspace,
-      `SSH Task for ${host}`,
+      `SSH Task '${task.name}' for ${host}`,
       'ssh',
       new vscode.CustomExecution(async () => {
-        const connection = await this.createConnection(host);
-        connection.pendingUserCount++;
+        const connection = await this.connectionManager.createConnection(host);
+        this.connectionManager.update(connection, con => con.pendingUserCount++);
         const { createTerminal } = await import('./pseudoTerminal');
-        const psy = await createTerminal({
+        const pty = await createTerminal({
           command, workingDirectory,
           client: connection.client,
           config: connection.actualConfig,
         });
-        connection.pendingUserCount--;
-        connection.terminals.push(psy);
-        psy.onDidClose(() => connection.terminals = connection.terminals.filter(t => t !== psy));
-        return psy;
+        this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
+        pty.onDidClose(() => this.connectionManager.update(connection,
+          con => con.terminals = con.terminals.filter(t => t !== pty)));
+        return pty;
       })
     )
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
-  public commandDisconnect(target: string | FileSystemConfig) {
-    if (typeof target === 'object') target = target.name;
-    Logging.info(`Command received to disconnect ${target}`);
-    const fs = this.fileSystems.find(f => f.authority === target);
-    if (fs) {
-      fs.disconnect();
-      this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
-    }
-    delete this.creatingFileSystems[target];
+  public commandConnect(config: FileSystemConfig) {
+    Logging.info(`Command received to connect ${config.name}`);
     const folders = vscode.workspace.workspaceFolders!;
-    const index = folders.findIndex(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
-    if (index !== -1) vscode.workspace.updateWorkspaceFolders(index, 1);
-    this.onDidChangeTreeDataEmitter.fire(null);
+    const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === config.name);
+    if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+    vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, {
+      uri: vscode.Uri.parse(`ssh://${config.name}/`),
+      name: `SSH FS - ${config.label || config.name}`,
+    });
   }
-  public commandReconnect(target: string | FileSystemConfig) {
-    if (typeof target === 'object') target = target.name;
-    Logging.info(`Command received to reconnect ${target}`);
-    const fs = this.fileSystems.find(f => f.authority === target);
-    if (fs) {
-      fs.disconnect();
-      this.fileSystems.splice(this.fileSystems.indexOf(fs), 1);
+  public commandDisconnect(target: string | Connection) {
+    Logging.info(`Command received to disconnect ${commandArgumentToName(target)}`);
+    let cons: Connection[];
+    if (typeof target === 'object' && 'client' in target) {
+      cons = [target];
+      target = target.actualConfig.name;
+    } else {
+      cons = this.connectionManager.getActiveConnections()
+        .filter(con => con.actualConfig.name === target);
     }
-    delete this.creatingFileSystems[target];
-    // Even if we got an actual config object, we're passing on the name here
-    // This allows it to pick up config changes (which is why we usually reconnect)
-    this.commandConnect(target);
-  }
-  public commandConnect(target: string | FileSystemConfig) {
-    const config = typeof target === 'object' ? target : undefined;
-    if (typeof target === 'object') target = target.name;
-    Logging.info(`Command received to connect ${target}`);
+    for (const con of cons) this.connectionManager.closeConnection(con);
     const folders = vscode.workspace.workspaceFolders!;
-    const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === target);
-    if (folder) {
-      this.onDidChangeTreeDataEmitter.fire(null);
-      const existing = this.fileSystems.find(fs => fs.config.name === target);
-      if (existing) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-      return this.createFileSystem(target, config);
-    }
-    vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, { uri: vscode.Uri.parse(`ssh://${target}/`), name: `SSH FS - ${target}` });
-    this.onDidChangeTreeDataEmitter.fire(null);
-  }
-  public async commandTerminal(target: string | FileSystemConfig, uri?: vscode.Uri) {
-    Logging.info(`Command received to open a terminal for ${typeof target === 'string' ? target : target.name}${uri ? ` in ${uri}` : ''}`);
-    // If no Uri is given, default to ssh://<target>/ which should respect config.root
-    const name = typeof target === 'string' ? target : target.name;
-    uri = uri || vscode.Uri.parse(`ssh://${name}/`, true);
-    try {
-      if (typeof target === 'string') {
-        await this.createTerminal(target, undefined, uri);
-      } else {
-        await this.createTerminal(target.label || target.name, target, uri);
+    let start: number = folders.length;
+    let left: vscode.WorkspaceFolder[] = [];
+    for (const folder of folders) {
+      if (folder.uri.scheme === 'ssh' && folder.uri.authority === target) {
+        start = Math.min(folder.index, start);
+      } else if (folder.index > start) {
+        left.push(folder);
       }
+    };
+    vscode.workspace.updateWorkspaceFolders(start, folders.length - start, ...left);
+  }
+  public async commandTerminal(target: FileSystemConfig | Connection, uri?: vscode.Uri) {
+    Logging.info(`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`);
+    const config = 'client' in target ? target.actualConfig : target;
+    // If no Uri is given, default to ssh://<target>/ which should respect config.root
+    uri = uri || vscode.Uri.parse(`ssh://${config.name}/`, true);
+    try {
+      await this.createTerminal(config.label || config.name, target, uri);
     } catch (e) {
       const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
-        `Couldn't start a terminal for ${name}: ${e.message || e}`,
+        `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
         { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
       if (choice && choice.title === 'Retry') return this.commandTerminal(target, uri);
     }

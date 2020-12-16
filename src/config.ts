@@ -57,7 +57,7 @@ async function readConfigFile(location: string, shouldExist = false): Promise<Fi
   const content = await toPromise<Buffer>(cb => readFile(location, cb)).catch((e: NodeJS.ErrnoException) => e);
   if (content instanceof Error) {
     if (content.code === 'ENOENT' && !shouldExist) return [];
-    logging.error(`Error while reading ${location}: ${content.message}`);
+    logging.error(`Error while reading config file ${location}: ${content.message}`);
     return [];
   }
   const errors: ParseError[] = [];

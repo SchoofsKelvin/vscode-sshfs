@@ -2,7 +2,7 @@
 import * as dns from 'dns';
 import { request } from 'http';
 import { SocksClient } from 'socks';
-import { FileSystemConfig } from './fileSystemConfig';
+import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise } from './toPromise';
 
