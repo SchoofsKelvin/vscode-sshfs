@@ -18,6 +18,7 @@
         "onCommand:sshfs.new",
         "onCommand:sshfs.add",
         "onCommand:sshfs.disconnect",
+        "onCommand:sshfs.disconnectAll",
         "onCommand:sshfs.terminal",
         "onCommand:sshfs.focusTerminal",
         "onCommand:sshfs.closeTerminal",
@@ -97,6 +98,12 @@
                 "icon": "$(debug-disconnect)"
             },
             {
+                "command": "sshfs.disconnectAll",
+                "title": "Disconnect all",
+                "category": "SSH FS",
+                "icon": "$(debug-disconnect)"
+            },
+            {
                 "command": "sshfs.terminal",
                 "title": "Open remote SSH terminal",
                 "category": "SSH FS",
@@ -166,8 +173,12 @@
                     "group": "SSH FS@6"
                 },
                 {
-                    "command": "sshfs.settings",
+                    "command": "sshfs.disconnectAll",
                     "group": "SSH FS@7"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "group": "SSH FS@8"
                 },
                 {
                     "command": "sshfs.focusTerminal",
@@ -191,7 +202,7 @@
                 {
                     "command": "sshfs.new",
                     "when": "view == 'sshfs-configs'",
-                    "group": "navigation@1"
+                    "group": "navigation@2"
                 },
                 {
                     "command": "sshfs.add",
@@ -199,9 +210,14 @@
                     "group": "navigation@2"
                 },
                 {
+                    "command": "sshfs.disconnectAll",
+                    "when": "view == 'sshfs-connections'",
+                    "group": "navigation@3"
+                },
+                {
                     "command": "sshfs.settings",
                     "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
-                    "group": "navigation@3"
+                    "group": "navigation@100"
                 }
             ],
             "view/item/context": [

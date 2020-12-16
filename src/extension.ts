@@ -83,6 +83,13 @@ export function activate(context: vscode.ExtensionContext) {
     handleConnection: con => manager.commandDisconnect(con),
   });
 
+  // sshfs.disconnectAll()
+  registerCommand('sshfs.disconnectAll', () => {
+    const conns = manager.connectionManager;
+    // Does not close pending connections (yet?)
+    conns.getActiveConnections().forEach(conn => conns.closeConnection(conn, 'command:disconnectAll'));
+  });
+
   // sshfs.termninal(target?: string | FileSystemConfig | Connection | vscode.Uri)
   registerCommandHandler('sshfs.terminal', {
     promptOptions: { promptConfigs: true, promptConnections: true },
