@@ -4,7 +4,7 @@ import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } 
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
-import { FileSystemConfig } from './fileSystemConfig';
+import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import { toPromise } from './toPromise';
 

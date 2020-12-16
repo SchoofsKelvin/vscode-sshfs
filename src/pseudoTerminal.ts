@@ -1,7 +1,7 @@
-import { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
-import { Readable } from "stream";
+import type { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
+import type { Readable } from "stream";
 import * as vscode from "vscode";
-import { FileSystemConfig } from "./fileSystemConfig";
+import type { FileSystemConfig } from "./fileSystemConfig";
 import { toPromise } from "./toPromise";
 
 const [HEIGHT, WIDTH] = [480, 640];

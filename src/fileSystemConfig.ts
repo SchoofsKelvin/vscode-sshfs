@@ -1,4 +1,4 @@
-import { ConnectConfig } from 'ssh2';
+import type { ConnectConfig } from 'ssh2';
 
 export interface ProxyConfig {
   type: 'socks4' | 'socks5' | 'http';

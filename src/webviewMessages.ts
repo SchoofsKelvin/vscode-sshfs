@@ -1,4 +1,4 @@
-import { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
+import type { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
 
 /* Type of messages*/
 

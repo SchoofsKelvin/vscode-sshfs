@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './fileSystemConfig';
+import type { FileSystemConfig } from './fileSystemConfig';
 
 // Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging
 export const DEBUG: number | undefined = process.execArgv.find(a => a.includes('--inspect')) ? 3000 : undefined;
