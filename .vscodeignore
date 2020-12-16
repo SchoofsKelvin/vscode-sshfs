@@ -7,6 +7,7 @@
 !util
 !resources/config
 !resources/Logo.png
+!resources/icon.svg
 !media
 !webview/build/index.html
 !webview/build/static/css/*.css
