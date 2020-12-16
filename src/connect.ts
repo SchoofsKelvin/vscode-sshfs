@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
+import { navigate } from './settings';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -22,7 +23,37 @@ function replaceVariables(string?: string) {
   return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
 }
 
-export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig> {
+const PROMPT_FIELDS: Partial<Record<keyof FileSystemConfig, [
+  placeholder: string,
+  prompt: (config: FileSystemConfig) => string,
+  promptOnEmpty: boolean, password?: boolean]>> = {
+  host: ['Host', c => `Host for ${c.name}`, true],
+  username: ['Username', c => `Username for ${c.name}`, true],
+  password: ['Password', c => `Password for ${c.username}@${c.name}`, false, true],
+  passphrase: ['Passphrase', c => `Passphrase for provided export/private key for ${c.username}@${c.name}`, false, true],
+};
+
+async function promptFields(config: FileSystemConfig, ...fields: (keyof FileSystemConfig)[]): Promise<void> {
+  for (const field of fields) {
+    const prompt = PROMPT_FIELDS[field];
+    if (!prompt) {
+      Logging.error(`Prompting unexpected field '${field}'`);
+      continue;
+    }
+    const value = config[field];
+    if (value && value !== true) continue; // Truthy and not true
+    if (!value && !prompt[2]) continue; // Falsy but not promptOnEmpty
+    const result = await vscode.window.showInputBox({
+      ignoreFocusOut: true,
+      password: !!prompt[3],
+      placeHolder: prompt[0],
+      prompt: prompt[1](config),
+    });
+    (config[field] as string | undefined) = result;
+  }
+}
+
+export async function calculateActualConfig(config: FileSystemConfig): Promise<FileSystemConfig | null> {
   if (config._calculated) return config;
   const logging = Logging.scope();
   // Add the internal _calculated field to cache the actual config for the next calculateActualConfig call
@@ -41,6 +72,8 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     }
     let nameOnly = true;
     if (config.putty === true) {
+      await promptFields(config, 'host');
+      // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
       if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
       config.putty = config.host;
       nameOnly = false;
@@ -89,38 +122,18 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       throw new Error(`Error while reading the keyfile at:\n${config.privateKeyPath}`);
     }
   }
-  if (!config.username || (config.username as any) === true) {
-    config.username = await vscode.window.showInputBox({
-      ignoreFocusOut: true,
-      placeHolder: 'Username',
-      prompt: `Username for ${config.name}`,
-    });
-  }
-  if ((config.password as any) === true) {
-    config.password = await vscode.window.showInputBox({
-      password: true,
-      ignoreFocusOut: true,
-      placeHolder: 'Password',
-      prompt: `Password for ${config.username}@${config.name}`,
-    });
-  }
+  await promptFields(config, 'host', 'username', 'password');
   if (config.password) config.agent = undefined;
   if ((config.passphrase as any) === true) {
     if (config.privateKey) {
-      config.passphrase = await vscode.window.showInputBox({
-        password: true,
-        ignoreFocusOut: true,
-        placeHolder: 'Passphrase',
-        prompt: `Passphrase for provided export/private key for ${config.username}@${config.name}`,
-      });
+      await promptFields(config, 'passphrase');
     } else {
       const answer = await vscode.window.showWarningMessage(
-        `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, /*'Configure',*/ 'Ignore');
-      /*if (answer === 'Configure') {
-        // TODO: Link up with new UI flow (can't directly access manager.openSettings() here)
-        openConfigurationEditor(config.name);
+        `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, 'Configure', 'Ignore');
+      if (answer === 'Configure') {
+        navigate({ type: 'editconfig', config });
         return null;
-      }*/
+      }
     }
   } else if ((config.passphrase as any) === false) {
     // Issue with the ssh2 dependency apparently not liking false

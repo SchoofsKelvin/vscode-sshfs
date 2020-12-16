@@ -48,6 +48,7 @@ export class ConnectionManager {
         config = config || (await loadConfigs()).find(c => c.name === name);
         if (!config) throw new Error(`No configuration with name '${name}' found`);
         const actualConfig = await calculateActualConfig(config);
+        if (!actualConfig) throw new Error('Connection cancelled');
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
         let timeoutCounter = 0;
