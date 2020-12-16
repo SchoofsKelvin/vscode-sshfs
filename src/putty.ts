@@ -34,7 +34,6 @@ function valueFromItem(item: Winreg.RegistryItem) {
     case 'REG_SZ':
       return item.value;
   }
-  console.log(item.name, item.value);
   throw new Error(`Unknown RegistryItem type: '${item.type}'`);
 }
 
