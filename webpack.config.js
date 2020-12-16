@@ -62,6 +62,7 @@ const config = {
     externals: {
         vscode: "commonjs vscode",
         request: "commonjs request",
+        'source-map-support/register': "commonjs source-map-support/register",
     },
     resolve: {
         extensions: ['.ts', '.js']
