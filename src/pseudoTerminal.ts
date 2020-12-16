@@ -18,6 +18,8 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     client: Client;
     /** Could be undefined if it only gets created during psy.open() instead of beforehand */
     channel?: ClientChannel;
+    /** Either set by the code calling createTerminal, otherwise "calculated" and hopefully found */
+    terminal?: vscode.Terminal;
 }
 
 export interface TerminalOptions {
@@ -34,6 +36,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
     const onDidWrite = new vscode.EventEmitter<string>();
     const onDidClose = new vscode.EventEmitter<number>();
     const onDidOpen = new vscode.EventEmitter<void>();
+    let terminal: vscode.Terminal | undefined;
     // Won't actually open the remote terminal until pseudo.open(dims) is called
     const pseudo: SSHPseudoTerminal = {
         status: 'opening',
@@ -52,7 +55,6 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             pseudo.channel = undefined;
         },
         async open(dims) {
-            console.log('Called pseudo.open');
             onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
             try {
                 let commands = [options.command || '$SHELL'];
@@ -87,6 +89,12 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 pseudo.status = 'closed';
                 pseudo.channel?.destroy();
             }
+        },
+        get terminal(): vscode.Terminal | undefined {
+            return terminal ||= vscode.window.terminals.find(t => 'pty' in t.creationOptions && t.creationOptions.pty === pseudo);
+        },
+        set terminal(term: vscode.Terminal | undefined) {
+            terminal = term;
         },
         setDimensions(dims) {
             pseudo.channel?.setWindow(dims.rows, dims.columns, HEIGHT, WIDTH);
