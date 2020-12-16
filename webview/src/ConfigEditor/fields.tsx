@@ -124,7 +124,7 @@ export function sftpSudo(config: FileSystemConfig, onChange: FSCChanged<'sftpSud
 
 export function terminalCommand(config: FileSystemConfig, onChange: FSCChanged<'terminalCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('terminalCommand', (!newValue || newValue === '$SHELL') ? undefined : newValue);
-  const description = 'The command(s) to run when a new SSH terminals gets created. Defaults to `$SHELL`. Internally the command `cd ...` is run first';
+  const description = 'The command(s) to run when a new SSH terminal gets created. Defaults to `$SHELL`. Internally the command `cd ...` is run first';
   const values = ['$SHELL', '/usr/bin/bash', '/usr/bin/sh'];
   let value = config.terminalCommand === '$SHELL' ? '' : config.terminalCommand || '';
   if (Array.isArray(value)) value = value.join('; ');
