@@ -45,7 +45,7 @@ export class ConnectionManager {
                 terminals: [],
                 filesystems: [],
                 pendingUserCount: 0,
-                idleTimer: setInterval(() => { // Auutomatically close connection when idle for a while
+            idleTimer: setInterval(() => { // Automatically close connection when idle for a while
                     timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;
                     if (con.pendingUserCount) return;
                     con.filesystems = con.filesystems.filter(fs => !fs.closed && !fs.closing);
