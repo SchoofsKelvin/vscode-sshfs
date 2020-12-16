@@ -108,8 +108,32 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
   return <FieldDropdownWithInput key="passphrase" label="Passphrase" {...{ value, values, description }} onChange={callback} optional={true} />
 }
 
+export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
+  const callback = (newValue?: string) => onChange('sftpCommand', newValue);
+  const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
+  return <FieldString key="root" label="SFTP Command" value={config.sftpCommand} onChange={callback} optional={true} validator={pathValidator} description={description} />
+}
+
+export function sftpSudo(config: FileSystemConfig, onChange: FSCChanged<'sftpSudo'>): React.ReactElement {
+  const callback = (newValue?: string) => onChange('sftpSudo', newValue === '<Default>' ? true : newValue);
+  const description = 'Whether to use a sudo shell (and for which user) to run the sftpCommand in (if present, gets passed as -u to sudo)';
+  const values = ['<Default>'];
+  const value = (config.sftpSudo && typeof config.sftpSudo === 'string') ? config.sftpSudo : '<Default>';
+  return <FieldDropdownWithInput key="sftpSudo" label="SFTP Sudo" {...{ value, values, description }} onChange={callback} />
+}
+
+export function terminalCommand(config: FileSystemConfig, onChange: FSCChanged<'terminalCommand'>): React.ReactElement {
+  const callback = (newValue?: string) => onChange('terminalCommand', (!newValue || newValue === '$SHELL') ? undefined : newValue);
+  const description = 'The command(s) to run when a new SSH terminals gets created. Defaults to `$SHELL`. Internally the command `cd ...` is run first';
+  const values = ['$SHELL', '/usr/bin/bash', '/usr/bin/sh'];
+  let value = config.terminalCommand === '$SHELL' ? '' : config.terminalCommand || '';
+  if (Array.isArray(value)) value = value.join('; ');
+  return <FieldDropdownWithInput key="terminalCommand" label="Terminal command" {...{ value, values, description }} onChange={callback} optional={true} />
+}
+
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
   name, merge, label, group, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
+  sftpCommand, sftpSudo, terminalCommand,
   PROXY_FIELD];
