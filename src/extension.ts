@@ -7,38 +7,8 @@ import { FileSystemRouter } from './fileSystemRouter';
 import { Logging } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
-
-function generateDetail(config: FileSystemConfig): string | undefined {
-  const { username, host, putty } = config;
-  const port = config.port && config.port !== 22 ? `:${config.port}` : '';
-  if (putty) {
-    if (typeof putty === 'string') return `PuTTY session "${putty}"`;
-    return 'PuTTY session (deduced from config)';
-  } else if (!host) {
-    return undefined;
-  } else if (username) {
-    return `${username}@${host}${port}`;
-  }
-  return `${host}${port}`;
-}
-
-async function pickConfig(manager: Manager, activeFileSystem?: boolean): Promise<string | undefined> {
-  let fsConfigs = manager.getActiveFileSystems().map(fs => fs.config).map(c => c._calculated || c);
-  const others = await loadConfigs();
-  if (activeFileSystem === false) {
-    fsConfigs = others.filter(c => !fsConfigs.find(cc => cc.name === c.name));
-  } else if (activeFileSystem === undefined) {
-    others.forEach(n => !fsConfigs.find(c => c.name === n.name) && fsConfigs.push(n));
-  }
-  const options: (vscode.QuickPickItem & { name: string })[] = fsConfigs.map(config => ({
-    name: config.name,
-    description: config.name,
-    label: config.label || config.name,
-    detail: generateDetail(config),
-  }));
-  const pick = await vscode.window.showQuickPick(options, { placeHolder: 'SSH FS Configuration' });
-  return pick && pick.name;
-}
+import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
+import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath } from './ui-utils';
 
 function getVersion(): string | undefined {
   const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
@@ -59,6 +29,10 @@ interface CommandHandler {
 export function activate(context: vscode.ExtensionContext) {
   Logging.info(`Extension activated, version ${getVersion()}`);
 
+  // Really too bad we *need* the ExtensionContext for relative resources
+  // I really don't like having to pass context to *everything*, so let's do it this way
+  setAsAbsolutePath(context.asAbsolutePath.bind(context));
+
   const manager = new Manager(context);
 
   const subscribe = context.subscriptions.push.bind(context.subscriptions) as typeof context.subscriptions.push;
@@ -66,7 +40,9 @@ export function activate(context: vscode.ExtensionContext) {
     subscribe(vscode.commands.registerCommand(command, callback, thisArg));
 
   subscribe(vscode.workspace.registerFileSystemProvider('ssh', new FileSystemRouter(manager), { isCaseSensitive: true }));
-  subscribe(vscode.window.createTreeView('sshfs-configs', { treeDataProvider: manager, showCollapseAll: true }));
+  subscribe(vscode.window.createTreeView('sshfs-configs', { treeDataProvider: new ConfigTreeProvider(), showCollapseAll: true }));
+  const connectionsTreeProvider = new ConnectionTreeProvider(manager.connectionManager);
+  subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionsTreeProvider, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
 
   function registerCommandHandler(name: string, handler: CommandHandler) {
@@ -141,4 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.settings()
   registerCommand('sshfs.settings', () => manager.openSettings());
+
+  // sshfs.refresh()
+  registerCommand('sshfs.refresh', () => connectionsTreeProvider.refresh());
 }

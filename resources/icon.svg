@@ -1,0 +1,12 @@
+<svg width="480" height="480"
+    xmlns="http://www.w3.org/2000/svg">
+    <g>
+        <line stroke="#fff" stroke-width="30" x1="25" y1="41.48454" x2="241" y2="39.48454"/>
+        <line stroke="#fff" stroke-width="30" x1="25" y1="439.375" x2="455" y2="439.375"/>
+        <line stroke="#fff" stroke-width="30" x1="40" y1="40" x2="40" y2="440"/>
+        <line stroke="#fff" stroke-width="30" x1="440" y1="140" x2="440" y2="440"/>
+        <line stroke="#fff" stroke-width="30" x1="336" y1="140" x2="455" y2="140"/>
+        <line stroke="#fff" stroke-width="30" x1="230.31103" y1="35.32107" x2="346.02341" y2="144.01003"/>
+        <text font-weight="bold" fill="#fff" x="75.05163" y="332.98954" font-size="200" font-family="Junction, sans-serif" text-anchor="start" xml:space="preserve">&gt; _</text>
+    </g>
+</svg>

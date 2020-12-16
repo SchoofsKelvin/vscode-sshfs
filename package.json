@@ -14,6 +14,7 @@
         "onFileSystem:ssh",
         "onFileSystemAccess:ssh",
         "onView:sshfs-configs",
+        "onView:sshfs-connections",
         "onCommand:sshfs.new",
         "onCommand:sshfs.add",
         "onCommand:sshfs.disconnect",
@@ -23,6 +24,7 @@
         "onCommand:sshfs.configure",
         "onCommand:sshfs.reload",
         "onCommand:sshfs.settings",
+        "onCommand:sshfs.refresh"
     ],
     "main": "./dist/extension.js",
     "author": {
@@ -49,10 +51,29 @@
     ],
     "contributes": {
         "views": {
-            "explorer": [
+            "sshfs": [
                 {
                     "id": "sshfs-configs",
-                    "name": "SSH File Systems"
+                    "name": "Configurations",
+                    "contextualTitle": "SSH FS - Configurations",
+                    "icon": "resources/icon.svg",
+                    "visibility": "visible"
+                },
+                {
+                    "id": "sshfs-connections",
+                    "name": "Connections",
+                    "contextualTitle": "SSH FS - Connections",
+                    "icon": "resources/icon.svg",
+                    "visibility": "visible"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "sshfs",
+                    "title": "SSH FS",
+                    "icon": "resources/icon.svg"
                 }
             ]
         },
@@ -98,6 +119,12 @@
                 "title": "Open settings and edit configurations",
                 "category": "SSH FS",
                 "icon": "$(settings)"
+            },
+            {
+                "command": "sshfs.refresh",
+                "title": "Refresh",
+                "category": "SSH FS",
+                "icon": "$(refresh)"
             },
             {
                 "command": "sshfs.focusTerminal",
@@ -149,18 +176,32 @@
                 {
                     "command": "sshfs.closeTerminal",
                     "when": "false"
+                },
+                {
+                    "command": "sshfs.refresh",
+                    "when": "false"
                 }
             ],
             "view/title": [
                 {
+                    "command": "sshfs.refresh",
+                    "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
+                    "group": "navigation@1"
+                },
+                {
                     "command": "sshfs.new",
                     "when": "view == 'sshfs-configs'",
-                    "group": "SSH FS@1"
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "sshfs.add",
+                    "when": "view == 'sshfs-connections'",
+                    "group": "navigation@2"
                 },
                 {
                     "command": "sshfs.settings",
-                    "when": "view == 'sshfs-configs'",
-                    "group": "SSH FS@6"
+                    "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
+                    "group": "navigation@3"
                 }
             ],
             "view/item/context": [
@@ -186,13 +227,18 @@
                 },
                 {
                     "command": "sshfs.terminal",
-                    "when": "view == 'sshfs-configs' && viewItem",
-                    "group": "SSH FS@4"
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@1"
                 },
                 {
-                    "command": "sshfs.configure",
-                    "when": "view == 'sshfs-configs' && viewItem",
-                    "group": "SSH FS@5"
+                    "command": "sshfs.disconnect",
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "sshfs.closeTerminal",
+                    "when": "view == 'sshfs-connections' && viewItem == terminal",
+                    "group": "inline@1"
                 }
             ],
             "explorer/context": [
