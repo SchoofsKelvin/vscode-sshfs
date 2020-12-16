@@ -25,18 +25,19 @@ function shouldIgnoreNotFound(path: string) {
 }
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
+  protected onCloseEmitter = new vscode.EventEmitter<void>();
+  protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   public waitForContinue = false;
   public closed = false;
   public closing = false;
   public copy = undefined;
-  public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
+  public onClose = this.onCloseEmitter.event;
+  public onDidChangeFile = this.onDidChangeFileEmitter.event;
   protected logging: Logger;
-  protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
   constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper,
     public readonly root: string, public readonly config: FileSystemConfig) {
     this.logging = Logging.scope(`SSHFileSystem(${root})`, false);
-    this.onDidChangeFile = this.onDidChangeFileEmitter.event;
-    this.sftp.on('end', () => this.closed = true);
+    this.sftp.on('end', () => (this.closed = true, this.onCloseEmitter.fire()));
     this.logging.info('SSHFileSystem created');
   }
   public disconnect() {
