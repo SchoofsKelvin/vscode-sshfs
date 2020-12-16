@@ -27,7 +27,9 @@ export class ConnectionManager {
         const con = config && this.connections.find(con => configMatches(con.config, config));
         return con || (config ? undefined : this.connections.find(con => con.config.name === name));
     }
-    public async createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
+    public getActiveConnections(): Connection[] {
+        return [...this.connections];
+    }
         const logging = Logging.scope(`createConnection(${name},${config ? 'config' : 'undefined'})`);
         const con = this.getActiveConnection(name, config);
         if (con) return con;
