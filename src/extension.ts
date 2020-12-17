@@ -46,6 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
   const connectionsTreeProvider = new ConnectionTreeProvider(manager.connectionManager);
   subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionsTreeProvider, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
+  subscribe(vscode.window.registerTerminalLinkProvider(manager));
 
   function registerCommandHandler(name: string, handler: CommandHandler) {
     const callback = async (arg?: string | FileSystemConfig | Connection | SSHPseudoTerminal | vscode.Uri) => {

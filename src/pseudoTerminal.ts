@@ -22,6 +22,11 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     terminal?: vscode.Terminal;
 }
 
+export function isSSHPseudoTerminal(terminal: vscode.Pseudoterminal): terminal is SSHPseudoTerminal {
+    const term = terminal as SSHPseudoTerminal;
+    return !!(term.config && term.status && term.client);
+}
+
 export interface TerminalOptions {
     client: Client;
     config: FileSystemConfig;

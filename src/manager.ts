@@ -6,6 +6,7 @@ import { getConfig, getConfigs, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
+import { isSSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
 import type { Navigation } from './webviewMessages';
@@ -36,7 +37,11 @@ interface SSHShellTaskOptions {
   workingDirectory?: string;
 }
 
-export class Manager implements vscode.TaskProvider {
+interface TerminalLinkUri extends vscode.TerminalLink {
+  uri?: vscode.Uri;
+}
+
+export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider<TerminalLinkUri> {
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
   public readonly connectionManager = new ConnectionManager();
@@ -203,6 +208,45 @@ export class Manager implements vscode.TaskProvider {
         return pty;
       })
     )
+  }
+  /* TerminalLinkProvider */
+  public provideTerminalLinks(context: vscode.TerminalLinkContext, token: vscode.CancellationToken): TerminalLinkUri[] | undefined {
+    const { line, terminal } = context;
+    const { creationOptions } = terminal;
+    if (!('pty' in creationOptions)) return;
+    const { pty } = creationOptions;
+    if (!isSSHPseudoTerminal(pty)) return;
+    const conn = this.connectionManager.getActiveConnections().find(c => c.terminals.includes(pty));
+    if (!conn) return; // Connection died, which means the terminal should also be closed already?
+    console.log('provideTerminalLinks', line, pty.config.root, conn ? conn.filesystems.length : 'No connection?');
+    const links: TerminalLinkUri[] = [];
+    const PATH_REGEX = /\/\S+/g;
+    while (true) {
+      const match = PATH_REGEX.exec(line);
+      if (!match) break;
+      const [filepath] = match;
+      let relative: string | undefined;
+      for (const fs of conn.filesystems) {
+        const rel = path.posix.relative(fs.root, filepath);
+        if (!rel.startsWith('../') && !path.posix.isAbsolute(rel)) {
+          relative = rel;
+          break;
+        }
+      }
+      const uri = relative ? vscode.Uri.parse(`ssh://${conn.actualConfig.name}/${relative}`) : undefined;
+      // TODO: Support absolute path stuff, maybe `ssh://${conn.actualConfig.name}:root//${filepath}` or so?
+      links.push({
+        uri,
+        startIndex: match.index,
+        length: filepath.length,
+        tooltip: uri ? '[SSH FS] Open file' : '[SSH FS] Cannot open remote file outside configured root directory',
+      });
+    }
+    return links;
+  }
+  public async handleTerminalLink(link: TerminalLinkUri): Promise<void> {
+    if (!link.uri) return;
+    await vscode.window.showTextDocument(link.uri);
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public commandConnect(config: FileSystemConfig) {

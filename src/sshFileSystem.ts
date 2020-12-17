@@ -45,8 +45,12 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     this.sftp.end();
   }
   public relative(relPath: string) {
-    if (relPath.startsWith('/')) relPath = relPath.substr(1);
-    return path.posix.resolve(this.root, relPath);
+    // ssh://a/b/c.d should result in relPath being "/b/c.d"
+    // So // means absolute path, / means relative path
+    // NOTE: Apparently VSCode automatically replaces multiple slashes with a single /
+    // (so the // part is useless right now)
+    if (relPath.startsWith('//')) return relPath.substr(1);
+    return path.posix.resolve(this.root, relPath.substr(1));
   }
   public continuePromise<T>(func: (cb: (err: Error | null | undefined, res?: T) => void) => boolean): Promise<T> {
     return new Promise<T>((resolve, reject) => {
