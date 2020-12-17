@@ -226,7 +226,7 @@ export class Manager implements vscode.TaskProvider {
         .filter(con => con.actualConfig.name === target);
     }
     for (const con of cons) this.connectionManager.closeConnection(con);
-    const folders = vscode.workspace.workspaceFolders!;
+    const folders = vscode.workspace.workspaceFolders || [];
     let start: number = folders.length;
     let left: vscode.WorkspaceFolder[] = [];
     for (const folder of folders) {
@@ -236,6 +236,7 @@ export class Manager implements vscode.TaskProvider {
         left.push(folder);
       }
     };
+    if (folders.length === left.length) return;
     vscode.workspace.updateWorkspaceFolders(start, folders.length - start, ...left);
   }
   public async commandTerminal(target: FileSystemConfig | Connection, uri?: vscode.Uri) {
