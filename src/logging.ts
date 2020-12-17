@@ -2,10 +2,11 @@ import * as vscode from 'vscode';
 import type { FileSystemConfig } from './fileSystemConfig';
 
 // Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging
-export const DEBUG: number | undefined = process.execArgv.find(a => a.includes('--inspect')) ? 3000 : undefined;
-
-if (DEBUG) {
-  console.warn('[vscode-sshfs] Detected we are running in debug mode');
+export let DEBUG: boolean = false;
+export function setDebug(debug: boolean) {
+  console.warn(`[vscode-sshfs] Debug mode set to ${debug}`);
+  DEBUG = debug;
+  if (!debug) return;
   import('source-map-support/register').catch(e => console.warn('Could not register source-map-support:', e));
 }
 

@@ -4,7 +4,7 @@ import { loadConfigs } from './config';
 import type { Connection } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
-import { Logging } from './logging';
+import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
@@ -27,7 +27,9 @@ interface CommandHandler {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  Logging.info(`Extension activated, version ${getVersion()}`);
+  Logging.info(`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`);
+
+  setDebug(context.extensionMode !== vscode.ExtensionMode.Production);
 
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way

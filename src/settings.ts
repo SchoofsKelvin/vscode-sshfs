@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
-import { Logging, DEBUG, LOGGING_NO_STACKTRACE } from './logging';
+import { DEBUG, Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './toPromise';
 import type { Message, Navigation } from './webviewMessages';
 
@@ -18,7 +18,7 @@ function getExtensionPath(): string | undefined {
 
 async function getDebugContent(): Promise<string | false> {
   if (!DEBUG) return false;
-  const URL = `http://localhost:${DEBUG}/`;
+  const URL = `http://localhost:3000/`;
   const http = await import('http');
   return toPromise<string>(cb => http.get(URL, async (message) => {
     if (message.statusCode !== 200) return cb(new Error(`Error code ${message.statusCode} (${message.statusMessage}) connecting to React dev server}`));
