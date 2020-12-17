@@ -63,7 +63,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
     }
 }
 
-type QuickPickItemWithValue = vscode.QuickPickItem & { value?: any };
+type QuickPickItemWithItem = vscode.QuickPickItem & { item: any };
 
 export interface PickComplexOptions {
     /** If true and there is only one or none item is available, immediately resolve with it/undefined */
@@ -82,7 +82,7 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
     Promise<FileSystemConfig | Connection | SSHPseudoTerminal | undefined> {
     return new Promise((resolve) => {
         const { promptConnections, promptConfigs, promptTerminals, immediateReturn, nameFilter } = options;
-        const items: QuickPickItemWithValue[] = [];
+        const items: QuickPickItemWithItem[] = [];
         const toSelect: string[] = [];
         if (promptConnections) {
             let cons = manager.connectionManager.getActiveConnections();
@@ -106,13 +106,12 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             items.push(...terminals.map(config => formatItem(config, true)));
             toSelect.push('terminal');
         }
-        if (immediateReturn && items.length <= 1) return resolve(items[0]?.value);
-        const quickPick = vscode.window.createQuickPick<QuickPickItemWithValue>();
+        if (immediateReturn && items.length <= 1) return resolve(items[0]?.item);
+        const quickPick = vscode.window.createQuickPick<QuickPickItemWithItem>();
         quickPick.items = items;
         quickPick.title = 'Select ' + toSelect.join(' / ');
         quickPick.onDidAccept(() => {
-            const value = quickPick.activeItems[0]?.value;
-            if (!value) return;
+            const value = quickPick.activeItems[0]?.item;
             quickPick.hide();
             resolve(value);
         });
