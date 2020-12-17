@@ -54,9 +54,11 @@ export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): 
 }
 
 export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): React.ReactElement {
-  const callback = (value?: string) => onChange('host', value);
+  const callback = (newValue?: string) => onChange('host', newValue === '<Prompt>' ? (true as any) : newValue);
   const description = 'Hostname or IP address of the server. Supports environment variables, e.g. $HOST';
-  return <FieldString key="host" label="Host" value={config.host} onChange={callback} optional={true} description={description} />
+  const values = ['<Prompt>'];
+  const value = (config.host as any) === true ? '<Prompt>' : config.host;
+  return <FieldDropdownWithInput key="host" label="Host" {...{ value, values, description }} onChange={callback} optional={true} />
 }
 
 export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): React.ReactElement {
