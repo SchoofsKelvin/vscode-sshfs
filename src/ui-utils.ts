@@ -121,5 +121,6 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
 }
 
 export const pickConfig = (manager: Manager) => pickComplex(manager, { promptConfigs: true }) as Promise<FileSystemConfig | undefined>;
-export const pickConnection = (manager: Manager, name?: string) => pickComplex(manager, { promptConnections: name || true }) as Promise<Connection | undefined>;
+export const pickConnection = (manager: Manager, name?: string) =>
+    pickComplex(manager, { promptConnections: name || true, immediateReturn: !!name }) as Promise<Connection | undefined>;
 export const pickTerminal = (manager: Manager) => pickComplex(manager, { promptTerminals: true }) as Promise<SSHPseudoTerminal | undefined>;
