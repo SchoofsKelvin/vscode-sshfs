@@ -6,7 +6,7 @@ const CONTEXT = React.createContext<FieldGroup | undefined>(undefined);
 export class FieldGroup<T = any> extends React.Component {
     public static Consumer = CONTEXT.Consumer;
     protected static CONTEXT = CONTEXT;
-    protected fields: Array<FieldBase<T>> = [];
+    protected fields: FieldBase<T>[] = [];
     public register(field: FieldBase<T>) {
         this.fields.push(field);
     }

@@ -1,12 +1,11 @@
 import * as React from 'react';
-import ConfigList from 'src/ConfigList';
-import { receivedData } from 'src/data/actions';
-import { connect, pickProperties } from 'src/redux';
-import { ConfigLocation, FileSystemConfig, formatConfigLocation, groupByGroup, groupByLocation } from 'src/types/fileSystemConfig';
-import { IStartScreenState } from 'src/view';
-import { openNewConfig, openStartScreen } from 'src/view/actions';
-import { API } from 'src/vscode';
-import './index.css';
+import ConfigList from './ConfigList';
+import { receivedData } from './data/actions';
+import { connect, pickProperties } from './redux';
+import { ConfigLocation, FileSystemConfig, formatConfigLocation, groupByGroup, groupByLocation } from './types/fileSystemConfig';
+import { IStartScreenState } from './view';
+import { openNewConfig, openStartScreen } from './view/actions';
+import { API } from './vscode';
 
 interface StateProps {
     configs: FileSystemConfig[];
@@ -17,7 +16,7 @@ interface DispatchProps {
     changeGroupBy(current: string): void;
     add(): void;
 }
-class Homescreen extends React.Component<StateProps & DispatchProps> {
+class Startscreen extends React.Component<StateProps & DispatchProps> {
     public componentDidMount() {
         this.props.refresh();
     }
@@ -43,7 +42,7 @@ class Homescreen extends React.Component<StateProps & DispatchProps> {
     public changeGroupBy = () => this.props.changeGroupBy(this.props.groupBy);
 }
 
-export default connect(Homescreen)<StateProps, DispatchProps>(
+export default connect(Startscreen)<StateProps, DispatchProps>(
     state => ({
         ...pickProperties(state.data, 'configs'),
         ...pickProperties(state.view as IStartScreenState, 'groupBy'),

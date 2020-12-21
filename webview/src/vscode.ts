@@ -1,6 +1,6 @@
 
-import { Message, MessageTypes, PromptPathResultMessage, SaveConfigResultMessage } from 'src/types/webviewMessages';
-import { ConfigLocation, FileSystemConfig } from './types/fileSystemConfig';
+import type { ConfigLocation, FileSystemConfig } from './types/fileSystemConfig';
+import type { Message, MessageTypes, PromptPathResultMessage, SaveConfigResultMessage } from './types/webviewMessages';
 
 interface VSCodeAPI {
   postMessage(msg: Message): void;
@@ -13,7 +13,7 @@ export const API: VSCodeAPI = acquireVsCodeApi();
 
 export type Listener<T extends Message = Message> = (message: T) => void;
 export type Filter = string | ((message: Message) => boolean);
-let LISTENERS: Array<[Listener, Filter | undefined]> = [];
+let LISTENERS: [Listener, Filter | undefined][] = [];
 
 export function addListener(listener: Listener): void;
 export function addListener<K extends Message['type']>(listener: Listener<MessageTypes[K]>, filter: K): void;

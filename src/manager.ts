@@ -311,7 +311,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     this.openSettings({ config, type: 'editconfig' });
   }
   public async openSettings(navigation?: Navigation) {
-    const { open, navigate } = await import('./settings');
+    const { open, navigate } = await import('./webview');
     return navigation ? navigate(navigation) : open();
   }
 }

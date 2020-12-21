@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { promptPath } from 'src/vscode';
+import { promptPath } from '../vscode';
 import { FieldBase } from './base';
 
 export class FieldPath extends FieldBase<string | undefined> {

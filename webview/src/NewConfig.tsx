@@ -1,13 +1,12 @@
 import * as React from 'react';
-import { FieldDropdown } from 'src/FieldTypes/dropdown';
-import { FieldGroup } from 'src/FieldTypes/group';
-import { FieldString } from 'src/FieldTypes/string';
-import { connect, pickProperties, State } from 'src/redux';
-import { ConfigLocation, formatConfigLocation, invalidConfigName } from 'src/types/fileSystemConfig';
-import { INewConfigState } from 'src/view';
-import { newConfigSetLocation, newConfigSetName, openConfigEditor, openStartScreen } from 'src/view/actions';
-import { createConfig } from 'src/vscode';
-import './index.css';
+import { FieldDropdown } from './FieldTypes/dropdown';
+import { FieldGroup } from './FieldTypes/group';
+import { FieldString } from './FieldTypes/string';
+import { connect, pickProperties, State } from './redux';
+import { ConfigLocation, formatConfigLocation, invalidConfigName } from './types/fileSystemConfig';
+import type { INewConfigState } from './view';
+import { newConfigSetLocation, newConfigSetName, openConfigEditor, openStartScreen } from './view/actions';
+import { createConfig } from './vscode';
 
 const LOCATION_DESCRIPTION = 'The file or Settings file to add the new configuration to';
 
@@ -55,7 +54,7 @@ class NewConfig extends React.Component<StateProps & DispatchProps> {
 
 interface SubState extends State { view: INewConfigState }
 export default connect(NewConfig)<StateProps, DispatchProps, SubState>(
-    (state) => ({ 
+    (state) => ({
         ...pickProperties(state.view, 'name'),
         ...pickProperties(state.data, 'locations'),
         location: state.view.location || state.data.locations[0],

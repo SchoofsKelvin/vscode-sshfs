@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { connect } from "src/redux";
+import { connect } from "../redux";
 
 function nop(...args: any) {
     return;
@@ -15,10 +15,10 @@ function nop(...args: any) {
     class Test extends React.Component<S & D & P> { }
     const TestC1 = connect(Test)<S>(state => ({ s: 123 }));
     nop(<TestC1 d={456} p={789} />);
-    const TestC2 = connect(Test)<S,D>(state => ({ s: 123 }), dispatch => ({ d: 456 }));
+    const TestC2 = connect(Test)<S, D>(state => ({ s: 123 }), dispatch => ({ d: 456 }));
     nop(<TestC2 p={789} />);
-    const TestC3 = connect(Test)<S, { state: 123}>(state => ({ s: 123 }));
+    const TestC3 = connect(Test)<S, { state: 123 }>(state => ({ s: 123 }));
     nop(<TestC3 d={456} p={789} />);
-    const TestC4 = connect(Test)<S,D, { state: 123}>(state => ({ s: 123 }), dispatch => ({ d: 456 }));
+    const TestC4 = connect(Test)<S, D, { state: 123 }>(state => ({ s: 123 }), dispatch => ({ d: 456 }));
     nop(<TestC4 p={789} />);
 }

@@ -1,4 +1,4 @@
-import { ConnectConfig } from 'ssh2';
+import type { ConnectConfig } from 'ssh2';
 
 export interface ProxyConfig {
   type: 'socks4' | 'socks5' | 'http';
@@ -43,8 +43,8 @@ export function getGroups(configs: FileSystemConfig[], expanded = false): string
   return res;
 }
 
-export function groupByLocation(configs: FileSystemConfig[]): Array<[ConfigLocation, FileSystemConfig[]]> {
-  const res: Array<[ConfigLocation, FileSystemConfig[]]> = [];
+export function groupByLocation(configs: FileSystemConfig[]): [ConfigLocation, FileSystemConfig[]][] {
+  const res: [ConfigLocation, FileSystemConfig[]][] = [];
   function getForLoc(loc: ConfigLocation = 'Unknown') {
     let found = res.find(([l]) => l === loc);
     if (found) return found;
@@ -58,8 +58,8 @@ export function groupByLocation(configs: FileSystemConfig[]): Array<[ConfigLocat
   return res;
 }
 
-export function groupByGroup(configs: FileSystemConfig[]): Array<[string, FileSystemConfig[]]> {
-  const res: Array<[string, FileSystemConfig[]]> = [];
+export function groupByGroup(configs: FileSystemConfig[]): [string, FileSystemConfig[]][] {
+  const res: [string, FileSystemConfig[]][] = [];
   function getForGroup(group: string = '') {
     let found = res.find(([l]) => l === group);
     if (found) return found;
@@ -92,7 +92,7 @@ export interface FileSystemConfig extends ConnectConfig {
   privateKeyPath?: string;
   /** A name of another config to use as a hop */
   hop?: string;
-  /** A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem) */
+  /** The command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem) */
   sftpCommand?: string;
   /** Whether to use a sudo shell (and for which user) to run the sftpCommand in (sftpCommand defaults to /usr/lib/openssh/sftp-server if missing) */
   sftpSudo?: string | boolean;
@@ -104,6 +104,8 @@ export interface FileSystemConfig extends ConnectConfig {
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
   _locations: ConfigLocation[];
+  /** Internal property keeping track of whether this config is an actually calculated one, and if so, which config it originates from (normally itself) */
+  _calculated?: FileSystemConfig;
 }
 
 export function invalidConfigName(name: string) {

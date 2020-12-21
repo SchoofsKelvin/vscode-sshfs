@@ -1,9 +1,9 @@
 import * as React from 'react';
 import ConfigEditor from './ConfigEditor';
 import ConfigLocator from './ConfigLocator';
-import Homescreen from './Homescreen';
 import NewConfig from './NewConfig';
 import { connect, State } from './redux';
+import Startscreen from './Startscreen';
 
 interface StateProps {
     view: State['view']['view'];
@@ -18,7 +18,7 @@ function Router(props: StateProps) {
             return <NewConfig />;
         case 'startscreen':
         default:
-            return <Homescreen />;
+            return <Startscreen />;
     }
 }
 

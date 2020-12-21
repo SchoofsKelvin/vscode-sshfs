@@ -1,4 +1,4 @@
-import { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
+import type { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
 
 /* Type of messages*/
 
@@ -42,7 +42,7 @@ export interface NavigateMessage {
 }
 export interface NavigatedMessage {
   type: 'navigated';
-  navigation: Navigation;
+  view: string;
 }
 
 export interface MessageTypes {

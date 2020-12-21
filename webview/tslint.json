@@ -7,7 +7,11 @@
   "rules": {
     "interface-name": false,
     "curly": false,
-    "no-console": false
+    "no-console": false,
+    "array-type": [
+      true,
+      "array"
+    ]
   },
   "linterOptions": {
     "exclude": [

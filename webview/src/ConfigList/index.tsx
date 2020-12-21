@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { connect } from 'src/redux';
-import { FileSystemConfig } from 'src/types/fileSystemConfig';
-import { openConfigEditor } from 'src/view/actions';
+import { connect } from '../redux';
+import type { FileSystemConfig } from '../types/fileSystemConfig';
+import { openConfigEditor } from '../view/actions';
 import './index.css';
 
 interface StateProps {

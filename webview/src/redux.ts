@@ -35,40 +35,17 @@ STORE.dispatch = (action) => {
 
 STORE.subscribe(() => API.setState(STORE.getState()));
 
+API.postMessage({ type: 'navigated', view: STORE.getState().view.view });
+
 // Makes debugging easier (and this is inside our WebView context anyway)
 (window as any).STORE = STORE;
 
-// type GetComponentProps<C> = C extends React.ComponentClass<infer P, any> ? P : never;
 type GetComponentProps<C> = C extends React.ComponentClass<infer P, any> ? P : (C extends React.FunctionComponent<infer P2> ? P2 : {});
 type GetComponentState<C> = C extends React.ComponentClass<any, infer S> ? S : {};
 
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-// type ConnectReturn<TProps> = <C extends (React.ComponentClass | React.FunctionComponent)>(c: C) => React.ComponentClass<Omit<GetComponentProps<C> & TProps, keyof TProps>, GetComponentState<C>>;
 
-/*
-export function connect<TStateProps, TDispatchProps = {}, TState = State>(stateToProps: (state: TState) => TStateProps, dispatchToProps?: (dispatch: Dispatch<Action>) => TDispatchProps) {
-  return realConnect(stateToProps, dispatchToProps) as ConnectReturn<TStateProps & TDispatchProps>;
-}
-*/
-
-/*
-export function connect<TComponent extends (React.ComponentClass<any> | React.FunctionComponent<any>), TStateProps, TDispatchProps = {}, TState = State>(
-  component: TComponent,
-  stateToProps: (state: TState) => TStateProps,
-  dispatchToProps?: (dispatch: Dispatch<Action>, ownProps: Omit<GetComponentProps<TComponent>, keyof TStateProps & TDispatchProps>) => TDispatchProps,
-): React.ComponentClass<Omit<GetComponentProps<TComponent> & TStateProps & TDispatchProps, keyof TStateProps & TDispatchProps>, GetComponentState<TComponent>> {
-  return realConnect(stateToProps, dispatchToProps)(component) as any;
-}
-*/
-
-/*
-type ConnectReturn<C extends (React.ComponentClass<any> | React.FunctionComponent<any>)> = <TStateProps, TDispatchProps = {}, TState = State>(
-  stateToProps: (state: TState) => TStateProps,
-  dispatchToProps?: (dispatch: Dispatch<Action>, ownProps: Omit<GetComponentProps<C>, keyof TStateProps & TDispatchProps>) => TDispatchProps,
-) => React.ComponentClass<Omit<GetComponentProps<C> & TStateProps & TDispatchProps, keyof TStateProps & TDispatchProps>, GetComponentState<C>>;
-*/
-
-type OwnProps<C extends (React.ComponentClass<any> | React.FunctionComponent<any>),P> = Omit<GetComponentProps<C>, keyof P>;
+type OwnProps<C extends (React.ComponentClass<any> | React.FunctionComponent<any>), P> = Omit<GetComponentProps<C>, keyof P>;
 
 interface ConnectReturn<C extends (React.ComponentClass<any> | React.FunctionComponent<any>)> {
   <TStateProps, TState = State>(
@@ -84,8 +61,8 @@ export function connect<TComponent extends (React.ComponentClass<any> | React.Fu
   return (stateToProps: any, dispatchToProps?: any) => realConnect(stateToProps, dispatchToProps)(component) as any;
 }
 
-export function pickProperties<T,K extends keyof T>(obj: T, ...keys: K[]): Pick<T,K> {
-  const res: Pick<T,K> = {} as any;
+export function pickProperties<T, K extends keyof T>(obj: T, ...keys: K[]): Pick<T, K> {
+  const res: Pick<T, K> = {} as any;
   for (const key of keys) {
     res[key] = obj[key];
   }

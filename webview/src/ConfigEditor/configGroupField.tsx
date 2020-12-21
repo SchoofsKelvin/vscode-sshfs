@@ -1,6 +1,6 @@
-import { FieldDropdownWithInput } from 'src/FieldTypes/dropdownwithinput';
-import { connect } from 'src/redux';
-import { getGroups } from 'src/types/fileSystemConfig';
+import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
+import { connect } from '../redux';
+import { getGroups } from '../types/fileSystemConfig';
 
 export interface StateProps {
     values: string[];

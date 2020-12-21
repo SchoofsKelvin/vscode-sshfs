@@ -6,7 +6,6 @@ import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
-import { navigate } from './settings';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -131,7 +130,8 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       const answer = await vscode.window.showWarningMessage(
         `The field 'passphrase' was set to true, but no key was provided for ${config.username}@${config.name}`, 'Configure', 'Ignore');
       if (answer === 'Configure') {
-        navigate({ type: 'editconfig', config });
+        const webview = await import('./webview');
+        webview.navigate({ type: 'editconfig', config });
         return null;
       }
     }

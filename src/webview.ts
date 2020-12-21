@@ -4,9 +4,11 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
 import { getLocations } from './fileSystemConfig';
-import { DEBUG, Logging, LOGGING_NO_STACKTRACE } from './logging';
+import { DEBUG, Logging as _Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './toPromise';
 import type { Message, Navigation } from './webviewMessages';
+
+const Logging = _Logging.scope('WebView');
 
 let webviewPanel: vscode.WebviewPanel | undefined;
 let pendingNavigation: Navigation | undefined;
@@ -31,20 +33,21 @@ async function getDebugContent(): Promise<string | false> {
     body = body.replace(/\$WEBVIEW_CSPEXTRA/g, `connect-src ${URL} ${URL.replace('http://', 'ws://')};`);
     cb(null, body);
   }).on('error', err => {
-    console.warn('Error connecting to React dev server:', err);
+    Logging.warning(`Error connecting to React dev server: ${err}`);
     cb(new Error('Could not connect to React dev server. Not running?'));
   }));
 }
 
 export async function open() {
   if (!webviewPanel) {
-    webviewPanel = vscode.window.createWebviewPanel('sshfs-settings', 'SSH-FS Settings', vscode.ViewColumn.One, { enableFindWidget: true, enableScripts: true });
+    const extensionPath = getExtensionPath();
+    webviewPanel = vscode.window.createWebviewPanel('sshfs-settings', 'SSH-FS', vscode.ViewColumn.One, { enableFindWidget: true, enableScripts: true });
     webviewPanel.onDidDispose(() => webviewPanel = undefined);
+    if (extensionPath) webviewPanel.iconPath = vscode.Uri.file(path.join(extensionPath, 'resources/icon.svg'));
     const { webview } = webviewPanel;
     webview.onDidReceiveMessage(handleMessage);
     let content = await getDebugContent().catch((e: Error) => (vscode.window.showErrorMessage(e.message), null));
     if (!content) {
-      const extensionPath = getExtensionPath();
       if (!extensionPath) throw new Error('Could not get extensionPath');
       // If we got here, we're either not in debug mode, or something went wrong (and an error message is shown)
       content = fs.readFileSync(path.resolve(extensionPath, 'webview/build/index.html')).toString();
@@ -63,19 +66,19 @@ export async function open() {
 }
 
 export async function navigate(navigation: Navigation) {
+  Logging.debug(`Navigation requested: ${JSON.stringify(navigation, null, 4)}`);
   pendingNavigation = navigation;
   postMessage({ navigation, type: 'navigate' });
   return open();
 }
 
 function postMessage<T extends Message>(message: T) {
-  if (!webviewPanel) return;
-  webviewPanel.webview.postMessage(message);
+  webviewPanel?.webview.postMessage(message);
 }
 
 async function handleMessage(message: Message): Promise<any> {
-  console.log('Got message:', message);
-  if (message.type === 'navigated') pendingNavigation = undefined;
+  if (!webviewPanel) return Logging.warning(`Got message without webviewPanel: ${JSON.stringify(message, null, 4)}`);
+  Logging.debug(`Got message: ${JSON.stringify(message, null, 4)}`);
   if (pendingNavigation) {
     postMessage({
       type: 'navigate',
@@ -130,6 +133,23 @@ async function handleMessage(message: Message): Promise<any> {
         path: uri && uri.fsPath,
         type: 'promptPathResult',
       });
+    }
+    case 'navigated': {
+      const { view } = message;
+      type View = 'startscreen' | 'newconfig' | 'configeditor' | 'configlocator';
+      let title: string | undefined;
+      switch (view as View) {
+        case 'configeditor':
+          title = 'SSH FS - Edit config';
+          break;
+        case 'configlocator':
+          title = 'SSH FS - Locate config';
+          break;
+        case 'newconfig':
+          title = 'SSH FS - New config';
+          break;
+      }
+      webviewPanel.title = title || 'SSH FS';
     }
   }
 }

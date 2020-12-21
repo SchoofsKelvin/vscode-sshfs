@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { FieldDropdown } from 'src/FieldTypes/dropdown';
-import { FieldDropdownWithInput } from 'src/FieldTypes/dropdownwithinput';
-import { FieldNumber } from 'src/FieldTypes/number';
-import { FieldPath } from 'src/FieldTypes/path';
-import { FieldString } from 'src/FieldTypes/string';
-import { FileSystemConfig, invalidConfigName } from 'src/types/fileSystemConfig';
+import { FieldDropdown } from '../FieldTypes/dropdown';
+import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
+import { FieldNumber } from '../FieldTypes/number';
+import { FieldPath } from '../FieldTypes/path';
+import { FieldString } from '../FieldTypes/string';
+import { FileSystemConfig, invalidConfigName } from '../types/fileSystemConfig';
 import FieldConfigGroup from './configGroupField';
 import { PROXY_FIELD } from './proxyFields';
 
@@ -113,7 +113,7 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
 export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('sftpCommand', newValue);
   const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
-  return <FieldString key="root" label="SFTP Command" value={config.sftpCommand} onChange={callback} optional={true} validator={pathValidator} description={description} />
+  return <FieldString key="sftpCommand" label="SFTP Command" value={config.sftpCommand} onChange={callback} optional={true} validator={pathValidator} description={description} />
 }
 
 export function sftpSudo(config: FileSystemConfig, onChange: FSCChanged<'sftpSudo'>): React.ReactElement {

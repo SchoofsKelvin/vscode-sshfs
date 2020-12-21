@@ -1,17 +1,23 @@
+import { API } from '../vscode';
 import { Action, ActionType } from './actions';
 import { DEFAULT_STATE, IConfigEditorState, INewConfigState, IStartScreenState, IState } from './state';
+
+function setView(state: IState): IState {
+  API.postMessage({ type: 'navigated', view: state.view });
+  return state;
+}
 
 export function reducer(state = DEFAULT_STATE, action: Action): IState {
   switch (action.type) {
     // Startscreen
     case ActionType.OPEN_STARTSCREEN: {
       const groupBy = action.groupBy || (state as IStartScreenState).groupBy || 'group';
-      return { ...state, view: 'startscreen', groupBy };
+      return setView({ ...state, view: 'startscreen', groupBy });
     }
     // New Config
     case ActionType.OPEN_NEWCONFIG: {
       const { name } = action;
-      return { ...state, view: 'newconfig', name, location: undefined };
+      return setView({ ...state, view: 'newconfig', name, location: undefined });
     }
     case ActionType.NEWCONFIG_SETNAME:
       return { ...state as INewConfigState, name: action.name };
@@ -20,11 +26,11 @@ export function reducer(state = DEFAULT_STATE, action: Action): IState {
     // ConfigEditor
     case ActionType.OPEN_CONFIGEDITOR: {
       const { config } = action;
-      return { ...state, view: 'configeditor', oldConfig: config, newConfig: config };
+      return setView({ ...state, view: 'configeditor', oldConfig: config, newConfig: config });
     }
     case ActionType.OPEN_CONFIGLOCATOR: {
       const { name, configs } = action;
-      return { ...state, view: 'configlocator', name, configs };
+      return setView({ ...state, view: 'configlocator', name, configs });
     }
     case ActionType.CONFIGEDITOR_SETNEWCONFIG:
       return { ...state as IConfigEditorState, newConfig: action.config };

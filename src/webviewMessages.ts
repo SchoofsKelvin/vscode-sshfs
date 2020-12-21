@@ -42,7 +42,7 @@ export interface NavigateMessage {
 }
 export interface NavigatedMessage {
   type: 'navigated';
-  navigation: Navigation;
+  view: string;
 }
 
 export interface MessageTypes {

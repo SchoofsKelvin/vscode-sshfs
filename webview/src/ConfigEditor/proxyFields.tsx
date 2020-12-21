@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { FieldDropdown } from 'src/FieldTypes/dropdown';
-import { FieldDropdownWithInput } from 'src/FieldTypes/dropdownwithinput';
-import { FieldNumber } from 'src/FieldTypes/number';
-import { FieldString } from 'src/FieldTypes/string';
-import { FileSystemConfig } from 'src/types/fileSystemConfig';
+import { FieldDropdown } from '../FieldTypes/dropdown';
+import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
+import { FieldNumber } from '../FieldTypes/number';
+import { FieldString } from '../FieldTypes/string';
+import { FileSystemConfig } from '../types/fileSystemConfig';
 import { FieldFactory, FSCChanged, FSCChangedMultiple } from './fields';
 
 export function proxy(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): React.ReactElement {
