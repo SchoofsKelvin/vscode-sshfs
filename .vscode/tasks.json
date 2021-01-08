@@ -44,16 +44,16 @@
                 "applyTo": "closedDocuments",
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": "^Compiling...$",
-                    "endsPattern": "Finished compiling"
+                    "beginsPattern": "Compiling.*?|Compilation .*?starting",
+                    "endsPattern": "Compiled .*?successfully|Failed .*?to.*?compile.*?"
                 },
-                "pattern":[
+                "pattern": [
                     {
                         "regexp": "^(.+)$",
                         "file": 1
                     },
                     {
-                        "regexp": "^\\((\\d+),(\\d+)\\): (.+)$",
+                        "regexp": "\\((\\d+),(\\d+)\\):\\s*(.+)",
                         "line": 1,
                         "column": 2,
                         "message": 3,
