@@ -134,7 +134,12 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       throw e;
     });
   }
-  public getRemotePath(config: FileSystemConfig, relativePath: string) {
+  public getRemotePath(config: FileSystemConfig, relativePath: string | vscode.Uri) {
+    if (relativePath instanceof vscode.Uri) {
+      if (relativePath.authority !== config.name)
+        throw new Error(`Uri authority for '${relativePath}' does not match config with name '${config.name}'`);
+      relativePath = relativePath.path;
+    }
     if (relativePath.startsWith('/')) relativePath = relativePath.substr(1);
     if (!config.root) return '/' + relativePath;
     const result = path.posix.join(config.root, relativePath);
@@ -147,8 +152,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     // Create connection (early so we have .actualConfig.root)
     const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
     // Calculate working directory if applicable
-    let workingDirectory: string | undefined = uri && uri.path;
-    if (workingDirectory) workingDirectory = this.getRemotePath(con.actualConfig, workingDirectory);
+    const workingDirectory = uri && this.getRemotePath(con.actualConfig, uri);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
     const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
@@ -175,6 +179,99 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (choice === 'Disconnect') this.commandDisconnect(name);
   }
   /* TaskProvider */
+  protected async replaceTaskVariables(value: string, config: FileSystemConfig): Promise<string> {
+    return value.replace(/\$\{(\w+)\}/g, (str, match: string) => {
+      if (!match.startsWith('remote')) return str; // Our variables always start with "remote"
+      // https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/workbench/services/configurationResolver/common/variableResolver.ts#L156
+      const [key, argument] = match.split(':') as [string, string?];
+      const getFilePath = (): vscode.Uri => {
+        const uri = vscode.window.activeTextEditor?.document?.uri;
+        if (uri) return uri;
+        throw new Error(`Variable ${str} can not be resolved. Please open an editor.`);
+      }
+      const getFolderPathForFile = (): vscode.Uri => {
+        const filePath = getFilePath();
+        const uri = vscode.workspace.getWorkspaceFolder(filePath)?.uri;
+        if (uri) return uri;
+        throw new Error(`Variable ${str}: can not find workspace folder of '${filePath}'.`);
+      }
+      const { workspaceFolders = [] } = vscode.workspace;
+      const sshFolders = workspaceFolders.filter(ws => ws.uri.scheme === 'ssh');
+      const sshFolder = sshFolders.length === 1 ? sshFolders[0] : undefined;
+      const getFolderUri = (): vscode.Uri => {
+        const { workspaceFolders = [] } = vscode.workspace;
+        if (argument) {
+          const uri = workspaceFolders.find(ws => ws.name === argument)?.uri;
+          if (uri) return uri;
+          throw new Error(`Variable ${str} can not be resolved. No such folder '${argument}'.`);
+        }
+        if (sshFolder) return sshFolder.uri;
+        if (sshFolders.length > 1) {
+          throw new Error(`Variable ${str} can not be resolved in a multi ssh:// folder workspace. Scope this variable using ':' and a workspace folder name.`);
+        }
+        throw new Error(`Variable ${str} can not be resolved. Please open an ssh:// folder.`);
+      };
+      switch (key.toLowerCase()) {
+        case 'remoteWorkspaceRoot':
+        case 'remoteWorkspaceFolder':
+          return this.getRemotePath(config, getFolderUri());
+        case 'remoteWorkspaceRootFolderName':
+        case 'remoteWorkspaceFolderBasename':
+          return path.basename(getFolderUri().path);
+        case 'remoteFile':
+          return this.getRemotePath(config, getFilePath());
+        case 'remoteFileWorkspaceFolder':
+          return this.getRemotePath(config, getFolderPathForFile());
+        case 'remoteRelativeFile':
+          if (sshFolder || argument)
+            return path.relative(getFolderUri().path, getFilePath().path);
+          return getFilePath().path;
+        case 'remoteRelativeFileDirname': {
+          const dirname = path.dirname(getFilePath().path);
+          if (sshFolder || argument) {
+            const relative = path.relative(getFolderUri().path, dirname);
+            return relative.length === 0 ? '.' : relative;
+          }
+          return dirname;
+        }
+        case 'remoteFileDirname':
+          return path.dirname(getFilePath().path);
+        case 'remoteFileExtname':
+          return path.extname(getFilePath().path);
+        case 'remoteFileBasename':
+          return path.basename(getFilePath().path);
+        case 'remoteFileBasenameNoExtension': {
+          const basename = path.basename(getFilePath().path);
+          return (basename.slice(0, basename.length - path.extname(basename).length));
+        }
+        case 'remoteFileDirnameBasename':
+          return path.basename(path.dirname(getFilePath().path));
+        case 'remotePathSeparator':
+          // Not sure if we even need/want this variable, but sure
+          return path.posix.sep;
+        default:
+          const msg = `Unrecognized task variable '${str}' starting with 'remote', ignoring`;
+          Logging.warning(msg);
+          vscode.window.showWarningMessage(msg);
+          return str;
+      }
+    });
+  }
+  protected async replaceTaskVariablesRecursive<T>(object: T, handler: (value: string) => string | Promise<string>): Promise<T> {
+    if (typeof object === 'string') return handler(object) as any;
+    if (Array.isArray(object)) return object.map(v => this.replaceTaskVariablesRecursive(v, handler)) as any;
+    if (typeof object == 'object' && object !== null && !(object instanceof RegExp) && !(object instanceof Date)) {
+      // ^ Same requirements VS Code applies: https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/base/common/types.ts#L34
+      const result: any = {};
+      for (let key in object) {
+        const value = await this.replaceTaskVariablesRecursive(object[key], handler);
+        key = await this.replaceTaskVariablesRecursive(key, handler);
+        result[key] = value;
+      }
+      return result;
+    }
+    return object;
+  }
   public provideTasks(token?: vscode.CancellationToken | undefined): vscode.ProviderResult<vscode.Task[]> {
     return [];
   }
@@ -190,18 +287,19 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           if (!resolved.host) throw new Error('Missing field \'host\' in task description');
           if (!resolved.command) throw new Error('Missing field \'command\' in task description');
           const connection = await this.connectionManager.createConnection(resolved.host);
+          resolved = await this.replaceTaskVariablesRecursive(resolved, value => this.replaceTaskVariables(value, connection.actualConfig));
           const { command, workingDirectory } = resolved;
           //if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
-        this.connectionManager.update(connection, con => con.pendingUserCount++);
-        const pty = await createTerminal({
-          command, workingDirectory,
-          client: connection.client,
-          config: connection.actualConfig,
-        });
-        this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
-        pty.onDidClose(() => this.connectionManager.update(connection,
-          con => con.terminals = con.terminals.filter(t => t !== pty)));
-        return pty;
+          this.connectionManager.update(connection, con => con.pendingUserCount++);
+          const pty = await createTerminal({
+            command, workingDirectory,
+            client: connection.client,
+            config: connection.actualConfig,
+          });
+          this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
+          pty.onDidClose(() => this.connectionManager.update(connection,
+            con => con.terminals = con.terminals.filter(t => t !== pty)));
+          return pty;
         } catch (e) {
           return createTextTerminal(`Error: ${e.message || e}`);
         }
