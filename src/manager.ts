@@ -13,11 +13,9 @@ import type { Navigation } from './webviewMessages';
 
 async function tryGetHome(ssh: Client): Promise<string | null> {
   const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
-  const { MemoryDuplex } = await import('./streams');
-  const stdout = new MemoryDuplex();
-  exec.stdout.pipe(stdout);
+  let home = '';
+  exec.stdout.on('data', (chunk: any) => home += chunk);
   await toPromise(cb => exec.on('close', cb));
-  const home = stdout.read().toString();
   if (!home) return null;
   const mat = home.match(/^Home: (.*?)\r?\n?$/);
   if (!mat) return null;
