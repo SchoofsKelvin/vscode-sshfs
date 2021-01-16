@@ -29,7 +29,7 @@ function commandArgumentToName(arg?: string | FileSystemConfig | Connection): st
   return `FileSystemConfig(${arg.name})`;
 }
 
-interface SSHShellTaskOptions {
+interface SSHShellTaskOptions extends vscode.TaskDefinition {
   host: string;
   command: string;
   workingDirectory?: string;
@@ -179,22 +179,20 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     return [];
   }
   public async resolveTask(task: vscode.Task, token?: vscode.CancellationToken | undefined): Promise<vscode.Task> {
-    let { host, command, workingDirectory } = task.definition as unknown as SSHShellTaskOptions;
-    if (!host) throw new Error('Missing field \'host\' for ssh-shell task');
-    if (!command) throw new Error('Missing field \'command\' for ssh-shell task');
-    const config = getConfig(host);
-    if (!config) throw new Error(`No configuration with the name '${host}' found for ssh-shell task`);
-    // Calculate working directory if applicable
-    if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
     return new vscode.Task(
-      task.definition,
+      task.definition, // Can't replace/modify this, otherwise we're not contributing to "this" task
       vscode.TaskScope.Workspace,
-      `SSH Task '${task.name}' for ${host}`,
+      `SSH Task '${task.name}'`,
       'ssh',
-      new vscode.CustomExecution(async () => {
-        const connection = await this.connectionManager.createConnection(host);
+      new vscode.CustomExecution(async (resolved: SSHShellTaskOptions) => {
+        const { createTerminal, createTextTerminal } = await import('./pseudoTerminal');
+        try {
+          if (!resolved.host) throw new Error('Missing field \'host\' in task description');
+          if (!resolved.command) throw new Error('Missing field \'command\' in task description');
+          const connection = await this.connectionManager.createConnection(resolved.host);
+          const { command, workingDirectory } = resolved;
+          //if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
         this.connectionManager.update(connection, con => con.pendingUserCount++);
-        const { createTerminal } = await import('./pseudoTerminal');
         const pty = await createTerminal({
           command, workingDirectory,
           client: connection.client,
@@ -204,6 +202,9 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         pty.onDidClose(() => this.connectionManager.update(connection,
           con => con.terminals = con.terminals.filter(t => t !== pty)));
         return pty;
+        } catch (e) {
+          return createTextTerminal(`Error: ${e.message || e}`);
+        }
       })
     )
   }
