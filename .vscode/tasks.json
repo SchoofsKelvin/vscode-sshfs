@@ -37,30 +37,52 @@
                 "cwd": "./webview"
             },
             "group": "build",
-            "problemMatcher": {
-                "source": "react-dev-utils",
-                "severity": "error",
-                "fileLocation": "absolute",
-                "applyTo": "closedDocuments",
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": "Compiling.*?|Compilation .*?starting",
-                    "endsPattern": "Compiled .*?successfully|Failed .*?to.*?compile.*?"
-                },
-                "pattern": [
-                    {
-                        "regexp": "^(.+)$",
-                        "file": 1
-                    },
-                    {
-                        "regexp": "\\((\\d+),(\\d+)\\):\\s*(.+)",
-                        "line": 1,
-                        "column": 2,
-                        "message": 3,
-                        "loop": true
+            "problemMatcher": [
+                {
+                    "source": "parser",
+                    "owner": "react",
+                    "fileLocation": "absolute",
+                    "applyTo": "allDocuments",
+                    "pattern": [
+                        {
+                            "regexp": "^SyntaxError: (.*): (.+) \\((\\d+):(\\d+)\\)$",
+                            "file": 1,
+                            "message": 2,
+                            "line": 3,
+                            "column": 4
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "^Compiling.*",
+                        "endsPattern": "^(Compiled successfully|Failed to compile)"
                     }
-                ]
-            },
+                },
+                {
+                    "source": "typescript",
+                    "owner": "react",
+                    "fileLocation": "absolute",
+                    "applyTo": "allDocuments",
+                    "pattern": [
+                        {
+                            "regexp": "^TypeScript error in (.*)\\((\\d+),(\\d+)\\):",
+                            "file": 1,
+                            "line": 2,
+                            "column": 3
+                        },
+                        {
+                            "regexp": "^(.{5,})$",
+                            "message": 1,
+                            "loop": true
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "^Compiling.*",
+                        "endsPattern": "^(Compiled successfully|Failed to compile)"
+                    }
+                }
+            ],
             "isBackground": true
         }
     ]

@@ -44,7 +44,7 @@ export class FieldDropdownWithInput extends FieldBase<string | undefined, Props,
             {values.map(generateItem)}
         </ul>;
     }
-    public select(newValue: string) {
+    public select(newValue: string | undefined) {
         this.setState({ newValue, open: false }, () => this.props.onChange(newValue));
     }
     public toggle = () => this.setState({ open: !this.state.open });

@@ -110,6 +110,6 @@ export interface FileSystemConfig extends ConnectConfig {
 
 export function invalidConfigName(name: string) {
   if (!name) return 'Missing a name for this SSH FS';
-  if (name.match(/^[\w_\\\/\.@\-+]+$/)) return null;
+  if (name.match(/^[\w_\\/.@\-+]+$/)) return null;
   return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
 }

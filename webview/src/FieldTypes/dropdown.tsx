@@ -6,10 +6,10 @@ interface Props<T> {
     displayName?(item: T): string;
     displayStyle?(item: T): React.CSSProperties;
 }
-interface State<T> {
+interface State {
     open: boolean;
 }
-export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
+export class FieldDropdown<T> extends FieldBase<T, Props<T>, State> {
     public mainDivRef = React.createRef<HTMLDivElement>();
     public componentDidMount() {
         window.addEventListener('click', this.onGlobalClick);
@@ -17,7 +17,7 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
     public componentWillUnmount() {
         window.removeEventListener('click', this.onGlobalClick);
     }
-    public getInitialSubState(props: Props<T>): State<T> {
+    public getInitialSubState(props: Props<T>): State {
         return { open: false };
     }
     public renderInput() {
@@ -39,7 +39,7 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State<T>> {
             </li>
         };
         return <ul className="list">
-            {this.props.optional && <li onClick={this.select.bind(this, null)} />}
+            {this.props.optional && <li onClick={this.select.bind(this, null as any as T)} />}
             {values.map(generateItem)}
         </ul>;
     }

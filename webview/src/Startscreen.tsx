@@ -50,6 +50,9 @@ export default connect(Startscreen)<StateProps, DispatchProps>(
     dispatch => ({
         add: () => dispatch(openNewConfig()),
         changeGroupBy: (current: string) => dispatch(openStartScreen(current === 'group' ? 'location' : 'group')),
-        refresh: () => (dispatch(receivedData([], [])), API.postMessage({ type: 'requestData' })),
+        refresh: () => {
+            dispatch(receivedData([], []));
+            API.postMessage({ type: 'requestData' });
+        },
     }),
 );

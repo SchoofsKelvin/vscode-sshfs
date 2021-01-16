@@ -26,7 +26,7 @@ class ConfigList extends React.Component<StateProps & DispatchProps & OwnProps> 
     }
     public editConfigClickHandler(config: FileSystemConfig) {
         const { displayName } = this.props;
-        const name = displayName && displayName(config) || config.label || config.name;
+        const name = displayName?.(config) || config.label || config.name;
         const onClick = () => this.props.editConfig(config);
         return <li key={config.name} onClick={onClick}>{name}</li>;
     }

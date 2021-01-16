@@ -21,7 +21,7 @@ export function addListener<T extends Message = Message>(listener: Listener<T>, 
 export function addListener(listener: Listener, filter?: Filter) {
   LISTENERS.push([listener, filter]);
 }
-export function removeListener(listener: Listener) {
+export function removeListener<T extends Message = Message>(listener: Listener<T>) {
   LISTENERS = LISTENERS.filter(([l]) => l !== listener);
 }
 

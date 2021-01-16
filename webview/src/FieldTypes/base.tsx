@@ -64,7 +64,7 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
         const error = this.getError();
         const { description, label, optional } = this.props;
         return <div className="Field">
-            <FieldGroup.Consumer>{group => (group && group.register(this), [])}</FieldGroup.Consumer>
+            <FieldGroup.Consumer>{group => (group?.register(this), [])}</FieldGroup.Consumer>
             <div className="label">{label}</div>{optional && <div className="optional">Optional</div>}
             {description && <div className="description">{description}</div>}
             {error && <div className="error">{error}</div>}

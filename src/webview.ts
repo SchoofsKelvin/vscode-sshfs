@@ -31,6 +31,7 @@ async function getDebugContent(): Promise<string | false> {
     // Make sure the CSP meta tag also includes the React dev server (including connect-src for the socket, which uses both http:// and ws://)
     body = body.replace(/\$WEBVIEW_CSPSOURCE/g, `$WEBVIEW_CSPSOURCE ${URL}`);
     body = body.replace(/\$WEBVIEW_CSPEXTRA/g, `connect-src ${URL} ${URL.replace('http://', 'ws://')};`);
+    body = body.replace(/src="\/static\//g, `src="${URL}/static/`);
     cb(null, body);
   }).on('error', err => {
     Logging.warning(`Error connecting to React dev server: ${err}`);
