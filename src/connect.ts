@@ -1,5 +1,6 @@
 import { readFile } from 'fs';
 import { Socket } from 'net';
+import { userInfo } from 'os';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
@@ -17,9 +18,13 @@ const DEFAULT_CONFIG: ConnectConfig = {
   keepaliveInterval: 30e3,
 };
 
-function replaceVariables(string?: string) {
+function replaceVariables(string: string): string;
+function replaceVariables(string?: string): string | undefined;
+function replaceVariables(string?: string): string | undefined {
   if (typeof string !== 'string') return string;
-  return string.replace(/\$\w+/g, key => process.env[key.substr(1)] || '');
+  return string
+    .replace(/\${(\w+)}/g, (_, key) => process.env[key] || '')
+    .replace(/\$(\w+)/g, (_, key) => process.env[key] || '');
 }
 
 const PROMPT_FIELDS: Partial<Record<keyof FileSystemConfig, [
@@ -122,6 +127,8 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     if (!paths.length) {
       logging.error('Option \'sshConfig\' is set but the \'sshfs.paths.ssh\' setting has no paths');
     }
+    paths = paths.map(p => p.startsWith('~') ? `${userInfo().homedir}${p.substr(1)}` : p);
+    paths = paths.map<string>(replaceVariables);
     const { buildHolder, fillFileSystemConfig } = await import('./ssh-config');
     const holder = await buildHolder(paths);
     await fillFileSystemConfig(config, holder);
