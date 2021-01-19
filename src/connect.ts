@@ -112,6 +112,20 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     }
     logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
   }
+  if (config.sshConfig) {
+    await promptFields(config, 'host');
+    let paths = vscode.workspace.getConfiguration('sshfs').get<string[]>('paths.ssh');
+    if (!paths) {
+      logging.debug('No value defined for sshfs.paths.ssh setting?');
+      paths = [];
+    }
+    if (!paths.length) {
+      logging.error('Option \'sshConfig\' is set but the \'sshfs.paths.ssh\' setting has no paths');
+    }
+    const { buildHolder, fillFileSystemConfig } = await import('./ssh-config');
+    const holder = await buildHolder(paths);
+    await fillFileSystemConfig(config, holder);
+  }
   if (config.privateKeyPath) {
     try {
       const key = await toPromise<Buffer>(cb => readFile(config.privateKeyPath!, cb));

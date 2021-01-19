@@ -86,6 +86,8 @@ export interface FileSystemConfig extends ConnectConfig {
   root?: string;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
   putty?: string | boolean;
+  /** Whether to parse ssh_config files (listed by the VS Code setting `sshfs.paths.ssh`) for extra parameters, e.g. Port */
+  sshConfig?: boolean;
   /** Optional object defining a proxy to use */
   proxy?: ProxyConfig;
   /** Optional path to a private keyfile to authenticate with */

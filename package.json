@@ -275,6 +275,16 @@
                     "items": "string",
                     "default": []
                 },
+                "sshfs.paths.ssh": {
+                    "title": "A list of file locations to load ssh_config (OpenSSH) config files from",
+                    "description": "Location of ssh_config files to load configs from",
+                    "type": "array",
+                    "items": "string",
+                    "default": [
+                        "$HOME/.ssh/config",
+                        "/etc/ssh/ssh_config"
+                    ]
+                },
                 "sshfs.configs": {
                     "title": "A list of SSH FS configurations",
                     "description": "Use the Settings UI to edit configurations (run command SSH FS: Open settings and edit configurations)",
