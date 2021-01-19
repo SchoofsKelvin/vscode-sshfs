@@ -12,7 +12,7 @@ export enum SSHConfigType {
     COMPUTED = 'COMPUTED',
 }
 
-const PAIR_REGEX = /^(\w+)\s*(=|\s)\s*(.+)$/;
+const PAIR_REGEX = /^(\w+)\s*(?:=|\s)\s*(.+)$/;
 const QUOTE_REGEX = /^"(.*)"$/;
 
 const unquote = (str: string): string => str.replace(QUOTE_REGEX, (_, v) => v);
@@ -22,13 +22,13 @@ function checkHostname(hostname: string, target: string): boolean | undefined {
     if (target === '*') return true;
     const negate = target.startsWith('!');
     if (negate) target = target.substring(1);
-    const regex = new RegExp(`^${target.trim().replace(/[$?]/g, replacePatternChar)}$`);
+    const regex = new RegExp(`^${target.trim().replace(/[*?]/g, replacePatternChar)}$`);
     return regex.test(hostname) ? !negate : undefined;
 }
 
 function checkPatternList(input: string, pattern: string): boolean {
     for (const pat of pattern.split(',')) {
-        const result = checkHostname(input, pattern);
+        const result = checkHostname(input, pat);
         if (result !== undefined) return result;
     }
     return false;
@@ -118,6 +118,14 @@ export class SSHConfig implements Iterable<[string, string[]]> {
         if (this.type === SSHConfigType.GLOBAL) return [true, []];
         if (this.type === SSHConfigType.HOST) return [this.checkHost(context.hostname), []];
         if (this.type === SSHConfigType.MATCH) return this.checkMatch(context);
+        if (this.type === SSHConfigType.COMPUTED) return [false, [[this.source, 0, 'Cannot match a computed config', Severity.ERROR]]];
+        throw new Error(`Unrecognized config type '${this.type}'`);
+    }
+    public toString(): string {
+        if (this.type === SSHConfigType.GLOBAL) return `SSHConfig(GLOBAL,${this.source}:${this.line})`;
+        if (this.type === SSHConfigType.HOST) return `SSHConfig(HOST,${this.source}:${this.line},"${this.get('Host')}")`;
+        if (this.type === SSHConfigType.MATCH) return `SSHConfig(MATCH,${this.source}:${this.line},"${this.get('Match')}")`;
+        if (this.type === SSHConfigType.COMPUTED) return `SSHConfig(COMPUTED,${this.source}:${this.line})`;
         throw new Error(`Unrecognized config type '${this.type}'`);
     }
 }
@@ -143,7 +151,7 @@ function mergeConfigIntoContext(config: SSHConfig, context: MatchContext): void 
 
 export class SSHConfigHolder {
     public readonly errors: readonly LineError[] = [];
-    public readonly configs: SSHConfig[] = [new SSHConfig(SSHConfigType.GLOBAL, this.source, 0)];
+    public readonly configs: SSHConfig[] = [];
     constructor(public readonly source: string) { }
     public reportError(line: number, message: string, severity = Severity.ERROR): void {
         (this.errors as LineError[]).push([this.source, line, message, severity]);
@@ -158,9 +166,14 @@ export class SSHConfigHolder {
         context = { ...context };
         const result = new SSHConfig(SSHConfigType.COMPUTED, this.source, 0);
         for (const config of this.configs) {
-            if (!config.matches(context)) continue;
+            if (!config.matches(context)) {
+                Logging.debug(`Config ${config} does not match context ${JSON.stringify(context)}, ignoring`);
+                continue;
+            }
+            Logging.debug(`Config ${config} matches context ${JSON.stringify(context)}, merging`);
             result.merge(config);
             mergeConfigIntoContext(result, context);
+            Logging.debug(`  New context: ${JSON.stringify(context)}`);
         }
         return result;
     }
@@ -177,7 +190,8 @@ const ERR_MULTIPLE_IDENTITY_FILE = 'Multiple IdentityFiles given, the extension 
 
 export function parseContents(content: string, source: string): SSHConfigHolder {
     const holder = new SSHConfigHolder(source);
-    let current = holder.configs[0];
+    let current = new SSHConfig(SSHConfigType.GLOBAL, source, 0);
+    holder.add(current);
     content.split('\n').forEach((line, lineNumber) => {
         line = line.trim();
         if (!line || line.startsWith('#')) return;
@@ -189,7 +203,7 @@ export function parseContents(content: string, source: string): SSHConfigHolder 
         // TODO: "Include ..."
         switch (key) {
             case 'host':
-                holder.add(new SSHConfig(SSHConfigType.HOST, source, lineNumber));
+                holder.add(current = new SSHConfig(SSHConfigType.HOST, source, lineNumber));
                 break;
             case 'match':
                 holder.add(current = new SSHConfig(SSHConfigType.MATCH, source, lineNumber));
@@ -233,7 +247,7 @@ export async function buildHolder(paths: string[]): Promise<SSHConfigHolder> {
     if (!sev) return holder;
     const key = SEVERITY_TO_STRING[sev];
     Logging[key](`Building ssh_config holder produced ${key} messages:`, LOGGING_NO_STACKTRACE);
-    for (const error of holder.errors) Logging[key](formatLineError(error));
+    for (const error of holder.errors) Logging[key]('- ' + formatLineError(error));
     Logging[key]('End of ssh_config holder messages', LOGGING_NO_STACKTRACE);
     return holder;
 }
@@ -262,7 +276,7 @@ export async function fillFileSystemConfig(config: FileSystemConfig, holder: SSH
         privateKeyPath: result.get('IdentityFile'),
         tryKeyboard: toBoolean(result.get('KbdInteractiveAuthentication')),
         // TODO: LocalCommand, PermitLocalCommand, RemoteCommand
-        password: toBoolean(result.get('PasswordAuthentication')) as any,
+        password: (toBoolean(result.get('PasswordAuthentication')) != false) as any,
         port: parseInt(result.get('Port')),
         // TODO: PreferredAuthentications (ssh2's non-documented authHandler config property?)
         // TODO: ProxyCommand, ProxyJump, ProxyUseFdpass (can't support the latter I'm afraid)
@@ -281,7 +295,7 @@ export async function fillFileSystemConfig(config: FileSystemConfig, holder: SSH
         const val = overrides[key];
         if (val === '') delete overrides[key];
         if (val === []) delete overrides[key];
-        if (isNaN(val)) delete overrides[key];
+        if (typeof val === 'number' && isNaN(val)) delete overrides[key];
         if (val === undefined) delete overrides[key];
     }
     Logging.debug(`Config overrides for ${config.name} generated from ssh_config files: ${JSON.stringify(censorConfig(overrides as any), null, 4)}`);
