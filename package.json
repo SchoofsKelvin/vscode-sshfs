@@ -281,7 +281,7 @@
                     "type": "array",
                     "items": "string",
                     "default": [
-                        "$HOME/.ssh/config",
+                        "~/.ssh/config",
                         "/etc/ssh/ssh_config"
                     ]
                 },
