@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.add(target?: string | FileSystemConfig)
   registerCommandHandler('sshfs.add', {
-    promptOptions: { promptConfigs: true },
+    promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
     handleConfig: config => manager.commandConnect(config),
   });
 
@@ -95,7 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.termninal(target?: string | FileSystemConfig | Connection | vscode.Uri)
   registerCommandHandler('sshfs.terminal', {
-    promptOptions: { promptConfigs: true, promptConnections: true },
+    promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
     handleConfig: config => manager.commandTerminal(config),
     handleConnection: con => manager.commandTerminal(con),
     handleUri: async uri => {

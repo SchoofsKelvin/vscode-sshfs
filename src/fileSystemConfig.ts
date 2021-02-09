@@ -113,3 +113,35 @@ export function invalidConfigName(name: string) {
   if (name.match(/^[\w_\\/.@\-+]+$/)) return null;
   return `A SSH FS name can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@`;
 }
+
+/**
+ * https://regexr.com/5m3gl (mostly based on https://tools.ietf.org/html/draft-ietf-secsh-scp-sftp-ssh-uri-04)
+ * Supports several formats, the first one being the "full" format, with others being partial:
+ * - `user;abc=def,a-b=1-5@server.example.com:22/some/file.ext`
+ * - `user@server.example.com/directory`
+ * - `server:22/directory`
+ * - `user@server`
+ * - `server`
+ * - `@server/path` - Unlike OpenSSH, we allow a @ (and connection parameters) without a username
+ * 
+ * The resulting FileSystemConfig will have as name basically the input, but without the path. If there is no
+ * username given, the name will start with `@`, as to differentiate between connection strings and config names.
+ */
+const CONNECTION_REGEX = /^((?<user>\w+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^@\\/:,=]+)(:(?<port>\d+))?(?<path>\/.*)?$/;
+
+export function parseConnectionString(input: string): [config: FileSystemConfig, path?: string] | string {
+  input = input.trim();
+  const match = input.match(CONNECTION_REGEX);
+  if (!match) return 'Invalid format, expected something like "user@example.com:22/some/path"';
+  const { user, host, path } = match.groups!;
+  const portStr = match.groups!.port;
+  const port = portStr ? Number.parseInt(portStr) : undefined;
+  if (portStr && (!port || port < 1 || port > 65535)) return `The string '${port}' is not a valid port number`;
+  const name = `${user || ''}@${host}${port ? `:${port}` : ''}${path || ''}`;
+  return [{
+    name, host, port,
+    username: user || '$USERNAME',
+    _locations: [],
+    //debug: true as any,
+  }, path];
+}

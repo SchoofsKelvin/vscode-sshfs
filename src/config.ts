@@ -2,7 +2,7 @@
 import { readFile, writeFile } from 'fs';
 import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as vscode from 'vscode';
-import { ConfigLocation, FileSystemConfig, invalidConfigName } from './fileSystemConfig';
+import { ConfigLocation, FileSystemConfig, invalidConfigName, parseConnectionString } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise } from './toPromise';
 
@@ -283,9 +283,17 @@ export async function deleteConfig(config: FileSystemConfig) {
   });
 }
 
-export function getConfig(name: string) {
-  if (name === '<config>') return null;
-  return getConfigs().find(c => c.name === name);
+/** If a loaded config with the given name exists (case insensitive), it is returned.
+ * Otherwise, if it contains a `@`, we parse it as a connection string.
+ * If this results in no (valid) configuration, `undefined` is returned.
+ */
+export function getConfig(input: string): FileSystemConfig | undefined {
+  const lower = input.toLowerCase();
+  const loaded = getConfigs().find(c => c.name.toLowerCase() === lower);
+  if (loaded) return loaded;
+  if (!input.includes('@')) return undefined;
+  const parsed = parseConnectionString(input);
+  return typeof parsed === 'string' ? undefined : parsed[0];
 }
 
 function valueMatches(a: any, b: any): boolean {
