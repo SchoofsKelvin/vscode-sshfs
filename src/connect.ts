@@ -222,7 +222,12 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     });
     try {
       logging.info(`Creating SSH session over the opened socket`);
-      client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock }, DEFAULT_CONFIG));
+      let debug = (_msg: string) => {};
+      if (config.debug) {
+        const scope = Logging.scope(`ssh2(${config.name})`);
+        debug = (msg: string) => scope.debug(msg);
+      }
+      client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock, debug }, DEFAULT_CONFIG));
     } catch (e) {
       reject(e);
     }
