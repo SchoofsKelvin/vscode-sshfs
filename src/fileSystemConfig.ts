@@ -143,5 +143,6 @@ export function parseConnectionString(input: string): [config: FileSystemConfig,
     username: user || '$USERNAME',
     _locations: [],
     //debug: true as any,
+    putty: process.platform === 'win32' && '<TRY>', // Since this is like a "quick connect", automatically enable PuTTY support
   }, path];
 }

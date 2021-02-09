@@ -70,47 +70,55 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       logging.warning(`\tConfigurating uses putty, but platform is ${process.platform}`);
     }
     let nameOnly = true;
-    if (config.putty === true) {
+    let mandatory = true;
+    if (config.putty === true || config.putty === '<TRY>') {
+      // ^ '<TRY>' is a special case used in parseConnectionString in fileSystemConfig.ts
       await promptFields(config, 'host');
       // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
       if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
+      mandatory = config.putty === true;
       config.putty = config.host;
       nameOnly = false;
     } else {
       config.putty = replaceVariables(config.putty);
     }
     const session = await (await import('./putty')).getSession(config.putty, config.host, config.username, nameOnly);
-    if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
-    if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
-    config.username = config.username || session.username;
-    if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
-      config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
+    if (session) {
+      if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
+      config.username = config.username || session.username;
+      if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
+        config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
+      }
+      config.host = config.host || session.hostname;
+      config.port = session.portnumber || config.port;
+      config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
+      if (session.usernamefromenvironment) {
+        config.username = process.env.USERNAME || process.env.USER;
+        if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME or process.env.USER is missing`);
+      }
+      config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
+      switch (session.proxymethod) {
+        case 0:
+          break;
+        case 1:
+        case 2:
+        case 3:
+          if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 or HTTP but 'proxyhost' is missing`);
+          config.proxy = {
+            host: session.proxyhost,
+            port: session.proxyport,
+            type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
+          };
+          break;
+        default:
+          throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
+      }
+      logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
+    } else if (mandatory) {
+      throw new Error(`Couldn't find the requested PuTTY session`);
+    } else {
+      logging.debug(`\tConfig suggested finding a PuTTY configuration, did not find one`);
     }
-    config.host = config.host || session.hostname;
-    config.port = session.portnumber || config.port;
-    config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
-    if (session.usernamefromenvironment) {
-      config.username = process.env.USERNAME || process.env.USER;
-      if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME or process.env.USER is missing`);
-    }
-    config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
-    switch (session.proxymethod) {
-      case 0:
-        break;
-      case 1:
-      case 2:
-      case 3:
-        if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 or HTTP but 'proxyhost' is missing`);
-        config.proxy = {
-          host: session.proxyhost,
-          port: session.proxyport,
-          type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
-        };
-        break;
-      default:
-        throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
-    }
-    logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
   }
   if (config.privateKeyPath) {
     try {
