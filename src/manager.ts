@@ -2,7 +2,7 @@
 import * as path from 'path';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, getConfigs, loadConfigsRaw } from './config';
+import { getConfig, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
@@ -63,7 +63,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (existing) return existing;
     let con: Connection | undefined;
     return this.creatingFileSystems[name] ||= catchingPromise<SSHFileSystem>(async (resolve, reject) => {
-      config = config || getConfigs().find(c => c.name === name);
+      config ||= getConfig(name);
       if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
       const con = await this.connectionManager.createConnection(name, config);
       this.connectionManager.update(con, con => con.pendingUserCount++);
@@ -126,7 +126,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         if (chosen === 'Retry') {
           this.createFileSystem(name).catch(() => { });
         } else if (chosen === 'Configure') {
-          this.commandConfigure(name);
+          this.commandConfigure(config || name);
         } else {
           this.commandDisconnect(name);
         }
@@ -298,13 +298,20 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
     if (typeof target === 'object') {
+      if (!target._location && !target._locations.length) {
+        vscode.window.showErrorMessage('Cannot configure a config-less connection!');
+        return;
+      }
       this.openSettings({ config: target, type: 'editconfig' });
       return;
     }
     target = target.toLowerCase();
     let configs = await loadConfigsRaw();
     configs = configs.filter(c => c.name === target);
-    if (configs.length === 0) throw new Error('Unexpectedly found no matching configs?');
+    if (configs.length === 0) {
+      vscode.window.showErrorMessage(`Found no matching configs for '${target}'`);
+      return Logging.error(`Unexpectedly found no matching configs for '${target}' in commandConfigure?`);
+    }
     const config = configs.length === 1 ? configs[0] : configs;
     this.openSettings({ config, type: 'editconfig' });
   }
