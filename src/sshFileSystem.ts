@@ -19,6 +19,7 @@ const IGNORE_NOT_FOUND: string[] = [
   '/.git/',
   '/node_modules',
   '/pom.xml',
+  '/app/src/main/AndroidManifest.xml',
 ];
 function shouldIgnoreNotFound(path: string) {
   return IGNORE_NOT_FOUND.some(entry => entry === path || entry.endsWith('/') && path.startsWith(entry));
