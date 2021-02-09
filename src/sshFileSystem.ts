@@ -11,7 +11,7 @@ import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE,
 // (usually the errors we report on happen deep inside ssh2 or ssh2-streams, we don't really care that much about it)
 const LOGGING_HANDLE_ERROR = withStacktraceOffset(1, { ...LOGGING_SINGLE_LINE_STACKTRACE, maxErrorStack: 4 });
 
-// All absolute paths (relative to the FS root)
+// All absolute paths (relative to the FS root or a workspace root)
 // If it ends with /, .startsWith is used, otherwise a raw equal
 const IGNORE_NOT_FOUND: string[] = [
   '/.vscode',
@@ -21,8 +21,15 @@ const IGNORE_NOT_FOUND: string[] = [
   '/pom.xml',
   '/app/src/main/AndroidManifest.xml',
 ];
-function shouldIgnoreNotFound(path: string) {
-  return IGNORE_NOT_FOUND.some(entry => entry === path || entry.endsWith('/') && path.startsWith(entry));
+function shouldIgnoreNotFound(target: string) {
+  if (IGNORE_NOT_FOUND.some(entry => entry === target || entry.endsWith('/') && target.startsWith(entry))) return true;
+  for (const { uri: { path: wsPath } } of vscode.workspace.workspaceFolders || []) {
+    if (!target.startsWith(wsPath)) continue;
+    let local = path.posix.relative(wsPath, target);
+    if (!local.startsWith('/')) local = `/${local}`;
+    if (IGNORE_NOT_FOUND.some(entry => entry === local || entry.endsWith('/') && local.startsWith(entry))) return true;
+  }
+  return false;
 }
 
 export class SSHFileSystem implements vscode.FileSystemProvider {
