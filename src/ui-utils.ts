@@ -126,7 +126,7 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
         if (options.promptInstantConnection) {
             items.unshift({
                 label: '$(terminal) Create instant connection',
-                detail: 'Opens an input box where you can type e.g. `user@host:/home/user`',
+                detail: 'Opens an input box where you can type e.g. `user@host:22/home/user`',
                 picked: true, alwaysShow: true,
                 item: inputInstantConnection,
             });
