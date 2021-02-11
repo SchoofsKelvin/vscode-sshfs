@@ -100,6 +100,8 @@ export interface FileSystemConfig extends ConnectConfig {
   terminalCommand?: string | string[];
   /** The filemode to assign to created files */
   newFileMode?: number | string;
+  /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */
+  instantConnection?: boolean;
   /** Internal property saying where this config comes from. Undefined if this config is merged or something */
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
@@ -140,9 +142,8 @@ export function parseConnectionString(input: string): [config: FileSystemConfig,
   const name = `${user || ''}@${host}${port ? `:${port}` : ''}${path || ''}`;
   return [{
     name, host, port,
+    instantConnection: true,
     username: user || '$USERNAME',
     _locations: [],
-    //debug: true as any,
-    putty: process.platform === 'win32' && '<TRY>', // Since this is like a "quick connect", automatically enable PuTTY support
   }, path];
 }

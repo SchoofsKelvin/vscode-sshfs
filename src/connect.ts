@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { getConfig, getFlag } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
+import type { PuttySession } from './putty';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -29,8 +30,8 @@ const PROMPT_FIELDS: Partial<Record<keyof FileSystemConfig, [
   promptOnEmpty: boolean, password?: boolean]>> = {
   host: ['Host', c => `Host for ${c.name}`, true],
   username: ['Username', c => `Username for ${c.name}`, true],
-  password: ['Password', c => `Password for ${c.username}@${c.name}`, false, true],
-  passphrase: ['Passphrase', c => `Passphrase for provided export/private key for ${c.username}@${c.name}`, false, true],
+  password: ['Password', c => `Password for '${c.username}' for ${c.name}`, false, true],
+  passphrase: ['Passphrase', c => `Passphrase for provided export/private key for '${c.username}' for ${c.name}`, false, true],
 };
 
 async function promptFields(config: FileSystemConfig, ...fields: (keyof FileSystemConfig)[]): Promise<void> {
@@ -69,37 +70,48 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
   logging.info(`Calculating actual config`);
+  if (config.instantConnection) {
+    // Created from an instant connection string, so enable PuTTY (in try mode)
+    config.putty = '<TRY>'; // Could just set it to `true` but... consistency?
+  }
   if (config.putty) {
     if (process.platform !== 'win32') {
       logging.warning(`\tConfigurating uses putty, but platform is ${process.platform}`);
     }
-    let nameOnly = true;
-    let mandatory = true;
-    if (config.putty === true || config.putty === '<TRY>') {
-      // ^ '<TRY>' is a special case used in parseConnectionString in fileSystemConfig.ts
-      await promptFields(config, 'host');
-      // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
-      if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
-      mandatory = config.putty === true;
-      config.putty = config.host;
-      nameOnly = false;
-    } else {
-      config.putty = replaceVariables(config.putty);
+    const { getCachedFinder } = await import('./putty');
+    const getSession = await getCachedFinder();
+    const cUsername = config.username === '$USER' ? undefined : config.username;
+    const tryPutty = config.instantConnection || config.putty === '<TRY>';
+    let session: PuttySession | undefined;
+    if (tryPutty) {
+      // If we're trying to find one, we also check whether `config.host` represents the name of a PuTTY session
+      session = await getSession(config.host);
+      logging.info(`\ttryPutty is true, tried finding a config named '${config.host}' and found ${session ? `'${session.name}'` : 'no match'}`);
     }
-    const session = await (await import('./putty')).getSession(config.putty, config.host, config.username, nameOnly);
+    if (!session) {
+      let nameOnly = true;
+      if (config.putty === true) {
+        await promptFields(config, 'host');
+        // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
+        if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
+        config.putty = config.host;
+        nameOnly = false;
+      } else {
+        config.putty = replaceVariables(config.putty);
+      }
+      session = await getSession(config.putty, config.host, cUsername, nameOnly);
+    }
     if (session) {
       if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
-      config.username = config.username || session.username;
+      config.username = cUsername || session.username;
       if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
         config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
       }
-      config.host = config.host || session.hostname;
+      // Used to be `config.host || session.hostname`, but `config.host` could've been just the session name
+      config.host = session.hostname.replace(/^.*?@/, '');
       config.port = session.portnumber || config.port;
       config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
-      if (session.usernamefromenvironment) {
-        config.username = process.env.USERNAME || process.env.USER;
-        if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME or process.env.USER is missing`);
-      }
+      if (session.usernamefromenvironment) config.username = '$USER';
       config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
       switch (session.proxymethod) {
         case 0:
@@ -118,7 +130,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
           throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
       }
       logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
-    } else if (mandatory) {
+    } else if (!tryPutty) {
       throw new Error(`Couldn't find the requested PuTTY session`);
     } else {
       logging.debug(`\tConfig suggested finding a PuTTY configuration, did not find one`);
