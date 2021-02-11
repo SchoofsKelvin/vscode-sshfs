@@ -216,7 +216,6 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (!isSSHPseudoTerminal(pty)) return;
     const conn = this.connectionManager.getActiveConnections().find(c => c.terminals.includes(pty));
     if (!conn) return; // Connection died, which means the terminal should also be closed already?
-    console.log('provideTerminalLinks', line, pty.config.root, conn ? conn.filesystems.length : 'No connection?');
     const links: TerminalLinkUri[] = [];
     const PATH_REGEX = /\/\S+/g;
     while (true) {
