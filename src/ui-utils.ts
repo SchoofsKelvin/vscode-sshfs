@@ -80,8 +80,10 @@ export interface PickComplexOptions {
     nameFilter?: string;
 }
 
-async function inputInstantConnection(): Promise<FileSystemConfig | undefined> {
+async function inputInstantConnection(value?: string): Promise<FileSystemConfig | undefined> {
+    const valueSelection = value ? [value.length, value.length] as [number, number] : undefined;
     const name = await vscode.window.showInputBox({
+        value, valueSelection,
         placeHolder: 'user@host:/home/user',
         prompt: 'SSH connection string',
         validateInput(value: string) {
@@ -136,13 +138,16 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
         quickPick.items = items;
         quickPick.title = 'Select ' + toSelect.join(' / ');
         quickPick.onDidAccept(() => {
-            const value = quickPick.activeItems[0]?.item;
+            let value = quickPick.activeItems[0]?.item;
             quickPick.hide();
+            if (typeof value === 'function') {
+                value = value(quickPick.value);
+            }
             resolve(value);
         });
         quickPick.onDidHide(() => resolve());
         quickPick.show();
-    }).then(result => typeof result === 'function' ? result() : result);
+    });
 }
 
 export const pickConfig = (manager: Manager) => pickComplex(manager, { promptConfigs: true }) as Promise<FileSystemConfig | undefined>;
