@@ -326,3 +326,28 @@ vscode.workspace.onDidChangeConfiguration(async (e) => {
   return loadConfigs();
 });
 loadConfigs();
+
+/**
+ * Checks the `sshfs.flags` config (overridable by e.g. workspace settings).
+ * - Flags are case-insensitive
+ * - If a flag appears twice, the first mention of it is used
+ * - If a flag appears as "NAME", `null` is returned
+ * - If a flag appears as "FLAG=VALUE", `VALUE` is returned as a string
+ * - If a flag is missing, `undefined` is returned (different from `null`!)
+ * @param target The name of the flag to look for
+ */
+export function getFlag(target: string): string | null | undefined {
+  target = target.toLowerCase();
+  const flags: string[] = vscode.workspace.getConfiguration('sshfs').get('flags') || [];
+  for (const flag of flags) {
+    let name: string = flag;
+    let value: any = null;
+    const eq = flag.indexOf('=');
+    if (eq !== -1) {
+      name = flag.substring(0, eq);
+      value = flag.substring(eq + 1);
+    }
+    if (name.toLowerCase() === target) return value;
+  }
+  return undefined;
+}

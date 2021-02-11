@@ -290,6 +290,13 @@
                             "password": "CorrectHorseBatteryStaple"
                         }
                     ]
+                },
+                "sshfs.flags": {
+                    "title": "List of special flags to enable/disable certain fixes/features",
+                    "description": "Flags are usually used for issues or beta testing. Flags can disappear/change anytime!",
+                    "type": "array",
+                    "items": "string",
+                    "default": []
                 }
             }
         },
