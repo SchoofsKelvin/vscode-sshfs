@@ -235,7 +235,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     });
     try {
       const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
-      if (config.debug) {
+      if (config.debug || getFlag('DEBUG_SSH2') !== undefined) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
       }
