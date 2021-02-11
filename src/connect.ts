@@ -3,7 +3,7 @@ import { Socket } from 'net';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { getConfig } from './config';
+import { getConfig, getFlag } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import { toPromise } from './toPromise';
@@ -234,13 +234,21 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       reject(error);
     });
     try {
-      logging.info(`Creating SSH session over the opened socket`);
-      let debug = (_msg: string) => { };
+      const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
       if (config.debug) {
         const scope = Logging.scope(`ssh2(${config.name})`);
-        debug = (msg: string) => scope.debug(msg);
+        finalConfig.debug = (msg: string) => scope.debug(msg);
       }
-      client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock, debug }, DEFAULT_CONFIG));
+      // Unless the flag 'DF-GE' is specified, disable DiffieHellman groupex algorithms (issue #239)
+      // Note: If the config already specifies a custom `algorithms.key`, ignore it (trust the user?)
+      if (getFlag('DF-GE') === undefined && !finalConfig.algorithms?.kex) {
+        logging.info('Flag "DiffieHellman" specified, disabling DiffieHellman kex groupex algorithms');
+        let kex: string[] = require('ssh2-streams/lib/constants').ALGORITHMS.KEX;
+        kex = kex.filter(algo => !algo.includes('diffie-hellman-group-exchange'));
+        logging.debug(`\tResulting algorithms.kex: ${kex}`);
+        finalConfig.algorithms = { ...finalConfig.algorithms, kex };
+      }
+      client.connect(finalConfig);
     } catch (e) {
       reject(e);
     }
