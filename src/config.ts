@@ -292,8 +292,23 @@ export function getConfig(input: string): FileSystemConfig | undefined {
   const loaded = getConfigs().find(c => c.name.toLowerCase() === lower);
   if (loaded) return loaded;
   if (!input.includes('@')) return undefined;
-  const parsed = parseConnectionString(input);
-  return typeof parsed === 'string' ? undefined : parsed[0];
+  const parseString = parseConnectionString(input);
+  if (typeof parseString === 'string') return undefined;
+  const [parsed] = parseString;
+  // If we're using the instant connection string, the host name might be a config name
+  const existing = getConfigs().find(c => c.name.toLowerCase() === parsed.host!.toLowerCase());
+  if (existing) {
+    Logging.info(`getConfig('${input}') led to '${parsed.name}' which matches config '${existing.name}'`);
+    // Take the existing config, but (more or less) override it with the values present in `parsed`
+    // `name` be the same as in `parsed`, meaning it can be reused with `getConfig` on window reload.
+    return {
+      ...existing, ...parsed,
+      host: existing.host || parsed.host, // `parsed.host` is the session name, which might not be the actual hostname
+      _location: undefined, // Since this is a merged config, we have to flag it as such
+      _locations: [...existing._locations, ...parsed._locations], // Merge locations
+    };
+  }
+  return parsed;
 }
 
 function valueMatches(a: any, b: any): boolean {
