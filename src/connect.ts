@@ -1,5 +1,6 @@
 import { readFile } from 'fs';
 import { Socket } from 'net';
+import { userInfo } from 'os';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
@@ -58,7 +59,10 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   // Add the internal _calculated field to cache the actual config for the next calculateActualConfig call
   // (and it also allows accessing the original config that generated this actual config, if ever necessary)
   config = { ...config, _calculated: config };
-  config.username = replaceVariables(config.username);
+  // Windows uses `$USERNAME` while Unix uses `$USER`, let's normalize it here
+  if (config.username === '$USERNAME') config.username = '$USER';
+  // Delay handling just `$USER` until later, as PuTTY might handle it specially
+  if (config.username !== '$USER') config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');
   if (port) config.port = Number(port);
@@ -120,6 +124,8 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
       logging.debug(`\tConfig suggested finding a PuTTY configuration, did not find one`);
     }
   }
+  // If the username is (still) `$USER` at this point, use the local user's username
+  if (config.username === '$USER') config.username = userInfo().username;
   if (config.privateKeyPath) {
     try {
       const key = await toPromise<Buffer>(cb => readFile(config.privateKeyPath!, cb));
