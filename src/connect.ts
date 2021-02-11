@@ -242,7 +242,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       // Unless the flag 'DF-GE' is specified, disable DiffieHellman groupex algorithms (issue #239)
       // Note: If the config already specifies a custom `algorithms.key`, ignore it (trust the user?)
       if (getFlag('DF-GE') === undefined && !finalConfig.algorithms?.kex) {
-        logging.info('Flag "DiffieHellman" specified, disabling DiffieHellman kex groupex algorithms');
+        logging.info('Flag "DF-GE" not specified, disabling DiffieHellman kex groupex algorithms');
         let kex: string[] = require('ssh2-streams/lib/constants').ALGORITHMS.KEX;
         kex = kex.filter(algo => !algo.includes('diffie-hellman-group-exchange'));
         logging.debug(`\tResulting algorithms.kex: ${kex}`);
