@@ -36,13 +36,13 @@ export function merge(config: FileSystemConfig, onChange: FSCChanged<'merge'>): 
 export function label(config: FileSystemConfig, onChange: FSCChanged<'label'>): React.ReactElement {
   const callback = (value?: string) => onChange('label', value);
   const description = 'Label to display in some UI places (e.g. popups)';
-  return <FieldString key="label" label="Label" value={config.label} onChange={callback} optional={true} description={description} />
+  return <FieldString key="label" label="Label" value={config.label} onChange={callback} optional description={description} />
 }
 
 export function group(config: FileSystemConfig, onChange: FSCChanged<'group'>): React.ReactElement {
   const callback = (newValue: string) => onChange('group', newValue);
   const description = 'Group for this config, to group configs together in some UI places. Allows subgroups, in the format "Group1.SubGroup1.Subgroup2"';
-  return <FieldConfigGroup key="group" label="Group" value={config.group} {...{ description }} onChange={callback} optional={true} />
+  return <FieldConfigGroup key="group" label="Group" value={config.group} {...{ description }} onChange={callback} optional />
 }
 
 export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): React.ReactElement {
@@ -50,7 +50,7 @@ export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): 
   const description = 'A name of a PuTTY session, or `true` to find the PuTTY session from the host address';
   const values = ['<Auto-detect>'];
   const value = config.putty === true ? '<Auto-detect>' : config.putty || undefined;
-  return <FieldDropdownWithInput key="putty" label="PuTTY" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="putty" label="PuTTY" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): React.ReactElement {
@@ -58,26 +58,26 @@ export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): Re
   const description = 'Hostname or IP address of the server. Supports environment variables, e.g. $HOST';
   const values = ['<Prompt>'];
   const value = (config.host as any) === true ? '<Prompt>' : config.host;
-  return <FieldDropdownWithInput key="host" label="Host" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="host" label="Host" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): React.ReactElement {
   const callback = (value: number) => onChange('port', value);
   const description = 'Port number of the server. Supports environment variables, e.g. $PORT';
-  return <FieldNumber key="port" label="Port" value={config.port} onChange={callback} optional={true} description={description} />
+  return <FieldNumber key="port" label="Port" value={config.port} onChange={callback} optional description={description} />
 }
 
 export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): React.ReactElement {
   const callback = (value: string) => onChange('root', value);
   const description = 'Path on the remote server where the root path in vscode should point to. Defaults to /';
-  return <FieldString key="root" label="Root" value={config.root} onChange={callback} optional={true} validator={pathValidator} description={description} />
+  return <FieldString key="root" label="Root" value={config.root} onChange={callback} optional validator={pathValidator} description={description} />
 }
 
 export function agent(config: FileSystemConfig, onChange: FSCChanged<'agent'>): React.ReactElement {
   const callback = (newValue: string) => onChange('agent', newValue);
   const description = `Path to ssh-agent's UNIX socket for ssh-agent-based user authentication. Supports 'pageant' for PuTTY's Pagent, and environment variables, e.g. $SSH_AUTH_SOCK`;
   const values = ['pageant', '//./pipe/openssh-ssh-agent', '$SSH_AUTH_SOCK'];
-  return <FieldDropdownWithInput key="agent" label="Agent" {...{ value: config.agent, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="agent" label="Agent" {...{ value: config.agent, values, description }} onChange={callback} optional />
 }
 
 export function username(config: FileSystemConfig, onChange: FSCChanged<'username'>): React.ReactElement {
@@ -85,7 +85,7 @@ export function username(config: FileSystemConfig, onChange: FSCChanged<'usernam
   const description = 'Username for authentication. Supports environment variables, e.g. $USERNAME';
   const values = ['<Prompt>', '$USERNAME'];
   const value = (config.username as any) === true ? '<Prompt>' : config.username;
-  return <FieldDropdownWithInput key="username" label="Username" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="username" label="Username" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function password(config: FileSystemConfig, onChange: FSCChanged<'password'>): React.ReactElement {
@@ -93,13 +93,13 @@ export function password(config: FileSystemConfig, onChange: FSCChanged<'passwor
   const description = 'Password for password-based user authentication. Supports env variables. This gets saved in plaintext! Using prompts or private keys is recommended!';
   const values = ['<Prompt>'];
   const value = (config.password as any) === true ? '<Prompt>' : config.password;
-  return <FieldDropdownWithInput key="password" label="Password" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="password" label="Password" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function privateKeyPath(config: FileSystemConfig, onChange: FSCChanged<'privateKeyPath'>): React.ReactElement {
   const callback = (value?: string) => onChange('privateKeyPath', value);
   const description = 'A path to a private key. Supports environment variables, e.g. `$USERPROFILE/.ssh/myKey.ppk` or `$HOME/.ssh/myKey`';
-  return <FieldPath key="privateKeyPath" label="Private key" value={config.privateKeyPath} onChange={callback} optional={true} description={description} />
+  return <FieldPath key="privateKeyPath" label="Private key" value={config.privateKeyPath} onChange={callback} optional description={description} />
 }
 
 export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passphrase'>): React.ReactElement {
@@ -107,13 +107,13 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
   const description = 'Passphrase for unlocking an encrypted private key. Supports env variables. This gets saved in plaintext! Using prompts or private keys is recommended!';
   const values = ['<Prompt>'];
   const value = (config.passphrase as any) === true ? '<Prompt>' : config.passphrase;
-  return <FieldDropdownWithInput key="passphrase" label="Passphrase" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="passphrase" label="Passphrase" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('sftpCommand', newValue);
   const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
-  return <FieldString key="sftpCommand" label="SFTP Command" value={config.sftpCommand} onChange={callback} optional={true} validator={pathValidator} description={description} />
+  return <FieldString key="sftpCommand" label="SFTP Command" value={config.sftpCommand} onChange={callback} optional validator={pathValidator} description={description} />
 }
 
 export function sftpSudo(config: FileSystemConfig, onChange: FSCChanged<'sftpSudo'>): React.ReactElement {
@@ -130,7 +130,7 @@ export function terminalCommand(config: FileSystemConfig, onChange: FSCChanged<'
   const values = ['$SHELL', '/usr/bin/bash', '/usr/bin/sh'];
   let value = config.terminalCommand === '$SHELL' ? '' : config.terminalCommand || '';
   if (Array.isArray(value)) value = value.join('; ');
-  return <FieldDropdownWithInput key="terminalCommand" label="Terminal command" {...{ value, values, description }} onChange={callback} optional={true} />
+  return <FieldDropdownWithInput key="terminalCommand" label="Terminal command" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
