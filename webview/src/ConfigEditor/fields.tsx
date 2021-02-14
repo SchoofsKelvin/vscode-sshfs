@@ -120,8 +120,8 @@ export function sftpSudo(config: FileSystemConfig, onChange: FSCChanged<'sftpSud
   const callback = (newValue?: string) => onChange('sftpSudo', newValue === '<Default>' ? true : newValue);
   const description = 'Whether to use a sudo shell (and for which user) to run the sftpCommand in (if present, gets passed as -u to sudo)';
   const values = ['<Default>'];
-  const value = (config.sftpSudo && typeof config.sftpSudo === 'string') ? config.sftpSudo : '<Default>';
-  return <FieldDropdownWithInput key="sftpSudo" label="SFTP Sudo" {...{ value, values, description }} onChange={callback} />
+  const value = config.sftpSudo === true ? '<Default>' : (typeof config.sftpSudo === 'string' ? config.sftpSudo : undefined);
+  return <FieldDropdownWithInput key="sftpSudo" label="SFTP Sudo" {...{ value, values, description }} onChange={callback} optional />
 }
 
 export function terminalCommand(config: FileSystemConfig, onChange: FSCChanged<'terminalCommand'>): React.ReactElement {
