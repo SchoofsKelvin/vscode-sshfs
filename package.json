@@ -1,7 +1,7 @@
 {
     "name": "vscode-sshfs",
     "displayName": "SSH FS",
-    "description": "File system provider using SSH",
+    "description": "File system, terminal and task provider using SSH",
     "publisher": "Kelvin",
     "version": "1.19.2",
     "engines": {
@@ -28,6 +28,7 @@
         "onCommand:sshfs.refresh"
     ],
     "main": "./dist/extension.js",
+    "homepage": "https://github.com/SchoofsKelvin/vscode-sshfs",
     "author": {
         "name": "Kelvin Schoofs",
         "email": "schoofs.kelvin@gmail.com",
@@ -48,7 +49,31 @@
         "sshfs",
         "sync",
         "filesystem",
-        "terminal"
+        "terminal",
+        "sftp",
+        "scp"
+    ],
+    "badges": [
+      {
+        "url": "https://img.shields.io/github/v/release/SchoofsKelvin/vscode-sshfs?include_prereleases&label=GitHub%20version",
+        "href": "https://github.com/SchoofsKelvin/vscode-sshfs/releases",
+        "description": "Releases on GitHub"
+      },
+      {
+        "url": "https://img.shields.io/open-vsx/v/Kelvin/vscode-sshfs?label=Open%20VSX",
+        "href": "https://open-vsx.org/extension/Kelvin/vscode-sshfs",
+        "description": "Open VSX Registry"
+      },
+      {
+        "url": "https://img.shields.io/visual-studio-marketplace/v/Kelvin.vscode-sshfs?label=VS%20Marketplace&logo=sdf",
+        "href": "https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs",
+        "description": "Visual Studio Marketplace"
+      },
+      {
+        "url": "https://img.shields.io/visual-studio-marketplace/i/Kelvin.vscode-sshfs?label=Installs",
+        "href": "https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs",
+        "description": "Unique installs using Visual Studio Marketplace"
+      }
     ],
     "contributes": {
         "views": {

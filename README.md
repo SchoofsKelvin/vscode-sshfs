@@ -1,71 +1,94 @@
 
 # SSH FS
-
 ![Logo](./resources/Logo.png)
 
-[![GitHub package version](./media/github.png)](https://github.com/SchoofsKelvin/vscode-sshfs) 
-[![Visual Studio Marketplace](https://vsmarketplacebadge.apphb.com/version-short/Kelvin.vscode-sshfs.svg)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
- [![Donate](./media/paypal.png)](https://www.paypal.me/KSchoofs)
+[![GitHub package version](https://img.shields.io/github/v/release/SchoofsKelvin/vscode-sshfs?include_prereleases&label=GitHub%20version)](https://github.com/SchoofsKelvin/vscode-sshfs)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/Kelvin.vscode-sshfs?label=VS%20Marketplace&logo=sdf)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
+[![OpenVSX Registry](https://img.shields.io/open-vsx/v/Kelvin/vscode-sshfs?label=Open%20VSX)](https://open-vsx.org/extension/Kelvin/vscode-sshfs)
 
+[![VS Market installs](https://img.shields.io/visual-studio-marketplace/i/Kelvin.vscode-sshfs?color=green&label=Installs)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/SchoofsKelvin?color=green&label=GitHub%20Sponsors)](https://github.com/sponsors/SchoofsKelvin)
+[![Donate](./media/paypal.png)](https://www.paypal.me/KSchoofs)
 
-This extension makes use of the new FileSystemProvider, added in version 1.23.0 of Visual Studio Code. It allows "mounting" a remote folder over SSH as a local Workspace folder.
+This extension allows mounting remote folders as local workspace folders, launch integrated remote terminals and run `ssh-shell` tasks.
 
-## Summary
-* Use a remote directory (over SSH) as workspace folder
-* Instantly create one or multiple terminals on the same host
-* A built-in UI to add, edit and remove configurations
-* Use agents, including Pageant and OpenSSH on Windows
-* Use private keys (any supported by ssh2-streams, including PuTTY's PPK)
-* Get prompted for a password/passphrase (plain text password aren't required)
-* Easily create configurations that reference a PuTTY session/configuration
-* Create tasks that run commands on a remote host (remote version of "shell" task type)
-* Have multiple SSH (and regular) workspace folders at once
-* Make use of SOCKS 4/5 and HTTP proxies and connection hopping
+## Features
 
-## Usage
-Use the command `SSH FS: Create a SSH FS configuration`, or open the Settings UI using the `SSH FS: Open settings and edit configurations` and click Add:
+### Config editor
+The built-in config editor makes it easy to create and edit configurations:
+![Config editor](./media/config-editor.png)
 
-![Create a new configuration](./media/screenshot-create-config.png)
+The config editors stores this, by default, in your User Settings (`settings.json`) as:
+```json
+"sshfs.configs": [
+    {
+        "name": "hetzner",
+        "putty": "Hetzner",
+        "label": "Hetzner",
+        "hop": "hetzner2",
+        "root": "/root"
+    }
+],
+```
+This config is configured to copy settings (e.g. username, host, ...) from my PuTTY session. Due to me having loaded my private key in Pageant (PuTTY's agent), this config allows me to create a connection without having to provide a password/passphrase. It also specifies that all file operations _(`ssh://hetzner/some/file.js`)_ are relative to the `/root` directory on the server.
 
-In this UI, you can also edit/delete existing configurations:
-
-![Config Editor](./media/screenshot-config-editor.png)
-
-To connect, either rightclick the name in the Explorer tab, or use the command panel:
-
-![Connect](./media/screenshot-connect.png)
-
-This will add a Workspace folder linked to a SSH (SFTP) session:
-
-![Workspace folder added](./media/screenshot-explorer.png)
-
-## Changelog 1.18.0
-Starting from version 1.18.0 of the extension, a few new features are added:
+Configurations are read from your global User Settings, the current workspace's settings, and any JSON files configured with `sshfs.configpaths`. Even when the workspace overrides this setting, the globally-configured paths will still be read. The workspace versions do have higher priority for merging or ignoring duplicates.
 
 ### Terminals
-The configurations for SSH file systems can now also be used to spawn terminals:
-
+Using a simple button or the command palette, a remote terminal can be started:
 ![Terminals](./media/terminals.png)
 
-Opening a terminal automatically sets the working directory to the `root` directory, unless a directory was explicitly selected to open the terminal in:
+_Uses `$SHELL` by default to launch your default user shell. A config option exists to change this, e.g. `"ksh -"` or `"exec .special-profile; $SHELL"`_
 
-![Explorer Terminal](./media/explorer-terminal.png)
+If a connection is already opened for a configuration, there is no need to reauthenticate. As long as the configuration hasn't changed, existing connections (both for workspace folders and terminals) will be reused.
 
-This replaces the built-in "Open terminal" context menu option that isn't provided for remote field systems. For non-ssh:// file systems, the original "Open terminal" menu item is still displayed, the remote version only affects ssh:// file systems.
+### Remote shell tasks
+A new task type `ssh-shell` is added to run shell commands remotely:
+![Remote shell tasks](./media/shell-tasks.png)
 
-### New task type
-This extension adds a new task type `ssh-shell` which can be used to run commands on a configured remote host:
+The task terminal opens a full PTY terminal on the server.
 
-![Tasks](./media/tasks.png)
+### Remote workspace folders
+Using a simple button or the command palette, we can mount a remote workspace folder as a regular local workspace folder:
+![Remote workspace folder](./media/workspace-folder.png)
 
-Currently only the `command` field is supported. The goal is to replicate part of the `shell` task structure, e.g. an `args` array, support for `${workspaceFolder}`, ...
+_Same configuration used as from the [Config editor](#Config%20editor) above._
 
-### Connection reuse
-The way the extension connects to the remote hosts is reworked. The extension tries to only keep one connection per host active, with one connection supporting the file system access and a bunch of terminals. If the saved configuration has changed after a connection has been established, the next terminal/filesystem will start a new connection, but leave the first one alive and fine.
+This works seamlessly with extensions using the `vscode.workspace.fs` API _(added in VS Code 1.37.0)_, although not all extensions switched over, especially ones making use of binary files.
 
-A handy enhancement this brings is that prompts (e.g. for passwords) should only happen once. As long as a connection is open (either by having a connected file system or terminal to the host), opening e.g. a new terminal skips the whole authentication phase and is basically instant.
+As can be seen, right-clicking a remote directory gives the option to instantly open a remote terminal in this directory.
 
-Connections without an active file system or terminals will automatically be closed somewhere after 5 seconds. If you're planning on running a bunch of tasks on a host without having a workspace folder connected to it, keeping a terminal open is handy and advised.
+The extension supports any `ssh://` URI. I actually opened `ssh://hetzner/ng-ui` as my folder, which resolves to `/root/ng-ui` on my remote server. By default, the button/command opens `ssh://hetzner/` which would then mount `/root`, as that is what my `Root` config field is set to. You can set it to whatever, including `~/path`.
 
-### Logging
-Logging has slightly improved, resulting in better logs that help with resolving issues.
+### Miscellaneous
+The extension comes with a bunch of other improvements/features. Internally the [ssh2](https://www.npmjs.com/package/ssh2) package is used. The raw config JSON objects _(as seen in [Config editor](#Config%20editor))_ is, apart from some special fields, a one-on-one mapping of the config options supported by this package. Power users can edit their `settings.json` to e.g. make use of the `algorithms.cipher` field to specify a list of ciphers to use.
+
+Some other features worth mentioning:
+
+#### Prompt host/username/password/... for every connection
+![Prompt username](./media/prompt-username.png)
+
+Active connections are reused to minimize prompts. A connection gets closed if there's no terminal or file system using it for over 5 seconds.
+
+#### Proxy settings
+Several proxy types (SSH hopping, HTTP and SOCKS 4/5) are supported:
+
+![Proxy settings](./media/proxy-settings.png)
+
+`SSH Hop` refers to using another configuration to hop through, similar to OpenSSH's `ProxyJump`:
+
+![Hop config field](./media/hop-config.png)
+
+#### SFTP Command/Sudo and Terminal command
+![SFTP and Terminal Command config fields](./media/sftp-config.png)
+
+The extension supports using a custom `sftp` subsystem command. By default, it uses the `sftp` subsystem as indicated by the remote SSH server. In reality, this usually results in `/usr/lib/openssh/sftp-server` being used.
+
+The `SFTP Command` setting allows specifying to use a certain command instead of the default subsystem. The `SFTP Sudo` setting makes the extension try to create a sudo shell _(for the given user, or whatever sudo defaults to)_ and run `SFTP Command` _(or `/usr/lib/openssh/sftp-server` by default)_. For most users, setting this to `<Default>` should allow operating on the remote file system as `root`. Power users with esoteric setups can resort to changing `SFTP Command` to e.g. `sudo /some-sftp-server`, but might run into trouble with password prompts.
+
+The `Terminal command` option, as mentioned in [Terminals](#Terminals), allows overriding the command used to launch the remote shell. By default, the extension launches a remote shell over the SSH connection, runs `cd ...` if necessary, followed by `$SHELL` to start the user's default shell. This config option allows to replace this `$SHELL` with a custom way way of starting the shell, or configuring the provided default SSH shell.
+
+## Links
+- [GitHub](https://github.com/SchoofsKelvin/vscode-sshfs) ([Issues](https://github.com/SchoofsKelvin/vscode-sshfs/issues) | [(Pre)-releases](https://github.com/SchoofsKelvin/vscode-sshfs/releases) | [Roadmap](https://github.com/SchoofsKelvin/vscode-sshfs/projects/1) | [Sponsor](https://github.com/sponsors/SchoofsKelvin))
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
+- [Open VSX Registry](https://open-vsx.org/extension/Kelvin/vscode-sshfs)
