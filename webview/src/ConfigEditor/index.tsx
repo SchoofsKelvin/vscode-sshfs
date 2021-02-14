@@ -25,7 +25,7 @@ class ConfigEditor extends React.Component<StateProps & DispatchProps> {
         return <FieldGroup>
             <div className="ConfigEditor">
                 <div className="header">
-                    <button className="cancel" onClick={this.props.cancel}>Cancel</button>
+                    <button className="cancel" onClick={this.props.cancel}>Back</button>
                     <div className="title">
                         <h3>{oldConfig.label || oldConfig.name}</h3>
                         <h4>{formatConfigLocation(oldConfig._location!)}</h4>
