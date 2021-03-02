@@ -342,27 +342,102 @@ vscode.workspace.onDidChangeConfiguration(async (e) => {
 });
 loadConfigs();
 
+
+export type FlagValue = string | boolean | null;
+export type FlagCombo = [value: FlagValue, origin: string];
+export const DEFAULT_FLAGS: string[] = ['-DF-GE'];
+let cachedFlags: Record<string, FlagCombo> = {};
+function calculateFlags(): Record<string, FlagCombo> {
+  const flags: Record<string, FlagCombo> = {};
+  const config = vscode.workspace.getConfiguration('sshfs').inspect<string[]>('flags');
+  if (!config) throw new Error(`Could not inspect "sshfs.flags" config field`);
+  function parseList(list: string[] | undefined, origin: string) {
+    if (list === undefined) return;
+    if (!Array.isArray(list)) throw new Error(`Expected string array for flags, but got: ${list}`);
+    const scope: Record<string, FlagCombo> = {};
+    for (const flag of list) {
+      let name: string = flag;
+      let value: FlagValue = null;
+      const eq = flag.indexOf('=');
+      if (eq !== -1) {
+        name = flag.substring(0, eq);
+        value = flag.substring(eq + 1);
+      } else if (flag.startsWith('+')) {
+        name = flag.substring(1);
+        value = true;
+      } else if (flag.startsWith('-')) {
+        name = flag.substring(1);
+        value = false;
+      }
+      name = name.toLocaleLowerCase();
+      if (name in scope) continue;
+      scope[name] = [value, origin];
+    }
+    // Override if necessary (since workspace settings come after global settings)
+    // Per "location", we still ignore duplicate flag names
+    Object.assign(flags, scope);
+  }
+  parseList(DEFAULT_FLAGS, 'Built-in Default');
+  parseList(config.defaultValue, 'Default Settings');
+  // Electron v11 crashes for DiffieHellman GroupExchange, although it's fixed in 11.3.0
+  if ((process.versions as { electron?: string }).electron?.match(/^11\.(0|1|2)\./)) {
+    parseList(['+DF-GE'], 'Fix for issue #239')
+  }
+  parseList(config.globalValue, 'Global Settings');
+  parseList(config.workspaceValue, 'Workspace Settings');
+  parseList(config.workspaceFolderValue, 'WorkspaceFolder Settings');
+  Logging.info(`Calculated config flags: ${JSON.stringify(flags)}`);
+  return cachedFlags = flags;
+}
+
+vscode.workspace.onDidChangeConfiguration(event => {
+  if (event.affectsConfiguration('sshfs.flags')) calculateFlags();
+});
+calculateFlags();
+
+/** Returns a cached version. Gets updated by ConfigurationChangeEvent events */
+export function getFlags(): Record<string, FlagCombo> { return cachedFlags; }
+
 /**
  * Checks the `sshfs.flags` config (overridable by e.g. workspace settings).
- * - Flags are case-insensitive
+ * - Flag names are case-insensitive
  * - If a flag appears twice, the first mention of it is used
  * - If a flag appears as "NAME", `null` is returned
  * - If a flag appears as "FLAG=VALUE", `VALUE` is returned as a string
+ * - If a flag appears as `+FLAG` (and no `=`), `true` is returned (as a boolean)
+ * - If a flag appears as `-FLAG` (and no `=`), `false` is returned (as a boolean)
  * - If a flag is missing, `undefined` is returned (different from `null`!)
+ * 
+ * For `undefined`, an actual `undefined` is returned. For all other cases, a FlagCombo
+ * is returned, e.g. "NAME" returns `[null, "someOrigin"]` and `"+F"` returns `[true, "someOrigin"]`
  * @param target The name of the flag to look for
  */
-export function getFlag(target: string): string | null | undefined {
-  target = target.toLowerCase();
-  const flags: string[] = vscode.workspace.getConfiguration('sshfs').get('flags') || [];
-  for (const flag of flags) {
-    let name: string = flag;
-    let value: any = null;
-    const eq = flag.indexOf('=');
-    if (eq !== -1) {
-      name = flag.substring(0, eq);
-      value = flag.substring(eq + 1);
-    }
-    if (name.toLowerCase() === target) return value;
-  }
-  return undefined;
+export function getFlag(target: string): FlagCombo | undefined {
+  return calculateFlags()[target.toLowerCase()];
+}
+
+/**
+ * Built on top of getFlag. Tries to convert the flag value to a boolean using these rules:
+ * - If the flag isn't present, `missingValue` is returned
+ *   Although this probably means I'm using a flag that I never added to `DEFAULT_FLAGS`
+ * - Booleans are kept
+ * - `null` is counted as `true` (means a flag like "NAME" was present without any value or prefix)
+ * - Strings try to get converted in a case-insensitive way:
+ *  - `true/t/yes/y` becomes true
+ *  - `false/f/no/n` becomes false
+ *  - All other strings result in an error
+ * @param target The name of the flag to look for
+ * @param defaultValue The value to return when no flag with the given name is present
+ * @returns The matching FlagCombo or `[missingValue, 'missing']` instead
+ */
+export function getFlagBoolean(target: string, missingValue: boolean): FlagCombo {
+  const combo = getFlag(target);
+  if (!combo) return [missingValue, 'missing'];
+  const [value, reason] = combo;
+  if (value == null) return [true, reason];
+  if (typeof value === 'boolean') return combo;
+  const lower = value.toLowerCase();
+  if (lower === 'true' || lower === 't' || lower === 'yes' || lower === 'y') return [true, reason];
+  if (lower === 'false' || lower === 'f' || lower === 'no' || lower === 'n') return [false, reason];
+  throw new Error(`Could not convert '${value}' for flag '${target}' to a boolean!`);
 }
