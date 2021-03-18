@@ -2630,10 +2630,9 @@ split@^1.0.1:
   dependencies:
     through "2"
 
-ssh2-streams@~0.4.10:
+ssh2-streams@Timmmm/ssh2-streams#patch-1, ssh2-streams@~0.4.10:
   version "0.4.10"
-  resolved "https://registry.yarnpkg.com/ssh2-streams/-/ssh2-streams-0.4.10.tgz#48ef7e8a0e39d8f2921c30521d56dacb31d23a34"
-  integrity sha512-8pnlMjvnIZJvmTzUIIA5nT4jr2ZWNNVHwyXfMGdRJbug9TpI3kd99ffglgfSWqujVv/0gxwMsDn9j9RVst8yhQ==
+  resolved "https://codeload.github.com/Timmmm/ssh2-streams/tar.gz/75f6d3425d071ac73a18fd46e2f5e738bfe897c5"
   dependencies:
     asn1 "~0.2.0"
     bcrypt-pbkdf "^1.0.2"

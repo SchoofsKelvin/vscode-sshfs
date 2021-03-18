@@ -376,5 +376,8 @@
         "socks": "^2.2.0",
         "ssh2": "^0.8.9",
         "winreg": "^1.2.4"
+    },
+    "resolutions": {
+        "ssh2-streams": "Timmmm/ssh2-streams#patch-1"
     }
 }
