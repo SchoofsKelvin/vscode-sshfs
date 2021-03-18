@@ -66,7 +66,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         this.waitForContinue = false;
         if (this.closed) return reject(new Error('Connection closed'));
         try {
-          const canContinue = func((err, res) => err ? reject(err) : resolve(res));
+          const canContinue = func((err, res) => err ? reject(err) : resolve(res!));
           if (!canContinue) this.waitForContinue = true;
         } catch (e) {
           reject(e);

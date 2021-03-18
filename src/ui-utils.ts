@@ -145,7 +145,7 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             }
             resolve(value);
         });
-        quickPick.onDidHide(() => resolve());
+        quickPick.onDidHide(() => resolve(undefined));
         quickPick.show();
     });
 }

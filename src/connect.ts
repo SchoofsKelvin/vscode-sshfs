@@ -361,7 +361,7 @@ export async function getSFTP(client: Client, config: FileSystemConfig): Promise
   if (config.sftpSudo) await startSudo(shell, config, config.sftpSudo);
   shell.write(`echo SFTP READY\n`);
   // Wait until we see "SFTP READY" (skipping welcome messages etc)
-  await new Promise((ready, nvm) => {
+  await new Promise<void>((ready, nvm) => {
     const handler = (data: string | Buffer) => {
       if (data.toString().trim() !== 'SFTP READY') return;
       shell.stdout.removeListener('data', handler);
