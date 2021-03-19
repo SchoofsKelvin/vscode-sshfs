@@ -1,0 +1,38 @@
+name: Publish extension
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  openvsx:
+    name: "Open VSX Registry"
+    if: endsWith(github.event.release.assets[0].name, '.vsix')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download release artifact
+      run: "curl -L -H 'Authorization: token ${{ secrets.GITHUB_TOKEN }}' -H 'Accept: application/octet-stream' ${{ github.event.release.assets[0].url }} --output extension.vsix"
+    - name: Validate extension file
+      run: unzip -f extension.vsix extension/package.json
+    - name: Publish to Open VSX Registry
+      uses: HaaLeo/publish-vscode-extension@v0
+      with:
+        pat: ${{ secrets.OPEN_VSX_TOKEN }}
+        extensionFile: extension.vsix
+        packagePath: ''
+  vs:
+    name: "Visual Studio Marketplace"
+    if: endsWith(github.event.release.assets[0].name, '.vsix')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download release artifact
+      run: "curl -L -H 'Authorization: token ${{ secrets.GITHUB_TOKEN }}' -H 'Accept: application/octet-stream' ${{ github.event.release.assets[0].url }} --output extension.vsix"
+    - name: Validate extension file
+      run: unzip -f extension.vsix extension/package.json
+    - name: Publish to Visual Studio Marketplace
+      uses: HaaLeo/publish-vscode-extension@v0
+      with:
+        pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        registryUrl: https://marketplace.visualstudio.com
+        extensionFile: extension.vsix
+        packagePath: ''
