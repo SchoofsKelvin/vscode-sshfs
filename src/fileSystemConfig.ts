@@ -98,6 +98,8 @@ export interface FileSystemConfig extends ConnectConfig {
   sftpSudo?: string | boolean;
   /** The command(s) to run when a new SSH terminal gets created. Defaults to `$SHELL`. Internally the command `cd ...` is run first */
   terminalCommand?: string | string[];
+  /** The command(s) to run when a `ssh-shell` gets run. Defaults to the placeholder `$COMMAND`. Internally the command `cd ...` is run first */
+  taskCommand?: string | string[];
   /** The filemode to assign to created files */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */

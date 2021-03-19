@@ -283,13 +283,22 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       `SSH Task '${task.name}'`,
       'ssh',
       new vscode.CustomExecution(async (resolved: SSHShellTaskOptions) => {
-        const { createTerminal, createTextTerminal } = await import('./pseudoTerminal');
+        const { createTerminal, createTextTerminal, joinCommands } = await import('./pseudoTerminal');
         try {
           if (!resolved.host) throw new Error('Missing field \'host\' in task description');
           if (!resolved.command) throw new Error('Missing field \'command\' in task description');
           const connection = await this.connectionManager.createConnection(resolved.host);
           resolved = await this.replaceTaskVariablesRecursive(resolved, value => this.replaceTaskVariables(value, connection.actualConfig));
-          const { command, workingDirectory } = resolved;
+          let { command, workingDirectory } = resolved;
+          let { taskCommand = '$COMMAND' } = connection.actualConfig;
+          taskCommand = joinCommands(taskCommand)!;
+          if (taskCommand.includes('$COMMAND')) {
+            command = taskCommand.replace(/\$COMMAND/g, command);
+          } else {
+            const message = `The taskCommand '${taskCommand}' is missing the '$COMMAND' placeholder!`;
+            Logging.warning(message, LOGGING_NO_STACKTRACE);
+            command = `echo "Missing '$COMMAND' placeholder"`;
+          }
           //if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
           this.connectionManager.update(connection, con => con.pendingUserCount++);
           const pty = await createTerminal({

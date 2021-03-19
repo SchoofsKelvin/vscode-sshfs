@@ -36,10 +36,10 @@ export interface TerminalOptions {
     command?: string;
 }
 
-function joinCommands(commands?: string | string[]): string | undefined {
+export function joinCommands(commands?: string | string[]): string | undefined {
     if (!commands) return undefined;
     if (typeof commands === 'string') return commands;
-    return commands.join(';');
+    return commands.join('; ');
 }
 
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
