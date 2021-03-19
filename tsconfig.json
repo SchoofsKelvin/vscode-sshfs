@@ -3,10 +3,10 @@
         "strictNullChecks": true,
         "module": "esnext",
         "moduleResolution": "node",
-        "target": "es6",
+        "target": "ES2019",
         "outDir": "out",
         "lib": [
-            "es6"
+            "ES2019"
         ],
         "sourceMap": true,
         "rootDir": "src"
