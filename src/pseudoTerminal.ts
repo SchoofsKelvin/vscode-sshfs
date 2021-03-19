@@ -134,6 +134,6 @@ export function createTextTerminal(initialText?: string): TextTerminal {
         onDidWrite: onDidWrite.event,
         onDidClose: onDidClose.event,
         onDidOpen: onDidOpen.event,
-        open: () => initialText && (onDidWrite.fire(initialText), onDidClose.fire(1)),
+        open: () => initialText && (onDidWrite.fire(initialText + '\r\n'), onDidClose.fire(1)),
     };
 }

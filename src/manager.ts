@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import { getConfig, getConfigs, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
-import { Logging } from './logging';
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -173,20 +173,20 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   }
   public async promptReconnect(name: string) {
     const config = getConfig(name);
-    console.log('config', name, config);
     if (!config) return;
     const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Ignore', 'Disconnect');
     if (choice === 'Disconnect') this.commandDisconnect(name);
   }
   /* TaskProvider */
   protected async replaceTaskVariables(value: string, config: FileSystemConfig): Promise<string> {
-    return value.replace(/\$\{(\w+)\}/g, (str, match: string) => {
+    return value.replace(/\$\{(.*?)\}/g, (str, match: string) => {
       if (!match.startsWith('remote')) return str; // Our variables always start with "remote"
       // https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/workbench/services/configurationResolver/common/variableResolver.ts#L156
       const [key, argument] = match.split(':') as [string, string?];
       const getFilePath = (): vscode.Uri => {
         const uri = vscode.window.activeTextEditor?.document?.uri;
-        if (uri) return uri;
+        if (uri && uri.scheme === 'ssh') return uri;
+        if (uri) throw new Error(`Variable ${str}: Active editor is not a ssh:// file`);
         throw new Error(`Variable ${str} can not be resolved. Please open an editor.`);
       }
       const getFolderPathForFile = (): vscode.Uri => {
@@ -202,7 +202,8 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         const { workspaceFolders = [] } = vscode.workspace;
         if (argument) {
           const uri = workspaceFolders.find(ws => ws.name === argument)?.uri;
-          if (uri) return uri;
+          if (uri && uri.scheme === 'ssh') return uri;
+          if (uri) throw new Error(`Variable ${str}: Workspace folder '${argument}' is not a ssh:// folder`);
           throw new Error(`Variable ${str} can not be resolved. No such folder '${argument}'.`);
         }
         if (sshFolder) return sshFolder.uri;
@@ -211,7 +212,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         }
         throw new Error(`Variable ${str} can not be resolved. Please open an ssh:// folder.`);
       };
-      switch (key.toLowerCase()) {
+      switch (key) {
         case 'remoteWorkspaceRoot':
         case 'remoteWorkspaceFolder':
           return this.getRemotePath(config, getFolderUri());
@@ -251,7 +252,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           return path.posix.sep;
         default:
           const msg = `Unrecognized task variable '${str}' starting with 'remote', ignoring`;
-          Logging.warning(msg);
+          Logging.warning(msg, LOGGING_NO_STACKTRACE);
           vscode.window.showWarningMessage(msg);
           return str;
       }
@@ -315,7 +316,6 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (!isSSHPseudoTerminal(pty)) return;
     const conn = this.connectionManager.getActiveConnections().find(c => c.terminals.includes(pty));
     if (!conn) return; // Connection died, which means the terminal should also be closed already?
-    console.log('provideTerminalLinks', line, pty.config.root, conn ? conn.filesystems.length : 'No connection?');
     const links: TerminalLinkUri[] = [];
     const PATH_REGEX = /\/\S+/g;
     while (true) {
