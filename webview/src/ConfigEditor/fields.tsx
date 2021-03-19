@@ -34,7 +34,7 @@ export function merge(config: FileSystemConfig, onChange: FSCChanged<'merge'>): 
 }
 
 export function label(config: FileSystemConfig, onChange: FSCChanged<'label'>): React.ReactElement {
-  const callback = (value?: string) => onChange('label', value);
+  const callback = (newValue?: string) => onChange('label', newValue);
   const description = 'Label to display in some UI places (e.g. popups)';
   return <FieldString key="label" label="Label" value={config.label} onChange={callback} optional description={description} />
 }
@@ -97,7 +97,7 @@ export function password(config: FileSystemConfig, onChange: FSCChanged<'passwor
 }
 
 export function privateKeyPath(config: FileSystemConfig, onChange: FSCChanged<'privateKeyPath'>): React.ReactElement {
-  const callback = (value?: string) => onChange('privateKeyPath', value);
+  const callback = (newValue?: string) => onChange('privateKeyPath', newValue);
   const description = 'A path to a private key. Supports environment variables, e.g. `$USERPROFILE/.ssh/myKey.ppk` or `$HOME/.ssh/myKey`';
   return <FieldPath key="privateKeyPath" label="Private key" value={config.privateKeyPath} onChange={callback} optional description={description} />
 }
@@ -133,9 +133,18 @@ export function terminalCommand(config: FileSystemConfig, onChange: FSCChanged<'
   return <FieldDropdownWithInput key="terminalCommand" label="Terminal command" {...{ value, values, description }} onChange={callback} optional />
 }
 
+export function taskCommand(config: FileSystemConfig, onChange: FSCChanged<'taskCommand'>): React.ReactElement {
+  const callback = (newValue?: string) => onChange('taskCommand', newValue);
+  const description = 'The command(s) to run when a `ssh-shell` task gets run. Defaults to the placeholder `$COMMAND`. Internally the command `cd ...` is run first';
+  const values = ['$COMMAND'];
+  let value = config.taskCommand;
+  if (Array.isArray(value)) value = value.join('; ');
+  return <FieldDropdownWithInput key="taskCommand" label="Task command" {...{ value, values, description }} onChange={callback} optional />
+}
+
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
   name, merge, label, group, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
-  sftpCommand, sftpSudo, terminalCommand,
+  sftpCommand, sftpSudo, terminalCommand, taskCommand,
   PROXY_FIELD];
