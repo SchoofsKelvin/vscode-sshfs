@@ -12,7 +12,7 @@ import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath } fr
 
 function getVersion(): string | undefined {
   const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
-  return ext && ext.packageJSON && ext.packageJSON.version;
+  return ext?.packageJSON?.version;
 }
 
 interface CommandHandler {
@@ -30,6 +30,17 @@ export function activate(context: vscode.ExtensionContext) {
   Logging.info(`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`);
 
   setDebug(context.extensionMode !== vscode.ExtensionMode.Production);
+
+  // Likely that we'll have a breaking change in the future that requires users to check
+  // their configs, or at least reconfigure already existing workspaces with new URIs.
+  // See https://github.com/SchoofsKelvin/vscode-sshfs/issues/198#issuecomment-785926352
+  const previousVersion = context.globalState.get<string>('lastVersion');
+  context.globalState.update('lastVersion', getVersion());
+  if (!previousVersion) {
+    Logging.info('No previous version detected. Fresh or pre-v1.21.0 installation?');
+  } else if (previousVersion !== getVersion()) {
+    Logging.info(`Previously used version ${previousVersion}, first run after install.`);
+  }
 
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way
@@ -74,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.add(target?: string | FileSystemConfig)
   registerCommandHandler('sshfs.add', {
-    promptOptions: { promptConfigs: true },
+    promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
     handleConfig: config => manager.commandConnect(config),
   });
 
@@ -95,7 +106,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.termninal(target?: string | FileSystemConfig | Connection | vscode.Uri)
   registerCommandHandler('sshfs.terminal', {
-    promptOptions: { promptConfigs: true, promptConnections: true },
+    promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
     handleConfig: config => manager.commandTerminal(config),
     handleConnection: con => manager.commandTerminal(con),
     handleUri: async uri => {

@@ -4,9 +4,10 @@ import { userInfo } from 'os';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { getConfigs } from './config';
+import { getConfig, getFlag, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
+import type { PuttySession } from './putty';
 import { toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
@@ -33,8 +34,8 @@ const PROMPT_FIELDS: Partial<Record<keyof FileSystemConfig, [
   promptOnEmpty: boolean, password?: boolean]>> = {
   host: ['Host', c => `Host for ${c.name}`, true],
   username: ['Username', c => `Username for ${c.name}`, true],
-  password: ['Password', c => `Password for ${c.username}@${c.name}`, false, true],
-  passphrase: ['Passphrase', c => `Passphrase for provided export/private key for ${c.username}@${c.name}`, false, true],
+  password: ['Password', c => `Password for '${c.username}' for ${c.name}`, false, true],
+  passphrase: ['Passphrase', c => `Passphrase for provided export/private key for '${c.username}' for ${c.name}`, false, true],
 };
 
 async function promptFields(config: FileSystemConfig, ...fields: (keyof FileSystemConfig)[]): Promise<void> {
@@ -63,60 +64,84 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   // Add the internal _calculated field to cache the actual config for the next calculateActualConfig call
   // (and it also allows accessing the original config that generated this actual config, if ever necessary)
   config = { ...config, _calculated: config };
-  config.username = replaceVariables(config.username);
+  // Windows uses `$USERNAME` while Unix uses `$USER`, let's normalize it here
+  if (config.username === '$USERNAME') config.username = '$USER';
+  // Delay handling just `$USER` until later, as PuTTY might handle it specially
+  if (config.username !== '$USER') config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');
   if (port) config.port = Number(port);
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
   logging.info(`Calculating actual config`);
+  if (config.instantConnection) {
+    // Created from an instant connection string, so enable PuTTY (in try mode)
+    config.putty = '<TRY>'; // Could just set it to `true` but... consistency?
+  }
   if (config.putty) {
     if (process.platform !== 'win32') {
       logging.warning(`\tConfigurating uses putty, but platform is ${process.platform}`);
     }
-    let nameOnly = true;
-    if (config.putty === true) {
-      await promptFields(config, 'host');
-      // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
-      if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
-      config.putty = config.host;
-      nameOnly = false;
+    const { getCachedFinder } = await import('./putty');
+    const getSession = await getCachedFinder();
+    const cUsername = config.username === '$USER' ? undefined : config.username;
+    const tryPutty = config.instantConnection || config.putty === '<TRY>';
+    let session: PuttySession | undefined;
+    if (tryPutty) {
+      // If we're trying to find one, we also check whether `config.host` represents the name of a PuTTY session
+      session = await getSession(config.host);
+      logging.info(`\ttryPutty is true, tried finding a config named '${config.host}' and found ${session ? `'${session.name}'` : 'no match'}`);
+    }
+    if (!session) {
+      let nameOnly = true;
+      if (config.putty === true) {
+        await promptFields(config, 'host');
+        // TODO: `config.putty === true` without config.host should prompt the user with *all* PuTTY sessions
+        if (!config.host) throw new Error(`'putty' was true but 'host' is empty/missing`);
+        config.putty = config.host;
+        nameOnly = false;
+      } else {
+        config.putty = replaceVariables(config.putty);
+      }
+      session = await getSession(config.putty, config.host, cUsername, nameOnly);
+    }
+    if (session) {
+      if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
+      config.username = cUsername || session.username;
+      if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
+        config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
+      }
+      // Used to be `config.host || session.hostname`, but `config.host` could've been just the session name
+      config.host = session.hostname.replace(/^.*?@/, '');
+      config.port = session.portnumber || config.port;
+      config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
+      if (session.usernamefromenvironment) config.username = '$USER';
+      config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
+      switch (session.proxymethod) {
+        case 0:
+          break;
+        case 1:
+        case 2:
+        case 3:
+          if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 or HTTP but 'proxyhost' is missing`);
+          config.proxy = {
+            host: session.proxyhost,
+            port: session.proxyport,
+            type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
+          };
+          break;
+        default:
+          throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
+      }
+      logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
+    } else if (!tryPutty) {
+      throw new Error(`Couldn't find the requested PuTTY session`);
     } else {
-      config.putty = replaceVariables(config.putty);
+      logging.debug(`\tConfig suggested finding a PuTTY configuration, did not find one`);
     }
-    const session = await (await import('./putty')).getSession(config.putty, config.host, config.username, nameOnly);
-    if (!session) throw new Error(`Couldn't find the requested PuTTY session`);
-    if (session.protocol !== 'ssh') throw new Error(`The requested PuTTY session isn't a SSH session`);
-    config.username = config.username || session.username;
-    if (!config.username && session.hostname && session.hostname.indexOf('@') >= 1) {
-      config.username = session.hostname.substr(0, session.hostname.indexOf('@'));
-    }
-    config.host = config.host || session.hostname;
-    config.port = session.portnumber || config.port;
-    config.agent = config.agent || (session.tryagent ? 'pageant' : undefined);
-    if (session.usernamefromenvironment) {
-      config.username = process.env.USERNAME || process.env.USER;
-      if (!config.username) throw new Error(`Trying to use the system username, but process.env.USERNAME or process.env.USER is missing`);
-    }
-    config.privateKeyPath = config.privateKeyPath || (!config.agent && session.publickeyfile) || undefined;
-    switch (session.proxymethod) {
-      case 0:
-        break;
-      case 1:
-      case 2:
-      case 3:
-        if (!session.proxyhost) throw new Error(`Proxymethod is SOCKS 4/5 or HTTP but 'proxyhost' is missing`);
-        config.proxy = {
-          host: session.proxyhost,
-          port: session.proxyport,
-          type: session.proxymethod === 1 ? 'socks4' : (session.proxymethod === 2 ? 'socks5' : 'http'),
-        };
-        break;
-      default:
-        throw new Error(`The requested PuTTY session uses an unsupported proxy method`);
-    }
-    logging.debug(`\tReading PuTTY configuration lead to the following configuration:\n${JSON.stringify(config, null, 4)}`);
   }
+  // If the username is (still) `$USER` at this point, use the local user's username
+  if (config.username === '$USER') config.username = userInfo().username;
   if (config.sshConfig) {
     await promptFields(config, 'host');
     let paths = vscode.workspace.getConfiguration('sshfs').get<string[]>('paths.ssh');
@@ -160,6 +185,11 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     // Issue with the ssh2 dependency apparently not liking false
     delete config.passphrase;
   }
+  if (!config.privateKey && !config.agent && !config.password) {
+    logging.debug(`\tNo privateKey, agent or password. Gonna prompt for password`);
+    config.password = true as any;
+    await promptFields(config, 'password');
+  }
   logging.debug(`\tFinal configuration:\n${JSON.stringify(censorConfig(config), null, 4)}`);
   return config;
 }
@@ -171,7 +201,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   logging.info(`Creating socket`);
   if (config.hop) {
     logging.debug(`\tHopping through ${config.hop}`);
-    const hop = getConfigs().find(c => c.name === config.hop);
+    const hop = getConfig(config.hop);
     if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
     const ssh = await createSSH(hop);
     if (!ssh) {
@@ -242,8 +272,22 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       reject(error);
     });
     try {
-      logging.info(`Creating SSH session over the opened socket`);
-      client.connect(Object.assign<ConnectConfig, ConnectConfig, ConnectConfig>(config, { sock }, DEFAULT_CONFIG));
+      const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
+      if (config.debug || getFlag('DEBUG_SSH2') !== undefined) {
+        const scope = Logging.scope(`ssh2(${config.name})`);
+        finalConfig.debug = (msg: string) => scope.debug(msg);
+      }
+      // Unless the flag 'DF-GE' is specified, disable DiffieHellman groupex algorithms (issue #239)
+      // Note: If the config already specifies a custom `algorithms.key`, ignore it (trust the user?)
+      const [flagV, flagR] = getFlagBoolean('DF-GE', false);
+      if (flagV) {
+        logging.info(`Flag "DF-GE" enabled due to '${flagR}', disabling DiffieHellman kex groupex algorithms`);
+        let kex: string[] = require('ssh2-streams/lib/constants').ALGORITHMS.KEX;
+        kex = kex.filter(algo => !algo.includes('diffie-hellman-group-exchange'));
+        logging.debug(`\tResulting algorithms.kex: ${kex}`);
+        finalConfig.algorithms = { ...finalConfig.algorithms, kex };
+      }
+      client.connect(finalConfig);
     } catch (e) {
       reject(e);
     }
@@ -337,7 +381,7 @@ export async function getSFTP(client: Client, config: FileSystemConfig): Promise
   if (config.sftpSudo) await startSudo(shell, config, config.sftpSudo);
   shell.write(`echo SFTP READY\n`);
   // Wait until we see "SFTP READY" (skipping welcome messages etc)
-  await new Promise((ready, nvm) => {
+  await new Promise<void>((ready, nvm) => {
     const handler = (data: string | Buffer) => {
       if (data.toString().trim() !== 'SFTP READY') return;
       shell.stdout.removeListener('data', handler);

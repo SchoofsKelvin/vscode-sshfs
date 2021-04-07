@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { Connection } from './connection';
-import type { FileSystemConfig } from './fileSystemConfig';
+import { parseConnectionString, FileSystemConfig } from './fileSystemConfig';
 import type { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
@@ -70,6 +70,8 @@ export interface PickComplexOptions {
     immediateReturn?: boolean;
     /** If true, add all connections. If this is a string, filter by config name first */
     promptConnections?: boolean | string;
+    /** If true, add an option to enter a connection string */
+    promptInstantConnection?: boolean;
     /** If true, add all configurations. If this is a string, filter by config name first */
     promptConfigs?: boolean | string;
     /** If true, add all terminals. If this is a string, filter by config name first */
@@ -78,10 +80,27 @@ export interface PickComplexOptions {
     nameFilter?: string;
 }
 
+async function inputInstantConnection(value?: string): Promise<FileSystemConfig | undefined> {
+    const valueSelection = value ? [value.length, value.length] as [number, number] : undefined;
+    const name = await vscode.window.showInputBox({
+        value, valueSelection,
+        placeHolder: 'user@host:/home/user',
+        prompt: 'SSH connection string',
+        validateInput(value: string) {
+            const result = parseConnectionString(value);
+            return typeof result === 'string' ? result : undefined;
+        }
+    });
+    if (!name) return;
+    const result = parseConnectionString(name);
+    if (typeof result === 'string') return;
+    return result[0];
+}
+
 export async function pickComplex(manager: Manager, options: PickComplexOptions):
     Promise<FileSystemConfig | Connection | SSHPseudoTerminal | undefined> {
-    return new Promise((resolve) => {
-        const { promptConnections, promptConfigs, promptTerminals, immediateReturn, nameFilter } = options;
+    return new Promise<any>((resolve) => {
+        const { promptConnections, promptConfigs, nameFilter } = options;
         const items: QuickPickItemWithItem[] = [];
         const toSelect: string[] = [];
         if (promptConnections) {
@@ -98,7 +117,7 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             items.push(...configs.map(config => formatItem(config, true)));
             toSelect.push('configuration');
         }
-        if (promptTerminals) {
+        if (options.promptTerminals) {
             let cons = manager.connectionManager.getActiveConnections();
             if (typeof promptConnections === 'string') cons = cons.filter(con => con.actualConfig.name === promptConnections);
             if (nameFilter) cons = cons.filter(con => con.actualConfig.name === nameFilter);
@@ -106,16 +125,27 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             items.push(...terminals.map(config => formatItem(config, true)));
             toSelect.push('terminal');
         }
-        if (immediateReturn && items.length <= 1) return resolve(items[0]?.item);
+        if (options.promptInstantConnection) {
+            items.unshift({
+                label: '$(terminal) Create instant connection',
+                detail: 'Opens an input box where you can type e.g. `user@host:22/home/user`',
+                picked: true, alwaysShow: true,
+                item: inputInstantConnection,
+            });
+        }
+        if (options.immediateReturn && items.length <= 1) return resolve(items[0]?.item);
         const quickPick = vscode.window.createQuickPick<QuickPickItemWithItem>();
         quickPick.items = items;
         quickPick.title = 'Select ' + toSelect.join(' / ');
         quickPick.onDidAccept(() => {
-            const value = quickPick.activeItems[0]?.item;
+            let value = quickPick.activeItems[0]?.item;
             quickPick.hide();
+            if (typeof value === 'function') {
+                value = value(quickPick.value);
+            }
             resolve(value);
         });
-        quickPick.onDidHide(() => resolve());
+        quickPick.onDidHide(() => resolve(undefined));
         quickPick.show();
     });
 }

@@ -2,10 +2,10 @@
 import * as path from 'path';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, getConfigs, loadConfigsRaw } from './config';
+import { getConfig, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
-import { Logging } from './logging';
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -29,7 +29,7 @@ function commandArgumentToName(arg?: string | FileSystemConfig | Connection): st
   return `FileSystemConfig(${arg.name})`;
 }
 
-interface SSHShellTaskOptions {
+interface SSHShellTaskOptions extends vscode.TaskDefinition {
   host: string;
   command: string;
   workingDirectory?: string;
@@ -63,7 +63,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (existing) return existing;
     let con: Connection | undefined;
     return this.creatingFileSystems[name] ||= catchingPromise<SSHFileSystem>(async (resolve, reject) => {
-      config = config || getConfigs().find(c => c.name === name);
+      config ||= getConfig(name);
       if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
       const con = await this.connectionManager.createConnection(name, config);
       this.connectionManager.update(con, con => con.pendingUserCount++);
@@ -126,7 +126,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         if (chosen === 'Retry') {
           this.createFileSystem(name).catch(() => { });
         } else if (chosen === 'Configure') {
-          this.commandConfigure(name);
+          this.commandConfigure(config || name);
         } else {
           this.commandDisconnect(name);
         }
@@ -134,7 +134,12 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       throw e;
     });
   }
-  public getRemotePath(config: FileSystemConfig, relativePath: string) {
+  public getRemotePath(config: FileSystemConfig, relativePath: string | vscode.Uri) {
+    if (relativePath instanceof vscode.Uri) {
+      if (relativePath.authority !== config.name)
+        throw new Error(`Uri authority for '${relativePath}' does not match config with name '${config.name}'`);
+      relativePath = relativePath.path;
+    }
     if (relativePath.startsWith('/')) relativePath = relativePath.substr(1);
     if (!config.root) return '/' + relativePath;
     const result = path.posix.join(config.root, relativePath);
@@ -147,8 +152,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     // Create connection (early so we have .actualConfig.root)
     const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
     // Calculate working directory if applicable
-    let workingDirectory: string | undefined = uri && uri.path;
-    if (workingDirectory) workingDirectory = this.getRemotePath(con.actualConfig, workingDirectory);
+    const workingDirectory = uri && this.getRemotePath(con.actualConfig, uri);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
     const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
@@ -169,41 +173,146 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   }
   public async promptReconnect(name: string) {
     const config = getConfig(name);
-    console.log('config', name, config);
     if (!config) return;
     const choice = await vscode.window.showWarningMessage(`SSH FS ${config.label || config.name} disconnected`, 'Ignore', 'Disconnect');
     if (choice === 'Disconnect') this.commandDisconnect(name);
   }
   /* TaskProvider */
+  protected async replaceTaskVariables(value: string, config: FileSystemConfig): Promise<string> {
+    return value.replace(/\$\{(.*?)\}/g, (str, match: string) => {
+      if (!match.startsWith('remote')) return str; // Our variables always start with "remote"
+      // https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/workbench/services/configurationResolver/common/variableResolver.ts#L156
+      const [key, argument] = match.split(':') as [string, string?];
+      const getFilePath = (): vscode.Uri => {
+        const uri = vscode.window.activeTextEditor?.document?.uri;
+        if (uri && uri.scheme === 'ssh') return uri;
+        if (uri) throw new Error(`Variable ${str}: Active editor is not a ssh:// file`);
+        throw new Error(`Variable ${str} can not be resolved. Please open an editor.`);
+      }
+      const getFolderPathForFile = (): vscode.Uri => {
+        const filePath = getFilePath();
+        const uri = vscode.workspace.getWorkspaceFolder(filePath)?.uri;
+        if (uri) return uri;
+        throw new Error(`Variable ${str}: can not find workspace folder of '${filePath}'.`);
+      }
+      const { workspaceFolders = [] } = vscode.workspace;
+      const sshFolders = workspaceFolders.filter(ws => ws.uri.scheme === 'ssh');
+      const sshFolder = sshFolders.length === 1 ? sshFolders[0] : undefined;
+      const getFolderUri = (): vscode.Uri => {
+        const { workspaceFolders = [] } = vscode.workspace;
+        if (argument) {
+          const uri = workspaceFolders.find(ws => ws.name === argument)?.uri;
+          if (uri && uri.scheme === 'ssh') return uri;
+          if (uri) throw new Error(`Variable ${str}: Workspace folder '${argument}' is not a ssh:// folder`);
+          throw new Error(`Variable ${str} can not be resolved. No such folder '${argument}'.`);
+        }
+        if (sshFolder) return sshFolder.uri;
+        if (sshFolders.length > 1) {
+          throw new Error(`Variable ${str} can not be resolved in a multi ssh:// folder workspace. Scope this variable using ':' and a workspace folder name.`);
+        }
+        throw new Error(`Variable ${str} can not be resolved. Please open an ssh:// folder.`);
+      };
+      switch (key) {
+        case 'remoteWorkspaceRoot':
+        case 'remoteWorkspaceFolder':
+          return this.getRemotePath(config, getFolderUri());
+        case 'remoteWorkspaceRootFolderName':
+        case 'remoteWorkspaceFolderBasename':
+          return path.basename(getFolderUri().path);
+        case 'remoteFile':
+          return this.getRemotePath(config, getFilePath());
+        case 'remoteFileWorkspaceFolder':
+          return this.getRemotePath(config, getFolderPathForFile());
+        case 'remoteRelativeFile':
+          if (sshFolder || argument)
+            return path.relative(getFolderUri().path, getFilePath().path);
+          return getFilePath().path;
+        case 'remoteRelativeFileDirname': {
+          const dirname = path.dirname(getFilePath().path);
+          if (sshFolder || argument) {
+            const relative = path.relative(getFolderUri().path, dirname);
+            return relative.length === 0 ? '.' : relative;
+          }
+          return dirname;
+        }
+        case 'remoteFileDirname':
+          return path.dirname(getFilePath().path);
+        case 'remoteFileExtname':
+          return path.extname(getFilePath().path);
+        case 'remoteFileBasename':
+          return path.basename(getFilePath().path);
+        case 'remoteFileBasenameNoExtension': {
+          const basename = path.basename(getFilePath().path);
+          return (basename.slice(0, basename.length - path.extname(basename).length));
+        }
+        case 'remoteFileDirnameBasename':
+          return path.basename(path.dirname(getFilePath().path));
+        case 'remotePathSeparator':
+          // Not sure if we even need/want this variable, but sure
+          return path.posix.sep;
+        default:
+          const msg = `Unrecognized task variable '${str}' starting with 'remote', ignoring`;
+          Logging.warning(msg, LOGGING_NO_STACKTRACE);
+          vscode.window.showWarningMessage(msg);
+          return str;
+      }
+    });
+  }
+  protected async replaceTaskVariablesRecursive<T>(object: T, handler: (value: string) => string | Promise<string>): Promise<T> {
+    if (typeof object === 'string') return handler(object) as any;
+    if (Array.isArray(object)) return object.map(v => this.replaceTaskVariablesRecursive(v, handler)) as any;
+    if (typeof object == 'object' && object !== null && !(object instanceof RegExp) && !(object instanceof Date)) {
+      // ^ Same requirements VS Code applies: https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/base/common/types.ts#L34
+      const result: any = {};
+      for (let key in object) {
+        const value = await this.replaceTaskVariablesRecursive(object[key], handler);
+        key = await this.replaceTaskVariablesRecursive(key, handler);
+        result[key] = value;
+      }
+      return result;
+    }
+    return object;
+  }
   public provideTasks(token?: vscode.CancellationToken | undefined): vscode.ProviderResult<vscode.Task[]> {
     return [];
   }
   public async resolveTask(task: vscode.Task, token?: vscode.CancellationToken | undefined): Promise<vscode.Task> {
-    let { host, command, workingDirectory } = task.definition as unknown as SSHShellTaskOptions;
-    if (!host) throw new Error('Missing field \'host\' for ssh-shell task');
-    if (!command) throw new Error('Missing field \'command\' for ssh-shell task');
-    const config = getConfig(host);
-    if (!config) throw new Error(`No configuration with the name '${host}' found for ssh-shell task`);
-    // Calculate working directory if applicable
-    if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
     return new vscode.Task(
-      task.definition,
+      task.definition, // Can't replace/modify this, otherwise we're not contributing to "this" task
       vscode.TaskScope.Workspace,
-      `SSH Task '${task.name}' for ${host}`,
+      `SSH Task '${task.name}'`,
       'ssh',
-      new vscode.CustomExecution(async () => {
-        const connection = await this.connectionManager.createConnection(host);
-        this.connectionManager.update(connection, con => con.pendingUserCount++);
-        const { createTerminal } = await import('./pseudoTerminal');
-        const pty = await createTerminal({
-          command, workingDirectory,
-          client: connection.client,
-          config: connection.actualConfig,
-        });
-        this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
-        pty.onDidClose(() => this.connectionManager.update(connection,
-          con => con.terminals = con.terminals.filter(t => t !== pty)));
-        return pty;
+      new vscode.CustomExecution(async (resolved: SSHShellTaskOptions) => {
+        const { createTerminal, createTextTerminal, joinCommands } = await import('./pseudoTerminal');
+        try {
+          if (!resolved.host) throw new Error('Missing field \'host\' in task description');
+          if (!resolved.command) throw new Error('Missing field \'command\' in task description');
+          const connection = await this.connectionManager.createConnection(resolved.host);
+          resolved = await this.replaceTaskVariablesRecursive(resolved, value => this.replaceTaskVariables(value, connection.actualConfig));
+          let { command, workingDirectory } = resolved;
+          let { taskCommand = '$COMMAND' } = connection.actualConfig;
+          taskCommand = joinCommands(taskCommand)!;
+          if (taskCommand.includes('$COMMAND')) {
+            command = taskCommand.replace(/\$COMMAND/g, command);
+          } else {
+            const message = `The taskCommand '${taskCommand}' is missing the '$COMMAND' placeholder!`;
+            Logging.warning(message, LOGGING_NO_STACKTRACE);
+            command = `echo "Missing '$COMMAND' placeholder"`;
+          }
+          //if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
+          this.connectionManager.update(connection, con => con.pendingUserCount++);
+          const pty = await createTerminal({
+            command, workingDirectory,
+            client: connection.client,
+            config: connection.actualConfig,
+          });
+          this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
+          pty.onDidClose(() => this.connectionManager.update(connection,
+            con => con.terminals = con.terminals.filter(t => t !== pty)));
+          return pty;
+        } catch (e) {
+          return createTextTerminal(`Error: ${e.message || e}`);
+        }
       })
     )
   }
@@ -216,7 +325,6 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (!isSSHPseudoTerminal(pty)) return;
     const conn = this.connectionManager.getActiveConnections().find(c => c.terminals.includes(pty));
     if (!conn) return; // Connection died, which means the terminal should also be closed already?
-    console.log('provideTerminalLinks', line, pty.config.root, conn ? conn.filesystems.length : 'No connection?');
     const links: TerminalLinkUri[] = [];
     const PATH_REGEX = /\/\S+/g;
     while (true) {
@@ -298,13 +406,20 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
     if (typeof target === 'object') {
+      if (!target._location && !target._locations.length) {
+        vscode.window.showErrorMessage('Cannot configure a config-less connection!');
+        return;
+      }
       this.openSettings({ config: target, type: 'editconfig' });
       return;
     }
     target = target.toLowerCase();
     let configs = await loadConfigsRaw();
     configs = configs.filter(c => c.name === target);
-    if (configs.length === 0) throw new Error('Unexpectedly found no matching configs?');
+    if (configs.length === 0) {
+      vscode.window.showErrorMessage(`Found no matching configs for '${target}'`);
+      return Logging.error(`Unexpectedly found no matching configs for '${target}' in commandConfigure?`);
+    }
     const config = configs.length === 1 ? configs[0] : configs;
     this.openSettings({ config, type: 'editconfig' });
   }

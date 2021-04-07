@@ -10,7 +10,7 @@ const winreg = new Winreg({
 
 export type NumberAsBoolean = 0 | 1;
 export interface PuttySession {
-  [key: string]: string | number | undefined;
+  //[key: string]: string | number | undefined;
   // General settings
   name: string;
   hostname: string;
@@ -24,7 +24,7 @@ export interface PuttySession {
   proxyhost?: string;
   proxyport: number;
   proxylocalhost: NumberAsBoolean;
-  proxymethod: number; // Key of ['None', 'SOCKS 4', 'SOCKS 5', 'HTTP', 'Telnet', 'Local'] // Only checked first 3
+  proxymethod: number; // Key of ['None', 'SOCKS 4', 'SOCKS 5', 'HTTP', 'Telnet', 'Local']
 }
 
 function valueFromItem(item: Winreg.RegistryItem) {
@@ -37,11 +37,22 @@ function valueFromItem(item: Winreg.RegistryItem) {
   throw new Error(`Unknown RegistryItem type: '${item.type}'`);
 }
 
+const FORMATTED_FIELDS: (keyof PuttySession)[] = [
+  'name', 'hostname', 'protocol', 'portnumber',
+  'username', 'usernamefromenvironment', 'tryagent', 'publickeyfile',
+  'proxyhost', 'proxyport', 'proxylocalhost', 'proxymethod',
+];
+export function formatSession(session: PuttySession): string {
+  const partial: Partial<PuttySession> = {};
+  for (const field of FORMATTED_FIELDS) partial[field] = session[field] as any;
+  return JSON.stringify(partial);
+}
+
 export async function getSessions() {
   Logging.info(`Fetching PuTTY sessions from registry`);
   const values = await toPromise<Winreg.Registry[]>(cb => winreg.keys(cb));
   const sessions: PuttySession[] = [];
-  await Promise.all(values.map(regSession => (async (res, rej) => {
+  await Promise.all(values.map(regSession => (async () => {
     const name = decodeURIComponent(regSession.key.substr(winreg.key.length));
     const props = await toPromise<Winreg.RegistryItem[]>(cb => regSession.values(cb));
     const properties: { [key: string]: string | number } = {};
@@ -49,21 +60,30 @@ export async function getSessions() {
     sessions.push({ name, ...(properties as any) });
   })()));
   Logging.debug(`\tFound ${sessions.length} sessions:`);
-  sessions.forEach(s => Logging.debug(`\t${JSON.stringify(s)}`));
+  sessions.forEach(s => Logging.debug(`\t- ${formatSession(s)}`));
   return sessions;
 }
 
-export async function getSession(name?: string, host?: string, username?: string, nameOnly = false): Promise<PuttySession | null> {
-  const sessions = await getSessions();
+export async function findSession(sessions: PuttySession[], name?: string, host?: string, username?: string, nameOnly = true): Promise<PuttySession | undefined> {
   if (name) {
     name = name.toLowerCase();
-    const session = sessions.find(s => s.name.toLowerCase() === name) || null;
+    const session = sessions.find(s => s.name.toLowerCase() === name);
     if (nameOnly || session) return session;
   }
-  if (!host) return null;
+  if (!host) return undefined;
   host = host.toLowerCase();
   const hosts = sessions.filter(s => s.hostname && s.hostname.toLowerCase() === host);
   if (!username) return hosts[0] || null;
   username = username.toLowerCase();
-  return hosts.find(s => !s.username || s.username.toLowerCase() === username) || null;
+  return hosts.find(s => !s.username || s.username.toLowerCase() === username);
+}
+
+export async function getSession(name?: string, host?: string, username?: string, nameOnly = true): Promise<PuttySession | undefined> {
+  const sessions = await getSessions();
+  return findSession(sessions, name, host, username, nameOnly);
+}
+
+export async function getCachedFinder(): Promise<typeof getSession> {
+  const sessions = await getSessions();
+  return (...args) => findSession(sessions, ...args);
 }

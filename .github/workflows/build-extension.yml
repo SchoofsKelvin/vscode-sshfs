@@ -3,7 +3,7 @@ name: Build extension
 
 on:
   push:
-    tags: '**'
+    tags: ['**']
     branches:
       - '*'
       - 'feature/**'
@@ -23,65 +23,61 @@ jobs:
     timeout-minutes: 10 
     steps:
     - uses: actions/checkout@v2
-    - name: Define variables
-      id: vars
-      run: |
-        SOURCE_NAME=${GITHUB_REF#refs/*/}
-        VSIX_NAME="vscode-sshfs-$SOURCE_NAME.vsix"
-        if  [[ $GITHUB_REF == refs/tags/v* ]]; then
-            TAG_VERSION=${GITHUB_REF#refs/tags/v}
-            VSIX_NAME="vscode-sshfs-$TAG_VERSION.vsix"
-            echo ::set-output name=TAG_VERSION::$TAG_VERSION
-        elif [[ $GITHUB_REF == refs/pull/*/head || $GITHUB_REF == refs/pull/*/merge ]]; then
-            PR_NUMBER=${GITHUB_REF#refs/pull/}
-            PR_NUMBER=${PR_NUMBER%/head}
-            PR_NUMBER=${PR_NUMBER%/merge}
-            VSIX_NAME="vscode-sshfs-pr-$PR_NUMBER.vsix"
-            echo ::set-output name=PR_NUMBER::$PR_NUMBER
-        elif [[ -n $SOURCE_NAME ]]; then
-            VSIX_NAME="vscode-sshfs-$SOURCE_NAME.vsix"
-        fi
-        VSIX_NAME=${VSIX_NAME//"/"/"-"}
-        echo ::set-output name=VSIX_NAME::$VSIX_NAME
-    - name: Use Node.js 10.x
+    - name: Event Utilities
+      uses: SchoofsKelvin/event-utilities@v1
+      id: utils
+      with:
+        artifact_prefix: "vscode-sshfs"
+        artifact_extension: "vsix"
+    - name: Use Node.js 12.x
       uses: actions/setup-node@v1
       with:
-        node-version: 10.x
+        node-version: 12.x
     - name: Install VSCE
       run: |
         yarn global add vsce
         echo "$(yarn global bin)" >> $GITHUB_PATH
+    - name: Get Yarn cache directory
+      id: yarn-cache
+      run: echo "::set-output name=dir::$(yarn cache dir)"
+    - name: Yarn cache
+      uses: actions/cache@v2.1.4
+      with:
+        path: ${{ steps.yarn-cache.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
     - name: Install dependencies in /
       run: yarn --frozen-lockfile
     - name: Install dependencies in /webview/
       working-directory: webview
       run: yarn --frozen-lockfile
     - name: Build extension
-      run: vsce package -o ${{ steps.vars.outputs.VSIX_NAME }}
+      run: vsce package -o ${{ steps.utils.outputs.artifact_name }}
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.1
       with:
-        name: ${{ steps.vars.outputs.VSIX_NAME }}
-        path: ${{ steps.vars.outputs.VSIX_NAME }}
+        name: ${{ steps.utils.outputs.artifact_name }}
+        path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
     - name: Create release
       id: create_release
-      if: ${{ success() && steps.vars.outputs.TAG_VERSION }}
+      if: ${{ success() && steps.utils.outputs.tag_version }}
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: Release ${{ steps.vars.outputs.TAG_VERSION }}
+        release_name: Release ${{ steps.utils.outputs.tag_version }}
         draft: true
     - name: Upload release asset
       id: upload_release_asset
-      if: ${{ success() && steps.vars.outputs.TAG_VERSION }}
+      if: ${{ success() && steps.utils.outputs.tag_version }}
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.vars.outputs.VSIX_NAME }}
-        asset_name: ${{ steps.vars.outputs.VSIX_NAME }}
+        asset_path: ${{ steps.utils.outputs.artifact_name }}
+        asset_name: ${{ steps.utils.outputs.artifact_name }}
         asset_content_type: application/vsix

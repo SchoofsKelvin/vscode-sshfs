@@ -36,10 +36,10 @@ export interface TerminalOptions {
     command?: string;
 }
 
-function joinCommands(commands?: string | string[]): string | undefined {
+export function joinCommands(commands?: string | string[]): string | undefined {
     if (!commands) return undefined;
     if (typeof commands === 'string') return commands;
-    return commands.join(';');
+    return commands.join('; ');
 }
 
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
@@ -115,4 +115,25 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         },
     };
     return pseudo;
+}
+
+export interface TextTerminal extends vscode.Pseudoterminal {
+    write(text: string): void;
+    close(code?: number): void;
+    onDidClose: vscode.Event<number>; // Redeclaring that it isn't undefined
+    onDidOpen: vscode.Event<void>;
+}
+
+export function createTextTerminal(initialText?: string): TextTerminal {
+    const onDidWrite = new vscode.EventEmitter<string>();
+    const onDidClose = new vscode.EventEmitter<number>();
+    const onDidOpen = new vscode.EventEmitter<void>();
+    return {
+        write: onDidWrite.fire.bind(onDidWrite),
+        close: onDidClose.fire.bind(onDidClose),
+        onDidWrite: onDidWrite.event,
+        onDidClose: onDidClose.event,
+        onDidOpen: onDidOpen.event,
+        open: () => initialText && (onDidWrite.fire(initialText + '\r\n'), onDidClose.fire(1)),
+    };
 }

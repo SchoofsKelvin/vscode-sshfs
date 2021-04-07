@@ -1,9 +1,9 @@
 {
     "name": "vscode-sshfs",
     "displayName": "SSH FS",
-    "description": "File system provider using SSH",
+    "description": "File system, terminal and task provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.19.1",
+    "version": "1.20.0",
     "engines": {
         "vscode": "^1.49.0"
     },
@@ -28,6 +28,7 @@
         "onCommand:sshfs.refresh"
     ],
     "main": "./dist/extension.js",
+    "homepage": "https://github.com/SchoofsKelvin/vscode-sshfs",
     "author": {
         "name": "Kelvin Schoofs",
         "email": "schoofs.kelvin@gmail.com",
@@ -48,7 +49,31 @@
         "sshfs",
         "sync",
         "filesystem",
-        "terminal"
+        "terminal",
+        "sftp",
+        "scp"
+    ],
+    "badges": [
+        {
+            "url": "https://img.shields.io/github/v/release/SchoofsKelvin/vscode-sshfs?include_prereleases&label=GitHub%20version",
+            "href": "https://github.com/SchoofsKelvin/vscode-sshfs/releases",
+            "description": "Releases on GitHub"
+        },
+        {
+            "url": "https://img.shields.io/open-vsx/v/Kelvin/vscode-sshfs?label=Open%20VSX",
+            "href": "https://open-vsx.org/extension/Kelvin/vscode-sshfs",
+            "description": "Open VSX Registry"
+        },
+        {
+            "url": "https://img.shields.io/visual-studio-marketplace/v/Kelvin.vscode-sshfs?label=VS%20Marketplace&logo=sdf",
+            "href": "https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs",
+            "description": "Visual Studio Marketplace"
+        },
+        {
+            "url": "https://img.shields.io/visual-studio-marketplace/i/Kelvin.vscode-sshfs?label=Installs",
+            "href": "https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs",
+            "description": "Unique installs using Visual Studio Marketplace"
+        }
     ],
     "contributes": {
         "views": {
@@ -300,6 +325,13 @@
                             "password": "CorrectHorseBatteryStaple"
                         }
                     ]
+                },
+                "sshfs.flags": {
+                    "title": "List of special flags to enable/disable certain fixes/features",
+                    "description": "Flags are usually used for issues or beta testing. Flags can disappear/change anytime!",
+                    "type": "array",
+                    "items": "string",
+                    "default": []
                 }
             }
         },
@@ -344,7 +376,7 @@
         "clean-webpack-plugin": "^2.0.0",
         "source-map-support": "^0.5.19",
         "ts-loader": "^7.0.5",
-        "typescript": "^4.0.2",
+        "typescript": "^4.2.3",
         "webpack": "^4.29.6",
         "webpack-cli": "^3.2.3"
     },
@@ -354,5 +386,8 @@
         "socks": "^2.2.0",
         "ssh2": "^0.8.9",
         "winreg": "^1.2.4"
+    },
+    "resolutions": {
+        "ssh2-streams": "Timmmm/ssh2-streams#patch-1"
     }
 }
