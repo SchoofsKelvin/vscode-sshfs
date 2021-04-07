@@ -238,6 +238,8 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
       return await (await import('./proxy')).socks(config);
     case 'http':
       return await (await import('./proxy')).http(config);
+    case 'command':
+      return await (await import('./proxy')).command(config);
     default:
       throw new Error(`Unknown proxy method`);
   }

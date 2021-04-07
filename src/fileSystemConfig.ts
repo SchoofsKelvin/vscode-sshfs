@@ -5,6 +5,10 @@ export interface ProxyConfig {
   host: string;
   port: number;
 }
+export interface ProxyCommand {
+  type: 'command';
+  command: string;
+};
 
 export type ConfigLocation = number | string;
 
@@ -89,7 +93,7 @@ export interface FileSystemConfig extends ConnectConfig {
   /** Whether to parse ssh_config files (listed by the VS Code setting `sshfs.paths.ssh`) for extra parameters, e.g. Port */
   sshConfig?: boolean;
   /** Optional object defining a proxy to use */
-  proxy?: ProxyConfig;
+  proxy?: ProxyConfig | ProxyCommand;
   /** Optional path to a private keyfile to authenticate with */
   privateKeyPath?: string;
   /** Names of other config (or connection strings) to use as hops */
