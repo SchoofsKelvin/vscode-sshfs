@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import type { FileSystemConfig } from './fileSystemConfig';
 
-// Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging
+// Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging.
+// The only things it currently does is copying Logging messages to the console, while also enabling
+// the webview (Settings UI) from trying a local dev server first instead of the pre-built version.
 export let DEBUG: boolean = false;
 export function setDebug(debug: boolean) {
   console.warn(`[vscode-sshfs] Debug mode set to ${debug}`);
@@ -161,3 +163,12 @@ export function censorConfig(config: FileSystemConfig): CensoredFileSystemConfig
 export const Logging = new (Logger as any) as Logger;
 
 Logging.info('Created output channel for vscode-sshfs');
+Logging.info(`When posting your logs somewhere, keep the following in mind:
+  - While the logging tries to censor your passwords/passphrases/..., double check!
+    Maybe you also want to censor out e.g. the hostname/IP you're connecting to.
+  - If you want to report an issue regarding authentication or something else that
+    seems to be more of an issue with the actual SSH2 connection, it might be handy
+    to reconnect with this added to your User Settings (settings.json) first:
+      "sshfs.flags": [ "DEBUG_SSH2" ],
+    This will (for new connections) also enable internal SSH2 logging.
+`);
