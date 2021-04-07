@@ -280,7 +280,6 @@ export async function fillFileSystemConfig(config: FileSystemConfig, holder: SSH
         password: (toBoolean(result.get('PasswordAuthentication')) != false) as any,
         port: parseInt(result.get('Port')),
         // TODO: PreferredAuthentications (ssh2's non-documented authHandler config property?)
-        // TODO: ProxyCommand, ProxyJump, ProxyUseFdpass (can't support the latter I'm afraid)
         hops: toList(result.get('ProxyJump')),
         // TODO: SendEnv, SetEnv (maybe?)
         username: result.get('User'),
