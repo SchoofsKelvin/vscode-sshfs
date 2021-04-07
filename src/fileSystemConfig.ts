@@ -135,9 +135,14 @@ export function invalidConfigName(name: string) {
  */
 const CONNECTION_REGEX = /^((?<user>\w+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^@\\/:,=]+)(:(?<port>\d+))?(?<path>\/.*)?$/;
 
+const PREFIX_REGEX = /^(ssh|scp|sftp):\/\/(?<input>.*)$/;
+
+/** Based on CONNECTION_REGEX, but also strips leading `ssh://`, `scp://` or `sftp://` if present. */
 export function parseConnectionString(input: string): [config: FileSystemConfig, path?: string] | string {
   input = input.trim();
-  const match = input.match(CONNECTION_REGEX);
+  let match = input.match(PREFIX_REGEX);
+  if (match) input = match.groups!.input;
+  match = input.match(CONNECTION_REGEX);
   if (!match) return 'Invalid format, expected something like "user@example.com:22/some/path"';
   const { user, host, path } = match.groups!;
   const portStr = match.groups!.port;
