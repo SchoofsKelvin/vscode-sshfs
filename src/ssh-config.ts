@@ -253,6 +253,7 @@ export async function buildHolder(paths: string[]): Promise<SSHConfigHolder> {
 }
 
 const toBoolean = (str: string): boolean | undefined => str === 'yes' ? true : str === 'no' ? false : undefined;
+const toList = (str: string): string[] | undefined => str ? str.split(',') : undefined;
 
 export async function fillFileSystemConfig(config: FileSystemConfig, holder: SSHConfigHolder): Promise<void> {
     const localUser = userInfo().username;
@@ -280,17 +281,29 @@ export async function fillFileSystemConfig(config: FileSystemConfig, holder: SSH
         port: parseInt(result.get('Port')),
         // TODO: PreferredAuthentications (ssh2's non-documented authHandler config property?)
         // TODO: ProxyCommand, ProxyJump, ProxyUseFdpass (can't support the latter I'm afraid)
+        hops: toList(result.get('ProxyJump')),
         // TODO: SendEnv, SetEnv (maybe?)
         username: result.get('User'),
     };
+    // ConnectTimeout
     const connectTimeout = parseInt(result.get('ConnectTimeout'));
     if (!isNaN(connectTimeout)) overrides.readyTimeout = connectTimeout;
+    // LogLevel
     const logLevel = result.get('LogLevel');
     if (logLevel) {
         overrides.debug = logLevel.includes('DEBUG') ? msg => {
             Logging.debug(`[ssh2:debug ${config.name}] ${msg}`);
         } : () => { };
     }
+    // ProxyCommand
+    const proxyCommand = result.get('ProxyCommand');
+    if (proxyCommand) {
+        overrides.proxy = {
+            type: 'command',
+            command: proxyCommand,
+        };
+    }
+    // Cleaning up
     for (const key in overrides) {
         const val = overrides[key];
         if (val === '') delete overrides[key];
