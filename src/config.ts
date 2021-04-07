@@ -413,7 +413,7 @@ export function getFlags(): Record<string, FlagCombo> { return cachedFlags; }
  * @param target The name of the flag to look for
  */
 export function getFlag(target: string): FlagCombo | undefined {
-  return calculateFlags()[target.toLowerCase()];
+  return getFlags()[target.toLowerCase()];
 }
 
 /**

@@ -282,7 +282,7 @@ export async function createSSH(config: FileSystemConfig, options: CreateSSHOpti
     });
     try {
       const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
-      if (config.debug || getFlag('DEBUG_SSH2') !== undefined) {
+      if (config.debug || getFlagBoolean('DEBUG_SSH2', false)[0]) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
       }
