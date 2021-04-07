@@ -6,9 +6,9 @@ import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfig, getFlag, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
-import { censorConfig, Logging } from './logging';
+import { censorConfig, Logger, Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { PuttySession } from './putty';
-import { toPromise } from './toPromise';
+import { reduceAsync, toPromise } from './toPromise';
 
 // tslint:disable-next-line:variable-name
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
@@ -199,30 +199,35 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   if (!config) return null;
   const logging = Logging.scope(`createSocket(${config.name})`);
   logging.info(`Creating socket`);
-  if (config.hop) {
-    logging.debug(`\tHopping through ${config.hop}`);
-    const hop = getConfig(config.hop);
-    if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
-    const ssh = await createSSH(hop);
-    if (!ssh) {
-      logging.debug(`\tFailed in connecting to hop ${config.hop}`);
+  if (config.hops && config.hops.length) {
+    const hops = Array.isArray(config.hops) ? config.hops : [config.hops];
+    logging.debug(`\tHops: ${hops.join(', ')}`);
+    const calculatedHops = await Promise.all(hops.map(async str => {
+      let hop: FileSystemConfig | undefined | null = getConfig(str);
+      if (!hop) throw new Error(`Could not get config for hop '${str}'`);
+      hop = await calculateActualConfig(hop);
+      if (!hop) return null;
+      if (!hop.host) throw new Error(`Hop '${str}' converted to '${hop.name}' but lacks the 'host' field`);
+      return hop;
+    }));
+    if (calculatedHops.includes(null)) return null;
+    const hopConfigs = calculatedHops as FileSystemConfig[];
+    logging.debug(`\tHop configs: client -> ${hopConfigs.map((c, i) => `[${i + 1}] ${c.name}`).join(' -> ')} -> server`);
+    const stream = await reduceAsync(hopConfigs, async (sock: NodeJS.ReadableStream | null | undefined, hop, index) => {
+      if (sock === null) return null;
+      const logger = logging.scope(`Hop#${index + 1}`);
+      logger.debug(`Connecting to hop '${hop.name}'`);
+      const ssh = await createSSH(hop, { logger, sock });
+      if (ssh == null) return null;
+      const target = hopConfigs[index + 1] || config;
+      const channel = await toPromise<ClientChannel>(cb => ssh.forwardOut('localhost', 0, target.host!, target.port || 22, cb)).catch((e: Error) => e);
+      if ('write' in channel) return channel;
+      logger.error('Could not create forwarded socket over SSH connection', LOGGING_NO_STACKTRACE);
+      logger.error(channel);
       return null;
-    }
-    return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
-      ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
-        if (err) {
-          logging.debug(`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`);
-          err.message = `Couldn't connect through the hop:\n${err.message}`;
-          return reject(err);
-        } else if (!channel) {
-          err = new Error('Did not receive a channel');
-          logging.debug(`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`);
-          return reject(err);
-        }
-        channel.once('close', () => ssh.destroy());
-        resolve(channel);
-      });
-    });
+    }, undefined);
+    if (stream === undefined) throw new Error('Unexpected undefined');
+    return stream;
   }
   switch (config.proxy && config.proxy.type) {
     case null:
@@ -244,12 +249,16 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   });
 }
 
-export async function createSSH(config: FileSystemConfig, sock?: NodeJS.ReadableStream): Promise<Client | null> {
+export interface CreateSSHOptions {
+  sock?: NodeJS.ReadableStream;
+  logger?: Logger;
+}
+export async function createSSH(config: FileSystemConfig, options: CreateSSHOptions = {}): Promise<Client | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
-  sock = sock || (await createSocket(config))!;
+  const sock = options.sock || (await createSocket(config))!;
   if (!sock) return null;
-  const logging = Logging.scope(`createSSH(${config.name})`);
+  const logging = options.logger || Logging.scope(`createSSH(${config.name})`);
   return new Promise<Client>((resolve, reject) => {
     const client = new Client();
     client.once('ready', () => resolve(client));

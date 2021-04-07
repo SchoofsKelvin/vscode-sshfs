@@ -92,8 +92,8 @@ export interface FileSystemConfig extends ConnectConfig {
   proxy?: ProxyConfig;
   /** Optional path to a private keyfile to authenticate with */
   privateKeyPath?: string;
-  /** A name of another config to use as a hop */
-  hop?: string;
+  /** Names of other config (or connection strings) to use as hops */
+  hops?: string | string[];
   /** The command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem) */
   sftpCommand?: string;
   /** Whether to use a sudo shell (and for which user) to run the sftpCommand in (sftpCommand defaults to /usr/lib/openssh/sftp-server if missing) */
