@@ -1,7 +1,6 @@
 
 import * as dns from 'dns';
 import { request } from 'http';
-import { SocksClient } from 'socks';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise } from './toPromise';
@@ -20,17 +19,18 @@ function validateConfig(config: FileSystemConfig) {
   if (!config.proxy.type) throw new Error(`Missing field 'config.proxy.type'`);
 }
 
-export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
+export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadWriteStream> {
   Logging.info(`Creating socks proxy connection for ${config.name}`);
   validateConfig(config);
-  if (config.proxy!.type !== 'socks4' && config.proxy!.type !== 'socks5') {
+  const proxy = config.proxy!;
+  if (proxy!.type !== 'socks4' && proxy!.type !== 'socks5') {
     throw new Error(`Expected 'config.proxy.type' to be 'socks4' or 'socks5'`);
   }
   try {
-    const ipaddress = (await resolveHostname(config.proxy!.host));
-    if (!ipaddress) throw new Error(`Couldn't resolve '${config.proxy!.host}'`);
-    Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${config.proxy!.type} proxy at ${ipaddress}:${config.proxy!.port}`);
-    const con = await SocksClient.createConnection({
+    const ipaddress = (await resolveHostname(proxy!.host));
+    if (!ipaddress) throw new Error(`Couldn't resolve '${proxy!.host}'`);
+    Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${proxy!.type} proxy at ${ipaddress}:${proxy!.port}`);
+    const con = await (await import('socks')).SocksClient.createConnection({
       command: 'connect',
       destination: {
         host: config.host!,
@@ -38,34 +38,35 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
       },
       proxy: {
         ipaddress,
-        port: config.proxy!.port,
-        type: config.proxy!.type === 'socks4' ? 4 : 5,
+        port: proxy!.port,
+        type: proxy!.type === 'socks4' ? 4 : 5,
       },
     });
-    return con.socket as NodeJS.ReadableStream;
+    return con.socket as NodeJS.ReadWriteStream;
   } catch (e) {
     throw new Error(`Error while connecting to the the proxy: ${e.message}`);
   }
 }
 
-export function http(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {
+export function http(config: FileSystemConfig): Promise<NodeJS.ReadWriteStream> {
   Logging.info(`Creating http proxy connection for ${config.name}`);
   validateConfig(config);
-  return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
-    if (config.proxy!.type !== 'http') {
-      reject(new Error(`Expected config.proxy.type' to be 'http'`));
+  return new Promise<NodeJS.ReadWriteStream>((resolve, reject) => {
+    const proxy = config.proxy!;
+    if (proxy!.type !== 'http') {
+      return reject(new Error(`Expected config.proxy.type' to be 'http'`));
     }
     try {
-      Logging.debug(`\tConnecting to ${config.host}:${config.port} over http proxy at ${config.proxy!.host}:${config.proxy!.port}`);
+      Logging.debug(`\tConnecting to ${config.host}:${config.port} over http proxy at ${proxy!.host}:${proxy!.port}`);
       const req = request({
-        port: config.proxy!.port,
-        hostname: config.proxy!.host,
+        port: proxy!.port,
+        hostname: proxy!.host,
         method: 'CONNECT',
         path: `${config.host}:${config.port}`,
       });
       req.end();
       req.on('connect', (res, socket) => {
-        resolve(socket as NodeJS.ReadableStream);
+        resolve(socket as NodeJS.ReadWriteStream);
       });
     } catch (e) {
       reject(new Error(`Error while connecting to the the proxy: ${e.message}`));

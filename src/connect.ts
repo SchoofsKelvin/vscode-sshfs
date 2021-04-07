@@ -194,7 +194,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   return config;
 }
 
-export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
+export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadWriteStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
   const logging = Logging.scope(`createSocket(${config.name})`);
@@ -213,7 +213,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
     if (calculatedHops.includes(null)) return null;
     const hopConfigs = calculatedHops as FileSystemConfig[];
     logging.debug(`\tHop configs: client -> ${hopConfigs.map((c, i) => `[${i + 1}] ${c.name}`).join(' -> ')} -> server`);
-    const stream = await reduceAsync(hopConfigs, async (sock: NodeJS.ReadableStream | null | undefined, hop, index) => {
+    const stream = await reduceAsync(hopConfigs, async (sock: NodeJS.ReadWriteStream | null | undefined, hop, index) => {
       if (sock === null) return null;
       const logger = logging.scope(`Hop#${index + 1}`);
       logger.debug(`Connecting to hop '${hop.name}'`);
@@ -241,16 +241,16 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
     default:
       throw new Error(`Unknown proxy method`);
   }
-  return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+  return new Promise<NodeJS.ReadWriteStream>((resolve, reject) => {
     logging.debug(`Connecting to ${config.host}:${config.port || 22}`);
     const socket = new Socket();
-    socket.connect(config.port || 22, config.host!, () => resolve(socket as NodeJS.ReadableStream));
+    socket.connect(config.port || 22, config.host!, () => resolve(socket as NodeJS.ReadWriteStream));
     socket.once('error', reject);
   });
 }
 
 export interface CreateSSHOptions {
-  sock?: NodeJS.ReadableStream;
+  sock?: NodeJS.ReadWriteStream;
   logger?: Logger;
 }
 export async function createSSH(config: FileSystemConfig, options: CreateSSHOptions = {}): Promise<Client | null> {
