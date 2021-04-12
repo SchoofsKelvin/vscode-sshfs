@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { configMatches, loadConfigs } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
+import { ActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 
@@ -12,6 +13,7 @@ export interface Connection {
     client: Client;
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
+    forwardings: ActivePortForwarding[];
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
 }
@@ -56,6 +58,7 @@ export class ConnectionManager {
             config, client, actualConfig,
             terminals: [],
             filesystems: [],
+            forwardings: [],
             pendingUserCount: 0,
             idleTimer: setInterval(() => { // Automatically close connection when idle for a while
                 timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;
@@ -63,6 +66,7 @@ export class ConnectionManager {
                 con.filesystems = con.filesystems.filter(fs => !fs.closed && !fs.closing);
                 if (con.filesystems.length) return; // Still got active filesystems on this connection
                 if (con.terminals.length) return; // Still got active terminals on this connection
+                if (con.forwardings.length) return; // Still got active port forwardings on this connection
                 if (timeoutCounter !== 1) return timeoutCounter = 2;
                 // timeoutCounter === 1, so it's been inactive for at least 5 seconds, close it!
                 this.closeConnection(con, 'Idle with no active filesystems/terminals');
