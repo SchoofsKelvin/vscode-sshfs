@@ -1,7 +1,10 @@
+import * as path from 'path';
 import type { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
 import type { Readable } from "stream";
 import * as vscode from "vscode";
 import type { FileSystemConfig } from "./fileSystemConfig";
+import { getRemotePath } from './fileSystemRouter';
+import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { toPromise } from "./toPromise";
 
 const [HEIGHT, WIDTH] = [480, 640];
@@ -42,6 +45,104 @@ export function joinCommands(commands?: string | string[]): string | undefined {
     return commands.join('; ');
 }
 
+
+export function replaceVariables(value: string, config: FileSystemConfig): string {
+    return value.replace(/\$\{(.*?)\}/g, (str, match: string) => {
+        if (!match.startsWith('remote')) return str; // Our variables always start with "remote"
+        // https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/workbench/services/configurationResolver/common/variableResolver.ts#L156
+        const [key, argument] = match.split(':') as [string, string?];
+        const getFilePath = (): vscode.Uri => {
+            const uri = vscode.window.activeTextEditor?.document?.uri;
+            if (uri && uri.scheme === 'ssh') return uri;
+            if (uri) throw new Error(`Variable ${str}: Active editor is not a ssh:// file`);
+            throw new Error(`Variable ${str} can not be resolved. Please open an editor.`);
+        }
+        const getFolderPathForFile = (): vscode.Uri => {
+            const filePath = getFilePath();
+            const uri = vscode.workspace.getWorkspaceFolder(filePath)?.uri;
+            if (uri) return uri;
+            throw new Error(`Variable ${str}: can not find workspace folder of '${filePath}'.`);
+        }
+        const { workspaceFolders = [] } = vscode.workspace;
+        const sshFolders = workspaceFolders.filter(ws => ws.uri.scheme === 'ssh');
+        const sshFolder = sshFolders.length === 1 ? sshFolders[0] : undefined;
+        const getFolderUri = (): vscode.Uri => {
+            const { workspaceFolders = [] } = vscode.workspace;
+            if (argument) {
+                const uri = workspaceFolders.find(ws => ws.name === argument)?.uri;
+                if (uri && uri.scheme === 'ssh') return uri;
+                if (uri) throw new Error(`Variable ${str}: Workspace folder '${argument}' is not a ssh:// folder`);
+                throw new Error(`Variable ${str} can not be resolved. No such folder '${argument}'.`);
+            }
+            if (sshFolder) return sshFolder.uri;
+            if (sshFolders.length > 1) {
+                throw new Error(`Variable ${str} can not be resolved in a multi ssh:// folder workspace. Scope this variable using ':' and a workspace folder name.`);
+            }
+            throw new Error(`Variable ${str} can not be resolved. Please open an ssh:// folder.`);
+        };
+        switch (key) {
+            case 'remoteWorkspaceRoot':
+            case 'remoteWorkspaceFolder':
+                return getRemotePath(config, getFolderUri());
+            case 'remoteWorkspaceRootFolderName':
+            case 'remoteWorkspaceFolderBasename':
+                return path.basename(getFolderUri().path);
+            case 'remoteFile':
+                return getRemotePath(config, getFilePath());
+            case 'remoteFileWorkspaceFolder':
+                return getRemotePath(config, getFolderPathForFile());
+            case 'remoteRelativeFile':
+                if (sshFolder || argument)
+                    return path.relative(getFolderUri().path, getFilePath().path);
+                return getFilePath().path;
+            case 'remoteRelativeFileDirname': {
+                const dirname = path.dirname(getFilePath().path);
+                if (sshFolder || argument) {
+                    const relative = path.relative(getFolderUri().path, dirname);
+                    return relative.length === 0 ? '.' : relative;
+                }
+                return dirname;
+            }
+            case 'remoteFileDirname':
+                return path.dirname(getFilePath().path);
+            case 'remoteFileExtname':
+                return path.extname(getFilePath().path);
+            case 'remoteFileBasename':
+                return path.basename(getFilePath().path);
+            case 'remoteFileBasenameNoExtension': {
+                const basename = path.basename(getFilePath().path);
+                return (basename.slice(0, basename.length - path.extname(basename).length));
+            }
+            case 'remoteFileDirnameBasename':
+                return path.basename(path.dirname(getFilePath().path));
+            case 'remotePathSeparator':
+                // Not sure if we even need/want this variable, but sure
+                return path.posix.sep;
+            default:
+                const msg = `Unrecognized task variable '${str}' starting with 'remote', ignoring`;
+                Logging.warning(msg, LOGGING_NO_STACKTRACE);
+                vscode.window.showWarningMessage(msg);
+                return str;
+        }
+    });
+}
+
+export async function replaceVariablesRecursive<T>(object: T, handler: (value: string) => string | Promise<string>): Promise<T> {
+    if (typeof object === 'string') return handler(object) as any;
+    if (Array.isArray(object)) return object.map(v => this.replaceVariablesRecursive(v, handler)) as any;
+    if (typeof object == 'object' && object !== null && !(object instanceof RegExp) && !(object instanceof Date)) {
+        // ^ Same requirements VS Code applies: https://github.com/microsoft/vscode/blob/bebd06640734c37f6d5f1a82b13297ce1d297dd1/src/vs/base/common/types.ts#L34
+        const result: any = {};
+        for (let key in object) {
+            const value = await replaceVariablesRecursive(object[key], handler);
+            key = await replaceVariablesRecursive(key, handler);
+            result[key] = value;
+        }
+        return result;
+    }
+    return object;
+}
+
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
     const { client, config } = options;
     const onDidWrite = new vscode.EventEmitter<string>();
@@ -68,7 +169,13 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         async open(dims) {
             onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
             try {
-                let commands: string[] = [options.command || joinCommands(options.config.terminalCommand) || '$SHELL'];
+                let commands: string[] = [];
+                if (options.command) {
+                    commands.push(options.command);
+                } else {
+                    const tc = joinCommands(config.terminalCommand);
+                    commands.push(tc ? replaceVariables(tc, config) : '$SHELL');
+                }
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
                 workingDirectory = workingDirectory || config.root;
