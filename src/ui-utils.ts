@@ -42,6 +42,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             item, description, detail, tooltip: detail,
             label: `${iconInLabel ? '$(plug) ' : ''}${label || name} `,
             iconPath: new vscode.ThemeIcon('plug'),
+            collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
             contextValue: 'connection',
         };
     } else if ('onDidChangeFile' in item) { // SSHFileSystem

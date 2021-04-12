@@ -54,8 +54,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   subscribe(vscode.workspace.registerFileSystemProvider('ssh', new FileSystemRouter(manager), { isCaseSensitive: true }));
   subscribe(vscode.window.createTreeView('sshfs-configs', { treeDataProvider: new ConfigTreeProvider(), showCollapseAll: true }));
-  const connectionsTreeProvider = new ConnectionTreeProvider(manager.connectionManager);
-  subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionsTreeProvider, showCollapseAll: true }));
+  const connectionTreeProvider = new ConnectionTreeProvider(manager.connectionManager);
+  subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionTreeProvider, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
   subscribe(vscode.window.registerTerminalLinkProvider(manager));
 
@@ -104,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
     conns.getActiveConnections().forEach(conn => conns.closeConnection(conn, 'command:disconnectAll'));
   });
 
-  // sshfs.termninal(target?: string | FileSystemConfig | Connection | vscode.Uri)
+  // sshfs.terminal(target?: FileSystemConfig | Connection | vscode.Uri)
   registerCommandHandler('sshfs.terminal', {
     promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
     handleConfig: config => manager.commandTerminal(config),
@@ -140,5 +140,5 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommand('sshfs.settings', () => manager.openSettings());
 
   // sshfs.refresh()
-  registerCommand('sshfs.refresh', () => connectionsTreeProvider.refresh());
+  registerCommand('sshfs.refresh', () => connectionTreeProvider.refresh());
 }
