@@ -60,7 +60,7 @@ async function createLocalForwarding(connection: Connection, forwarding: PortFor
                 socket.pipe(channel).pipe(socket);
             });
         } else {
-            client.forwardOut(socket.localAddress, socket.localPort, forwarding.remoteAddress!, forwarding.remotePort!, (err, channel) => {
+            client.forwardOut('localhost', 0, forwarding.remoteAddress!, forwarding.remotePort!, (err, channel) => {
                 if (err) return socket.destroy(err);
                 socket.pipe(channel).pipe(socket);
             });
