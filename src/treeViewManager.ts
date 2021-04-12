@@ -3,12 +3,13 @@ import * as vscode from 'vscode';
 import { getConfigs, UPDATE_LISTENERS } from './config';
 import type { Connection, ConnectionManager } from './connection';
 import { FileSystemConfig, getGroups } from './fileSystemConfig';
+import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { formatItem } from './ui-utils';
 
 type PendingConnection = [string, FileSystemConfig | undefined];
-type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal;
+type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal | ActivePortForwarding;
 export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData> {
     protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<TreeData | void>();
     public onDidChangeTreeData: vscode.Event<TreeData | void> = this.onDidChangeTreeDataEmitter.event;
@@ -21,7 +22,8 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
         this.onDidChangeTreeDataEmitter.fire();
     }
     public getTreeItem(element: TreeData): vscode.TreeItem | Thenable<vscode.TreeItem> {
-        if ('onDidChangeFile' in element || 'handleInput' in element) { // SSHFileSystem | SSHPseudoTerminal
+        if ('onDidChangeFile' in element || 'handleInput' in element || isActivePortForwarding(element)) {
+            // SSHFileSystem | SSHPseudoTerminal | ActivePortForwarding
             return { ...formatItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None }
         } else if (Array.isArray(element)) { // PendingConnection
             const [name, config] = element;
@@ -45,7 +47,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
         if ('onDidChangeFile' in element) return []; // SSHFileSystem
         if ('handleInput' in element) return []; // SSHPseudoTerminal
         if (Array.isArray(element)) return []; // PendingConnection
-        return [...element.terminals, ...element.filesystems]; // Connection
+        return [...element.terminals, ...element.filesystems, ...element.forwardings]; // Connection
     }
 }
 

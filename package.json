@@ -286,13 +286,23 @@
                     "group": "inline@1"
                 },
                 {
-                    "command": "sshfs.disconnect",
+                    "command": "sshfs.forwardPort",
                     "when": "view == 'sshfs-connections' && viewItem == connection",
                     "group": "inline@2"
                 },
                 {
+                    "command": "sshfs.disconnect",
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@3"
+                },
+                {
                     "command": "sshfs.closeTerminal",
                     "when": "view == 'sshfs-connections' && viewItem == terminal",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "sshfs.unforwardPort",
+                    "when": "view == 'sshfs-connections' && viewItem == forwarding",
                     "group": "inline@1"
                 }
             ],
