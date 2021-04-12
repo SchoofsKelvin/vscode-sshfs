@@ -1496,6 +1496,11 @@ interpret@^1.4.0:
   resolved "https://registry.yarnpkg.com/interpret/-/interpret-1.4.0.tgz#665ab8bc4da27a774a40584e812e3e0fa45b1a1e"
   integrity sha512-agE4QfB2Lkp9uICn7BAqoscw4SZP9kTE2hxiFI3jBPmXJfdqiahTbUuKGsMoN2GtqL9AxhYioAcVvgsb1HvRbA==
 
+ip-matching@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/ip-matching/-/ip-matching-2.0.0.tgz#233cd2671e2040992d98eee984fcb0e3074bf98b"
+  integrity sha512-qs1dTepIc42IjRviGd8ilvq1/4sLWcrrnykz2cbAykMC3F+GW2GJiwR3nwuYuLywX3VATyvnkvx3bISC3rZjIw==
+
 ip@^1.1.5:
   version "1.1.5"
   resolved "https://registry.yarnpkg.com/ip/-/ip-1.1.5.tgz#bdded70114290828c0a039e72ef25f5aaec4354a"
