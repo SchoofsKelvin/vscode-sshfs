@@ -1,9 +1,13 @@
+import { getIP } from 'ip-matching';
 import * as net from 'net';
 import type { ClientChannel, TcpConnectionDetails, UnixConnectionDetails } from 'ssh2';
 import type { Duplex } from 'stream';
+import * as vscode from 'vscode';
 import type { Connection } from "./connection";
+import type { FileSystemConfig } from './fileSystemConfig';
 import type { Manager } from './manager';
 import { toPromise } from './toPromise';
+import { capitalize, promptQuickPick } from './ui-utils';
 
 /** Represents a dynamic port forwarding (DynamicForward) */
 export interface PortForwardingDynamic {
@@ -146,4 +150,73 @@ export async function addForwarding(manager: Manager, connection: Connection, fo
         manager.connectionManager.update(connection, c => c.pendingUserCount--);
         throw e;
     }
+}
+
+/** Far from correct, but it's more of a simple validation against obvious mistakes */
+const DOMAIN_REGEX = /^\S{2,63}(\.\S{2,63})*$/;
+function validateHost(str: string): string | undefined {
+    if (DOMAIN_REGEX.test(str)) return undefined;
+    try {
+        const ip = getIP(str);
+        if (!ip) return 'Invalid IP / domain';
+    } catch (e) {
+        return e.message || 'Invalid IP / domain';
+    }
+}
+const PIPE_REGEX = /^\\\\[\?\.]\\pipe\\.*$/;
+function validatePipe(str: string): string | undefined {
+    if (str.match(PIPE_REGEX)) return undefined;
+    return 'Windows pipe path should start with \\\\?\\pipe\\ or \\\\.\\pipe\\';
+}
+function validatePort(str: string): string | undefined {
+    try {
+        const port = parseInt(str);
+        if (port >= 0 && port < 2 ** 16) return undefined;
+        return 'Port has to be in the range 0-65535';
+    } catch (e) {
+        return 'Invalid port';
+    }
+}
+const SOCKET_REGEX = /^[/\\][^\0]+$/;
+function validateSocketPath(str: string): string | undefined {
+    if (str.match(SOCKET_REGEX)) return undefined;
+    return 'Unix domain socket path should be a proper absolute file path';
+}
+async function promptAddressOrPath(location: 'local' | 'remote'): Promise<[port?: number, address?: string] | undefined> {
+    const A = 'address:port';
+    const B = 'socket path / pipe';
+    const type = await promptQuickPick(`Use a ${location} address:port or Unix domain socket path / Windows pipe?`, [A, B] as const);
+    if (!type) return undefined;
+    if (type === A) {
+        const addr = await vscode.window.showInputBox({ prompt: 'Address to use', validateInput: validateHost, placeHolder: 'IPv4 / IPv6 / domain' });
+        const port = await vscode.window.showInputBox({ prompt: 'Port to use', validateInput: validatePort, placeHolder: '0-65535' });
+        return port === undefined ? undefined : [parseInt(port), addr];
+    } else if (location === 'local' && process.platform === 'win32') {
+        const pipe = await vscode.window.showInputBox({ prompt: 'Pipe to use', validateInput: validatePipe, placeHolder: '\\\\?\\pipe\\...' });
+        return pipe ? [, pipe] : undefined;
+    } else {
+        const path = await vscode.window.showInputBox({ prompt: 'Socket path to use', validateInput: validateSocketPath, placeHolder: '/tmp/socket' });
+        return path ? [, path] : undefined;
+    }
+}
+
+export async function promptPortForwarding(config: FileSystemConfig): Promise<PortForwarding | undefined> {
+    // TODO: RemoteForward allows omitting the local address/port, making it act as a reverse DynamicForward instead
+    // TODO: Make use of config with future GatewayPorts fields and such to suggest default values
+    const type = await promptQuickPick<PortForwarding['type']>('Select type of port forwarding',
+        ['local', 'remote'/*, 'dynamic'*/], capitalize);
+    if (!type) return undefined;
+    if (type === 'local' || type === 'remote') {
+        const local = await promptAddressOrPath('local');
+        if (!local) return undefined;
+        const remote = await promptAddressOrPath('remote');
+        if (!remote) return undefined;
+        const [localPort, localAddress] = local;
+        const [remotePort, remoteAddress] = remote
+        return { type, localAddress, localPort, remoteAddress, remotePort };
+    } else if (type === 'dynamic') {
+        // TODO
+        await vscode.window.showWarningMessage('Dynamic port forwarding is not supported yet');
+    }
+    return undefined;
 }

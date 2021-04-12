@@ -6,6 +6,7 @@ import type { FileSystemConfig } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
 import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
+import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
 import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath } from './ui-utils';
@@ -24,6 +25,7 @@ interface CommandHandler {
   handleConfig?(config: FileSystemConfig): void;
   handleConnection?(connection: Connection): void;
   handleTerminal?(terminal: SSHPseudoTerminal): void;
+  handleActivePortForwarding?(forwarding: ActivePortForwarding): void;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -60,7 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
   subscribe(vscode.window.registerTerminalLinkProvider(manager));
 
   function registerCommandHandler(name: string, handler: CommandHandler) {
-    const callback = async (arg?: string | FileSystemConfig | Connection | SSHPseudoTerminal | vscode.Uri) => {
+    const callback = async (arg?: string | FileSystemConfig | Connection | SSHPseudoTerminal | ActivePortForwarding | vscode.Uri) => {
       if (handler.promptOptions && (!arg || typeof arg === 'string')) {
         arg = await pickComplex(manager, { ...handler.promptOptions, nameFilter: arg });
       }
@@ -74,6 +76,8 @@ export function activate(context: vscode.ExtensionContext) {
         return handler.handleConnection?.(arg);
       } else if ('name' in arg) {
         return handler.handleConfig?.(arg);
+      } else if (isActivePortForwarding(arg)) {
+        return handler.handleActivePortForwarding?.(arg);
       }
       Logging.warning(`CommandHandler for '${name}' could not handle input '${arg}'`);
     };
@@ -125,6 +129,23 @@ export function activate(context: vscode.ExtensionContext) {
   registerCommandHandler('sshfs.closeTerminal', {
     promptOptions: { promptTerminals: true },
     handleTerminal: terminal => terminal.close(),
+  });
+
+  // sshfs.forwardPort(target?: FileSystemConfig | Connection, pf?: PortForwarding)
+  registerCommandHandler('sshfs.forwardPort', {
+    promptOptions: { promptConfigs: true, promptConnections: true, promptInstantConnection: true },
+    handleConfig: config => manager.commandPortForward(config),
+    handleConnection: con => manager.commandPortForward(con),
+  });
+
+  // sshfs.unforwardPort(target: ActivePortForwarding)
+  registerCommandHandler('sshfs.unforwardPort', {
+    promptOptions: { promptActivePortForwardings: true },
+    handleActivePortForwarding(forwarding) {
+      manager.connectionManager.update(forwarding[1], c =>
+        c.forwardings = c.forwardings.filter(f => f !== forwarding));
+      forwarding[2]();
+    },
   });
 
   // sshfs.configure(target?: string | FileSystemConfig)

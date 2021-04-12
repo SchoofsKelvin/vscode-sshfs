@@ -7,6 +7,7 @@ import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
+import { addForwarding, PortForwarding, promptPortForwarding } from './portForwarding';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, toPromise } from './toPromise';
@@ -297,6 +298,21 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
         { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
       if (choice && choice.title === 'Retry') return this.commandTerminal(target, uri);
+    }
+  }
+  public async commandPortForward(target: FileSystemConfig | Connection, pf?: PortForwarding) {
+    const conn = 'config' in target ? target : await this.connectionManager.createConnection(target.name, target);
+    this.connectionManager.update(conn, c => c.pendingUserCount++);
+    pf ||= await promptPortForwarding(conn.actualConfig);
+    this.connectionManager.update(conn, c => c.pendingUserCount--);
+    if (!pf) return;
+    try {
+      await addForwarding(this, conn, pf);
+    } catch (e) {
+      const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
+        `Couldn't forward the ${pf.type} port for ${conn.actualConfig.name}: ${e.message || e}`,
+        { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
+      if (choice && choice.title === 'Retry') return this.commandPortForward(conn, pf);
     }
   }
   public async commandConfigure(target: string | FileSystemConfig) {

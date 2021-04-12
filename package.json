@@ -22,6 +22,8 @@
         "onCommand:sshfs.terminal",
         "onCommand:sshfs.focusTerminal",
         "onCommand:sshfs.closeTerminal",
+        "onCommand:sshfs.forwardPort",
+        "onCommand:sshfs.unforwardPort",
         "onCommand:sshfs.configure",
         "onCommand:sshfs.reload",
         "onCommand:sshfs.settings",
@@ -169,6 +171,18 @@
                 "title": "Close terminal",
                 "category": "SSH FS",
                 "icon": "$(close)"
+            },
+            {
+                "command": "sshfs.forwardPort",
+                "title": "Start forwarding a port (BETA)",
+                "category": "SSH FS",
+                "icon": "$(ports-forward-icon)"
+            },
+            {
+                "command": "sshfs.unforwardPort",
+                "title": "Stop forwarding a port (BETA)",
+                "category": "SSH FS",
+                "icon": "$(ports-stop-forward-icon)"
             }
         ],
         "menus": {

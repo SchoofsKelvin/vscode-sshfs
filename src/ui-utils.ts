@@ -2,10 +2,12 @@
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { Connection } from './connection';
-import { parseConnectionString, FileSystemConfig } from './fileSystemConfig';
+import { FileSystemConfig, parseConnectionString } from './fileSystemConfig';
 import type { Manager } from './manager';
+import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
+import { toPromise } from './toPromise';
 
 export interface FormattedItem extends vscode.QuickPickItem, vscode.TreeItem {
     item: any;
@@ -18,11 +20,13 @@ export function formatAddress(config: FileSystemConfig): string {
     return `${username ? `${username}@` : ''}${host}${port ? `:${port}` : ''}`;
 }
 
+export const capitalize = (str: string) => str.substring(0, 1).toUpperCase() + str.substring(1);
+
 export let asAbsolutePath: vscode.ExtensionContext['asAbsolutePath'] | undefined;
 export const setAsAbsolutePath = (value: typeof asAbsolutePath) => asAbsolutePath = value;
 
 /** Converts the supported types to something basically ready-to-use as vscode.QuickPickItem and vscode.TreeItem */
-export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false): FormattedItem {
+export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal | ActivePortForwarding, iconInLabel = false): FormattedItem {
     if ('handleInput' in item) { // SSHPseudoTerminal
         return {
             item, contextValue: 'terminal',
@@ -51,6 +55,25 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: asAbsolutePath?.('resources/icon.svg'),
         }
+    } else if (isActivePortForwarding(item)) {
+        let label = iconInLabel ? '$(ports-forward-icon) ' : '';
+        const [forw] = item;
+        if (forw.type === 'local' || forw.type === 'remote') {
+            label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '?'}:${forw.localPort}` || '?';
+            label += forw.type === 'local' ? ' → ' : ' ← ';
+            label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '?'}:${forw.remotePort}` || '?';
+        } else if (forw.type === 'dynamic') {
+            label += `${forw.address || '?'}:${forw.port} $(globe)`;
+        } else {
+            label += ' <unrecognized type>';
+        }
+        const connLabel = item[1].actualConfig.label || item[1].actualConfig.name;
+        const detail = `${capitalize(forw.type)} port forwarding to ${connLabel}`
+        return {
+            item, label, contextValue: 'forwarding',
+            detail, tooltip: detail,
+            iconPath: new vscode.ThemeIcon('ports-forward-icon'),
+        };
     }
     // FileSystemConfig
     const { label, name, group, putty } = item;
@@ -77,6 +100,8 @@ export interface PickComplexOptions {
     promptConfigs?: boolean | string;
     /** If true, add all terminals. If this is a string, filter by config name first */
     promptTerminals?: boolean | string;
+    /** If true, add all active port forwardings. If this is a string, filter by address/port first */
+    promptActivePortForwardings?: boolean | string;
     /** If set, filter the connections/configs by (config) name first */
     nameFilter?: string;
 }
@@ -126,6 +151,14 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             items.push(...terminals.map(config => formatItem(config, true)));
             toSelect.push('terminal');
         }
+        if (options.promptActivePortForwardings) {
+            let cons = manager.connectionManager.getActiveConnections();
+            if (typeof promptConnections === 'string') cons = cons.filter(con => con.actualConfig.name === promptConnections);
+            if (nameFilter) cons = cons.filter(con => con.actualConfig.name === nameFilter);
+            const forwardings = cons.reduce((all, con) => [...all, ...con.forwardings], []);
+            items.push(...forwardings.map(config => formatItem(config, true)));
+            toSelect.push('forwarded port');
+        }
         if (options.promptInstantConnection) {
             items.unshift({
                 label: '$(terminal) Create instant connection',
@@ -155,3 +188,16 @@ export const pickConfig = (manager: Manager) => pickComplex(manager, { promptCon
 export const pickConnection = (manager: Manager, name?: string) =>
     pickComplex(manager, { promptConnections: name || true, immediateReturn: !!name }) as Promise<Connection | undefined>;
 export const pickTerminal = (manager: Manager) => pickComplex(manager, { promptTerminals: true }) as Promise<SSHPseudoTerminal | undefined>;
+
+export async function promptQuickPick<T>(title: string, items: readonly T[], toString?: (item: T) => string): Promise<T | undefined> {
+    const picker = vscode.window.createQuickPick<FormattedItem>();
+    picker.title = title;
+    picker.items = items.map(item => ({ item, label: toString?.(item) || `${item}` }));
+    picker.show();
+    const accepted = await Promise.race([
+        toPromise(cb => picker.onDidAccept(cb)).then(() => true),
+        toPromise(cb => picker.onDidHide(cb)).then(() => false),
+    ]);
+    if (!accepted) return undefined;
+    return picker.selectedItems[0]?.item;
+}
