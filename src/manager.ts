@@ -269,6 +269,9 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         .filter(con => con.actualConfig.name === target);
     }
     for (const con of cons) this.connectionManager.closeConnection(con);
+    const others = this.connectionManager.getActiveConnections().filter(c => c.actualConfig.name === target);
+    if (others && others.some(c => c.filesystems.length)) return;
+    // No other filesystems of the same name left anymore, so remove all related workspace folders
     const folders = vscode.workspace.workspaceFolders || [];
     let start: number = folders.length;
     let left: vscode.WorkspaceFolder[] = [];
