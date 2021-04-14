@@ -2,7 +2,7 @@
 import * as path from 'path';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { getConfig, loadConfigsRaw } from './config';
+import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { getRemotePath } from './fileSystemRouter';
@@ -183,8 +183,10 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           const connection = await this.connectionManager.createConnection(resolved.host);
           resolved = await replaceVariablesRecursive(resolved, value => replaceVariables(value, connection.actualConfig));
           let { command, workingDirectory } = resolved;
+          const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, connection.actualConfig.flags);
+          const separator = useWinCmdSep ? ' && ' : '; ';
           let { taskCommand = '$COMMAND' } = connection.actualConfig;
-          taskCommand = joinCommands(taskCommand)!;
+          taskCommand = joinCommands(taskCommand, separator)!;
           if (taskCommand.includes('$COMMAND')) {
             command = taskCommand.replace(/\$COMMAND/g, command);
           } else {

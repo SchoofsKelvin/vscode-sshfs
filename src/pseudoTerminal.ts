@@ -2,6 +2,7 @@ import * as path from 'path';
 import type { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
 import type { Readable } from "stream";
 import * as vscode from "vscode";
+import { getFlagBoolean } from './config';
 import type { FileSystemConfig } from "./fileSystemConfig";
 import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
@@ -39,10 +40,10 @@ export interface TerminalOptions {
     command?: string;
 }
 
-export function joinCommands(commands?: string | string[]): string | undefined {
+export function joinCommands(commands: string | string[] | undefined, separator: string): string | undefined {
     if (!commands) return undefined;
     if (typeof commands === 'string') return commands;
-    return commands.join('; ');
+    return commands.join(separator);
 }
 
 
@@ -169,11 +170,13 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         async open(dims) {
             onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
             try {
+                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, config.flags);
+                const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
                 if (options.command) {
                     commands.push(options.command);
                 } else {
-                    const tc = joinCommands(config.terminalCommand);
+                    const tc = joinCommands(config.terminalCommand, separator);
                     commands.push(tc ? replaceVariables(tc, config) : '$SHELL');
                 }
                 // There isn't a proper way of setting the working directory, but this should work in most cases
@@ -190,7 +193,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     commands.unshift(`cd ${workingDirectory}`);
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands)!, { pty: pseudoTtyOptions }, cb));
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands, separator)!, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
                 channel.on('exit', onDidClose.fire);
