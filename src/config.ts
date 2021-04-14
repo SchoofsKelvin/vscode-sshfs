@@ -342,6 +342,30 @@ vscode.workspace.onDidChangeConfiguration(async (e) => {
 });
 loadConfigs();
 
+function parseFlagList(list: string[] | undefined, origin: string): Record<string, FlagCombo> {
+  if (list === undefined) return {};
+  if (!Array.isArray(list)) throw new Error(`Expected string array for flags, but got: ${list}`);
+  const scope: Record<string, FlagCombo> = {};
+  for (const flag of list) {
+    let name: string = flag;
+    let value: FlagValue = null;
+    const eq = flag.indexOf('=');
+    if (eq !== -1) {
+      name = flag.substring(0, eq);
+      value = flag.substring(eq + 1);
+    } else if (flag.startsWith('+')) {
+      name = flag.substring(1);
+      value = true;
+    } else if (flag.startsWith('-')) {
+      name = flag.substring(1);
+      value = false;
+    }
+    name = name.toLocaleLowerCase();
+    if (name in scope) continue;
+    scope[name] = [value, origin];
+  }
+  return scope;
+}
 
 export type FlagValue = string | boolean | null;
 export type FlagCombo = [value: FlagValue, origin: string];
@@ -351,41 +375,16 @@ function calculateFlags(): Record<string, FlagCombo> {
   const flags: Record<string, FlagCombo> = {};
   const config = vscode.workspace.getConfiguration('sshfs').inspect<string[]>('flags');
   if (!config) throw new Error(`Could not inspect "sshfs.flags" config field`);
-  function parseList(list: string[] | undefined, origin: string) {
-    if (list === undefined) return;
-    if (!Array.isArray(list)) throw new Error(`Expected string array for flags, but got: ${list}`);
-    const scope: Record<string, FlagCombo> = {};
-    for (const flag of list) {
-      let name: string = flag;
-      let value: FlagValue = null;
-      const eq = flag.indexOf('=');
-      if (eq !== -1) {
-        name = flag.substring(0, eq);
-        value = flag.substring(eq + 1);
-      } else if (flag.startsWith('+')) {
-        name = flag.substring(1);
-        value = true;
-      } else if (flag.startsWith('-')) {
-        name = flag.substring(1);
-        value = false;
-      }
-      name = name.toLocaleLowerCase();
-      if (name in scope) continue;
-      scope[name] = [value, origin];
-    }
-    // Override if necessary (since workspace settings come after global settings)
-    // Per "location", we still ignore duplicate flag names
-    Object.assign(flags, scope);
-  }
-  parseList(DEFAULT_FLAGS, 'Built-in Default');
-  parseList(config.defaultValue, 'Default Settings');
+  const applyList = (list: string[] | undefined, origin: string) => Object.assign(flags, parseFlagList(list, origin));
+  applyList(DEFAULT_FLAGS, 'Built-in Default');
+  applyList(config.defaultValue, 'Default Settings');
   // Electron v11 crashes for DiffieHellman GroupExchange, although it's fixed in 11.3.0
   if ((process.versions as { electron?: string }).electron?.match(/^11\.(0|1|2)\./)) {
-    parseList(['+DF-GE'], 'Fix for issue #239')
+    applyList(['+DF-GE'], 'Fix for issue #239')
   }
-  parseList(config.globalValue, 'Global Settings');
-  parseList(config.workspaceValue, 'Workspace Settings');
-  parseList(config.workspaceFolderValue, 'WorkspaceFolder Settings');
+  applyList(config.globalValue, 'Global Settings');
+  applyList(config.workspaceValue, 'Workspace Settings');
+  applyList(config.workspaceFolderValue, 'WorkspaceFolder Settings');
   Logging.info(`Calculated config flags: ${JSON.stringify(flags)}`);
   return cachedFlags = flags;
 }
@@ -395,8 +394,17 @@ vscode.workspace.onDidChangeConfiguration(event => {
 });
 calculateFlags();
 
-/** Returns a cached version. Gets updated by ConfigurationChangeEvent events */
-export function getFlags(): Record<string, FlagCombo> { return cachedFlags; }
+/**
+ * Returns (a copy of the) global flags. Gets updated by ConfigurationChangeEvent events.
+ * In case `flags` is given, flags specified in this array will override global ones in the returned result.
+ * @param flags An optional array of flags to check before the global ones
+ */
+export function getFlags(flags?: string[]): Record<string, FlagCombo> {
+  return {
+    ...cachedFlags,
+    ...parseFlagList(flags, 'Override'),
+  };
+}
 
 /**
  * Checks the `sshfs.flags` config (overridable by e.g. workspace settings).
@@ -411,9 +419,10 @@ export function getFlags(): Record<string, FlagCombo> { return cachedFlags; }
  * For `undefined`, an actual `undefined` is returned. For all other cases, a FlagCombo
  * is returned, e.g. "NAME" returns `[null, "someOrigin"]` and `"+F"` returns `[true, "someOrigin"]`
  * @param target The name of the flag to look for
+ * @param flags An optional array of flags to check before the global ones
  */
-export function getFlag(target: string): FlagCombo | undefined {
-  return calculateFlags()[target.toLowerCase()];
+export function getFlag(target: string, flags?: string[]): FlagCombo | undefined {
+  return getFlags(flags)[target.toLowerCase()];
 }
 
 /**
@@ -428,10 +437,11 @@ export function getFlag(target: string): FlagCombo | undefined {
  *  - All other strings result in an error
  * @param target The name of the flag to look for
  * @param defaultValue The value to return when no flag with the given name is present
+ * @param flags An optional array of flags to check before the global ones
  * @returns The matching FlagCombo or `[missingValue, 'missing']` instead
  */
-export function getFlagBoolean(target: string, missingValue: boolean): FlagCombo {
-  const combo = getFlag(target);
+export function getFlagBoolean(target: string, missingValue: boolean, flags?: string[]): FlagCombo {
+  const combo = getFlag(target, flags);
   if (!combo) return [missingValue, 'missing'];
   const [value, reason] = combo;
   if (value == null) return [true, reason];
