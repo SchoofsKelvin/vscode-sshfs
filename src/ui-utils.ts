@@ -1,7 +1,7 @@
 
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
-import type { Connection } from './connection';
+import type { Connection, ConnectionManager } from './connection';
 import { parseConnectionString, FileSystemConfig } from './fileSystemConfig';
 import type { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
@@ -16,6 +16,25 @@ export interface FormattedItem extends vscode.QuickPickItem, vscode.TreeItem {
 export function formatAddress(config: FileSystemConfig): string {
     const { username, host, port } = config;
     return `${username ? `${username}@` : ''}${host}${port ? `:${port}` : ''}`;
+}
+
+export function setWhenClauseContext(key: string, value: any) {
+    return vscode.commands.executeCommand('setContext', `sshfs.${key}`, value);
+}
+
+export function setupWhenClauseContexts(connectionManager: ConnectionManager): Promise<void> {
+    async function refresh() {
+        const active = connectionManager.getActiveConnections();
+        const pending = connectionManager.getPendingConnections();
+        await setWhenClauseContext('openConnections', active.length + pending.length);
+        await setWhenClauseContext('openTerminals', active.reduce((tot, con) => tot + con.terminals.length, 0));
+        await setWhenClauseContext('openFileSystems', active.reduce((tot, con) => tot + con.filesystems.length, 0));
+    }
+    connectionManager.onConnectionAdded(refresh);
+    connectionManager.onConnectionRemoved(refresh);
+    connectionManager.onConnectionUpdated(refresh);
+    connectionManager.onPendingChanged(refresh);
+    return refresh();
 }
 
 export let asAbsolutePath: vscode.ExtensionContext['asAbsolutePath'] | undefined;

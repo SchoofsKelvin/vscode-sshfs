@@ -8,7 +8,7 @@ import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
-import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath } from './ui-utils';
+import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath, setupWhenClauseContexts } from './ui-utils';
 
 function getVersion(): string | undefined {
   const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
@@ -58,6 +58,8 @@ export function activate(context: vscode.ExtensionContext) {
   subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionTreeProvider, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
   subscribe(vscode.window.registerTerminalLinkProvider(manager));
+
+  setupWhenClauseContexts(manager.connectionManager);
 
   function registerCommandHandler(name: string, handler: CommandHandler) {
     const callback = async (arg?: string | FileSystemConfig | Connection | SSHPseudoTerminal | vscode.Uri) => {
