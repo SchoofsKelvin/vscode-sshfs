@@ -288,6 +288,30 @@
                     "when": "explorerResourceIsFolder && resourceScheme == ssh",
                     "group": "navigation@30"
                 }
+            ],
+            "statusBar/remoteIndicator": [
+                {
+                    "command": "sshfs.add",
+                    "group": "remote_11_ssh_sshfs@1"
+                },
+                {
+                    "command": "sshfs.terminal",
+                    "group": "remote_11_ssh_sshfs@2"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "group": "remote_11_ssh_sshfs@3"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "group": "remote_11_ssh_sshfs@4",
+                    "when": "sshfs.openConnections > 0"
+                },
+                {
+                    "command": "sshfs.disconnectAll",
+                    "group": "remote_11_ssh_sshfs@5",
+                    "when": "sshfs.openConnections > 0"
+                }
             ]
         },
         "configuration": {
