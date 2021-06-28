@@ -24,6 +24,11 @@ div.Field > div.error {
     margin: 5px 0 -5px 0;
 }
 
+div.Field p.warning {
+    color: var(--vscode-editorWarning-foreground);
+    margin: 5px 0 -5px 0;
+}
+
 div.Field > div.value {
     margin-top: 9px;
     min-width: 200px;
@@ -135,4 +140,37 @@ div.FieldPath > button {
     border-radius: 0;
     border: none;
     border-left: 1px solid var(--vscode-settings-dropdownBorder);
+}
+
+div.FieldCheckbox > .description {
+    display: none;
+}
+
+div.FieldCheckbox > div.value {
+    --checkbox-size: 23px;
+    max-width: none;
+    min-height: var(--checkbox-size);
+}
+
+div.FieldCheckbox > .value > .description {
+    opacity: 0.75;
+    margin-left: calc(var(--checkbox-size) + 10px);
+}
+
+div.FieldCheckbox > .value > .checkbox { 
+    float: left;
+    height: var(--checkbox-size);
+    width: var(--checkbox-size);
+    font-size: var(--checkbox-size);
+    line-height: var(--checkbox-size);
+    background: var(--vscode-settings-checkboxBackground);
+    color: var(--vscode-settings-checkboxForeground);
+    border: 1px solid var(--vscode-settings-checkboxBorder);
+}
+
+div.FieldCheckbox > .value > .checkbox.checked::before {
+    content: '\2713';
+    width: var(--checkbox-size);
+    display: block;
+    text-align: center;
 }
