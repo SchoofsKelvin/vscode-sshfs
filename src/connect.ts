@@ -4,7 +4,7 @@ import { userInfo } from 'os';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { getConfig, getFlag, getFlagBoolean } from './config';
+import { getConfig, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import type { PuttySession } from './putty';
@@ -257,7 +257,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     });
     try {
       const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
-      if (config.debug || getFlag('DEBUG_SSH2', config.flags) !== undefined) {
+      if (config.debug || getFlagBoolean('DEBUG_SSH2', false, config.flags)[0]) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
       }
