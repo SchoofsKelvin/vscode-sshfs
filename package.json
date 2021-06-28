@@ -371,6 +371,18 @@
                     "command"
                 ]
             }
+        ],
+        "resourceLabelFormatters": [
+            {
+                "scheme": "ssh",
+                "formatting": {
+                    "label": "${scheme}://${authority}/${path} (SSH FS)",
+                    "separator": "/",
+                    "tildify": false,
+                    "stripPathStartingSeparator": true,
+                    "workspaceSuffix": "SSH FS"
+                }
+            }
         ]
     },
     "capabilities": {
