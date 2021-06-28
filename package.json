@@ -349,6 +349,9 @@
             }
         ]
     },
+    "capabilities": {
+        "virtualWorkspaces": true
+    },
     "scripts": {
         "vscode:prepublish": "yarn run build && cd webview && yarn run build",
         "build": "webpack --mode production",
