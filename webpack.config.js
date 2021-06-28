@@ -5,7 +5,7 @@
 const { join, resolve, dirname } = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
-const CleanWebpackPlugin = require('clean-webpack-plugin').default;
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 /**
  * @template T
@@ -46,6 +46,7 @@ class CopyPuttyExecutable {
 
 /**@type {webpack.Configuration}*/
 const config = {
+    mode: 'development',
     target: 'node',
     node: false,
     entry: './src/extension.ts',
@@ -80,6 +81,28 @@ const config = {
         new CleanWebpackPlugin(),
         new CopyPuttyExecutable(),
     ],
+    optimization: {
+        splitChunks: {
+            minSize: 0,
+            cacheGroups: {
+                default: false,
+                defaultVendors: false,
+            },
+        },
+    },
+    stats: {
+        ids: true,
+        assets: false,
+        chunks: false,
+        entrypoints: true,
+        modules: true,
+        groupModulesByPath: true,
+        modulesSpace: 50,
+        excludeModules(name, { issuerPath }) {
+            if (name.startsWith('external ')) return true;
+            return issuerPath && issuerPath[issuerPath.length - 1].name.startsWith('./node_modules');
+        },
+    },
 }
 
 module.exports = config;
