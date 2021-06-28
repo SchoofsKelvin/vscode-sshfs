@@ -91,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.disconnect(target: string | FileSystemConfig | Connection)
   registerCommandHandler('sshfs.disconnect', {
-    promptOptions: { promptConfigs: true, promptConnections: true },
+    promptOptions: { promptConnections: true },
     handleString: name => manager.commandDisconnect(name),
     handleConfig: config => manager.commandDisconnect(config.name),
     handleConnection: con => manager.commandDisconnect(con),
