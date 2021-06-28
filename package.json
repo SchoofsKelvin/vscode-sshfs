@@ -383,6 +383,16 @@
                     "workspaceSuffix": "SSH FS"
                 }
             }
+        ],
+        "viewsWelcome": [
+            {
+                "view": "sshfs-configs",
+                "contents": "No configurations created yet"
+            },
+            {
+                "view": "sshfs-connections",
+                "contents": "Not connected to anything"
+            }
         ]
     },
     "capabilities": {
