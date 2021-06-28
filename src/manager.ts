@@ -3,7 +3,7 @@ import * as path from 'path';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
-import { Connection, ConnectionManager } from './connection';
+import { Connection, ConnectionManager, joinCommands } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
@@ -143,7 +143,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     const workingDirectory = uri && getRemotePath(con.actualConfig, uri);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
-    const pty = await createTerminal({ client: con.client, config: con.actualConfig, workingDirectory });
+    const pty = await createTerminal({ connection: con, workingDirectory });
     pty.onDidClose(() => this.connectionManager.update(con, con => con.terminals = con.terminals.filter(t => t !== pty)));
     this.connectionManager.update(con, con => (con.terminals.push(pty), con.pendingUserCount--));
     // Create and show the graphical representation
@@ -176,7 +176,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       `SSH Task '${task.name}'`,
       'ssh',
       new vscode.CustomExecution(async (resolved: SSHShellTaskOptions) => {
-        const { createTerminal, createTextTerminal, joinCommands } = await import('./pseudoTerminal');
+        const { createTerminal, createTextTerminal } = await import('./pseudoTerminal');
         try {
           if (!resolved.host) throw new Error('Missing field \'host\' in task description');
           if (!resolved.command) throw new Error('Missing field \'command\' in task description');
@@ -196,11 +196,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           }
           //if (workingDirectory) workingDirectory = this.getRemotePath(config, workingDirectory);
           this.connectionManager.update(connection, con => con.pendingUserCount++);
-          const pty = await createTerminal({
-            command, workingDirectory,
-            client: connection.client,
-            config: connection.actualConfig,
-          });
+          const pty = await createTerminal({ command, workingDirectory, connection });
           this.connectionManager.update(connection, con => (con.pendingUserCount--, con.terminals.push(pty)));
           pty.onDidClose(() => this.connectionManager.update(connection,
             con => con.terminals = con.terminals.filter(t => t !== pty)));

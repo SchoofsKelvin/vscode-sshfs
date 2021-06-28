@@ -8,6 +8,12 @@ export interface ProxyConfig {
 
 export type ConfigLocation = number | string;
 
+/** Might support conditional stuff later, although ssh2/OpenSSH might not support that natively */
+export interface EnvironmentVariable {
+    key: string;
+    value: string;
+}
+
 export function formatConfigLocation(location?: ConfigLocation): string {
   if (!location) return 'Unknown location';
   if (typeof location === 'number') {
@@ -100,6 +106,8 @@ export interface FileSystemConfig extends ConnectConfig {
   terminalCommand?: string | string[];
   /** The command(s) to run when a `ssh-shell` task gets run. Defaults to the placeholder `$COMMAND`. Internally the command `cd ...` is run first */
   taskCommand?: string | string[];
+  /** An object with environment variables to add to the SSH connection. Affects the whole connection thus all terminals */
+  environment?: EnvironmentVariable[] | Record<string, string>;
   /** The filemode to assign to created files */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */

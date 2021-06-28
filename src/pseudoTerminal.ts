@@ -1,9 +1,10 @@
 import * as path from 'path';
-import type { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
+import type { ClientChannel, PseudoTtyOptions } from "ssh2";
 import type { Readable } from "stream";
 import * as vscode from "vscode";
 import { getFlagBoolean } from './config';
-import type { FileSystemConfig } from "./fileSystemConfig";
+import { Connection, environmentToExportString, joinCommands, mergeEnvironment } from './connection';
+import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
 import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { toPromise } from "./toPromise";
@@ -18,8 +19,7 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     onDidOpen: vscode.Event<void>;
     handleInput(data: string): void; // We don't support/need read-only terminals for now
     status: 'opening' | 'open' | 'closed';
-    config: FileSystemConfig;
-    client: Client;
+    connection: Connection;
     /** Could be undefined if it only gets created during psy.open() instead of beforehand */
     channel?: ClientChannel;
     /** Either set by the code calling createTerminal, otherwise "calculated" and hopefully found */
@@ -28,24 +28,17 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
 
 export function isSSHPseudoTerminal(terminal: vscode.Pseudoterminal): terminal is SSHPseudoTerminal {
     const term = terminal as SSHPseudoTerminal;
-    return !!(term.config && term.status && term.client);
+    return !!(term.connection && term.status && term.handleInput);
 }
 
 export interface TerminalOptions {
-    client: Client;
-    config: FileSystemConfig;
+    connection: Connection;
+    environment?: EnvironmentVariable[];
     /** If absent, this defaults to config.root if present, otherwise whatever the remote shell picks as default */
     workingDirectory?: string;
     /** The command to run in the remote shell. If undefined, a (regular interactive) shell is started instead by running $SHELL*/
     command?: string;
 }
-
-export function joinCommands(commands: string | string[] | undefined, separator: string): string | undefined {
-    if (!commands) return undefined;
-    if (typeof commands === 'string') return commands;
-    return commands.join(separator);
-}
-
 
 export function replaceVariables(value: string, config: FileSystemConfig): string {
     return value.replace(/\$\{(.*?)\}/g, (str, match: string) => {
@@ -145,7 +138,8 @@ export async function replaceVariablesRecursive<T>(object: T, handler: (value: s
 }
 
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
-    const { client, config } = options;
+    const { connection } = options;
+    const { actualConfig, client } = connection;
     const onDidWrite = new vscode.EventEmitter<string>();
     const onDidClose = new vscode.EventEmitter<number>();
     const onDidOpen = new vscode.EventEmitter<void>();
@@ -153,7 +147,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
     // Won't actually open the remote terminal until pseudo.open(dims) is called
     const pseudo: SSHPseudoTerminal = {
         status: 'opening',
-        config, client,
+        connection,
         onDidWrite: onDidWrite.event,
         onDidClose: onDidClose.event,
         onDidOpen: onDidOpen.event,
@@ -168,20 +162,24 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             pseudo.channel = undefined;
         },
         async open(dims) {
-            onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
+            onDidWrite.fire(`Connecting to ${actualConfig.label || actualConfig.name}...\r\n`);
             try {
-                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, config.flags);
+                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, actualConfig.flags);
                 const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
+                // Add exports for environment variables if needed
+                const env = mergeEnvironment(connection.environment, options.environment);
+                commands.push(environmentToExportString(env));
+                // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {
-                    commands.push(options.command);
+                    commands.push(replaceVariables(options.command, actualConfig));
                 } else {
-                    const tc = joinCommands(config.terminalCommand, separator);
-                    commands.push(tc ? replaceVariables(tc, config) : '$SHELL');
+                    const tc = joinCommands(actualConfig.terminalCommand, separator);
+                    commands.push(tc ? replaceVariables(tc, actualConfig) : '$SHELL');
                 }
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
-                workingDirectory = workingDirectory || config.root;
+                workingDirectory = workingDirectory || actualConfig.root;
                 if (workingDirectory) {
                     if (workingDirectory.startsWith('~')) {
                         // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does

@@ -1,7 +1,7 @@
 import type { Client } from 'ssh2';
 import * as vscode from 'vscode';
-import { configMatches, loadConfigs } from './config';
-import type { FileSystemConfig } from './fileSystemConfig';
+import { configMatches, getFlagBoolean, loadConfigs } from './config';
+import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
@@ -10,10 +10,46 @@ export interface Connection {
     config: FileSystemConfig;
     actualConfig: FileSystemConfig;
     client: Client;
+    environment: EnvironmentVariable[];
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
+}
+
+export function mergeEnvironment(env: EnvironmentVariable[], ...others: (EnvironmentVariable[] | Record<string, string> | undefined)[]): EnvironmentVariable[] {
+    const result = [...env];
+    for (const other of others) {
+        if (!other) continue;
+        if (Array.isArray(other)) {
+            for (const variable of other) {
+                const index = result.findIndex(v => v.key === variable.key);
+                if (index === -1) result.push(variable);
+                else result[index] = variable;
+            }
+        } else {
+            for (const [key, value] of Object.entries(other)) {
+                result.push({ key, value });
+            }
+        }
+    }
+    return result;
+}
+
+// https://stackoverflow.com/a/20053121 way 1
+const CLEAN_BASH_VALUE_REGEX = /^[\w-/\\]+$/;
+function escapeBashValue(value: string) {
+    if (CLEAN_BASH_VALUE_REGEX.test(value)) return value;
+    return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+export function environmentToExportString(env: EnvironmentVariable[]): string {
+    return env.map(({ key, value }) => `export ${escapeBashValue(key)}=${escapeBashValue(value)}`).join('; ');
+}
+
+export function joinCommands(commands: string | string[] | undefined, separator: string): string | undefined {
+    if (!commands) return undefined;
+    if (typeof commands === 'string') return commands;
+    return commands.filter(c => c && c.trim()).join(separator);
 }
 
 export class ConnectionManager {
@@ -51,9 +87,10 @@ export class ConnectionManager {
         if (!actualConfig) throw new Error('Connection cancelled');
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
+        const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
         let timeoutCounter = 0;
         const con: Connection = {
-            config, client, actualConfig,
+            config, client, actualConfig, environment,
             terminals: [],
             filesystems: [],
             pendingUserCount: 0,
