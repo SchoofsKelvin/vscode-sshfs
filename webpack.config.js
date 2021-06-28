@@ -44,6 +44,20 @@ class CopyPuttyExecutable {
     }
 }
 
+class ProblemMatcherReporter {
+    /**
+     * @param {webpack.Compiler} compiler
+     */
+    apply(compiler) {
+        compiler.hooks.beforeCompile.tap('ProblemMatcherReporter-BeforeCompile', () => {
+            console.log('Compilation starting');
+        });
+        compiler.hooks.afterCompile.tap('ProblemMatcherReporter-AfterCompile', () => {
+            console.log('Compilation finished');
+        });
+    }
+}
+
 /**@type {webpack.Configuration}*/
 const config = {
     mode: 'development',
@@ -80,6 +94,7 @@ const config = {
     plugins: [
         new CleanWebpackPlugin(),
         new CopyPuttyExecutable(),
+        new ProblemMatcherReporter(),
     ],
     optimization: {
         splitChunks: {
