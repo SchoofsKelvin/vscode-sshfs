@@ -176,6 +176,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   // Helper function to handle/report errors with proper (and minimal) stacktraces and such
   protected handleError(uri: vscode.Uri, e: Error & { code?: any }, doThrow: (boolean | ((error: any) => void)) = false): any {
     if (e.code === 2 && shouldIgnoreNotFound(uri.path)) {
+      e = vscode.FileSystemError.FileNotFound(uri);
       // Whenever a workspace opens, VSCode (and extensions) (indirectly) stat a bunch of files
       // (.vscode/tasks.json etc, .git/, node_modules for NodeJS, pom.xml for Maven, ...)
       this.logging.debug(`Ignored FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);

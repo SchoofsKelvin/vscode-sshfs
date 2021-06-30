@@ -1,4 +1,6 @@
-import type { Client, ClientChannel } from 'ssh2';
+import { posix as path } from 'path';
+import * as readline from 'readline';
+import type { Client, ClientChannel, SFTPWrapper } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
@@ -65,6 +67,23 @@ async function tryGetHome(ssh: Client): Promise<string | null> {
     return mat[1];
 }
 
+const TMP_PROFILE_SCRIPT = `
+if type code > /dev/null 2> /dev/null; then
+    return 0;
+fi
+code() {
+    if [ ! -n "$KELVIN_SSHFS_CMD_PATH" ]; then
+        echo "Not running in a terminal spawned by SSH FS? Failed to sent!"
+    elif [ -c "$KELVIN_SSHFS_CMD_PATH" ]; then
+        echo "::sshfs:code:$(pwd):::$1" >> $KELVIN_SSHFS_CMD_PATH;
+        echo "Command sent to SSH FS extension";
+    else
+        echo "Missing command shell pty of SSH FS extension? Failed to sent!"
+    fi
+}
+echo "Injected 'code' alias";
+`;
+
 export class ConnectionManager {
     protected onConnectionAddedEmitter = new vscode.EventEmitter<Connection>();
     protected onConnectionRemovedEmitter = new vscode.EventEmitter<Connection>();
@@ -90,6 +109,55 @@ export class ConnectionManager {
     public getPendingConnections(): [string, FileSystemConfig | undefined][] {
         return Object.keys(this.pendingConnections).map(name => [name, this.pendingConnections[name][1]]);
     }
+    protected async _createCommandTerminal(client: Client, authority: string): Promise<string> {
+        const logging = Logging.scope(`CmdTerm(${authority})`);
+        const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
+        shell.write('echo ::sshfs:TTY:$(tty)\n');
+        return new Promise((resolvePath, rejectPath) => {
+            const rl = readline.createInterface(shell.stdout);
+            shell.stdout.once('error', rejectPath);
+            shell.once('close', () => rejectPath());
+            rl.on('line', async line => {
+                // logging.debug('<< ' + line);
+                const [, prefix, cmd, args] = line.match(/(.*?)::sshfs:(\w+):(.*)$/) || [];
+                if (!cmd || prefix.endsWith('echo ')) return;
+                switch (cmd) {
+                    case 'TTY':
+                        logging.info('Got TTY path: ' + args);
+                        resolvePath(args);
+                        break;
+                    case 'code':
+                        let [pwd, target] = args.split(':::');
+                        if (!pwd || !target) {
+                            logging.error(`Malformed 'code' command args: ${args}`);
+                            return;
+                        }
+                        pwd = pwd.trim();
+                        target = target.trim();
+                        logging.info(`Received command to open '${target}' while in '${pwd}'`);
+                        const absolutePath = target.startsWith('/') ? target : path.join(pwd, target);
+                        const uri = vscode.Uri.parse(`ssh://${authority}/${absolutePath}`);
+                        try {
+                            const stat = await vscode.workspace.fs.stat(uri);
+                            if (stat.type & vscode.FileType.Directory) {
+                                await vscode.workspace.updateWorkspaceFolders(vscode.workspace.workspaceFolders?.length || 0, 0, { uri });
+                            } else {
+                                await vscode.window.showTextDocument(uri);
+                            }
+                        } catch (e) {
+                            if (e instanceof vscode.FileSystemError) {
+                                vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.name.replace(/ \(FileSystemError\)/g, '')}`);
+                            } else {
+                                vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.message || e}`);
+                            }
+                        }
+                        return;
+                    default:
+                        logging.error(`Unrecognized command ${cmd} with args: ${args}`);
+                }
+            });
+        })
+    }
     protected async _createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
         const logging = Logging.scope(`createConnection(${name},${config ? 'config' : 'undefined'})`);
         logging.info(`Creating a new connection for '${name}'`);
@@ -110,6 +178,15 @@ export class ConnectionManager {
         }
         // Calculate the environment
         const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
+        // Set up stuff for receiving remote commands
+        const [flagRCV, flagRCR] = getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags);
+        if (flagRCV) {
+            logging.info(`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal`);
+            const cmdPath = await this._createCommandTerminal(client, name);
+            environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
+            const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
+            await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb));
+        }
         // Set up the Connection object
         let timeoutCounter = 0;
         const con: Connection = {

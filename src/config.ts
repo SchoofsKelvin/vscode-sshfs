@@ -378,6 +378,9 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Makes it that commands are joined together using ` && ` instead of `; `
   CHECK_HOME (boolean) (default=true)
     - Determines whether we check if the home directory exists during `createFileSystem` in the Manager
+  REMOTE_COMMANDS (boolean) (default=false)
+    - Enables automatically launching a background command terminal during connection setup
+    - Enables attempting to inject a file to be sourced by the remote shells (which adds the `code` alias)
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo = [value: FlagValue, origin: string];

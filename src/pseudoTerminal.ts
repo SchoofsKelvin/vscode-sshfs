@@ -166,15 +166,26 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, actualConfig.flags);
                 const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
+                let SHELL = '$SHELL';
                 // Add exports for environment variables if needed
                 const env = mergeEnvironment(connection.environment, options.environment);
                 commands.push(environmentToExportString(env));
+                // Beta feature to add a "code <file>" command in terminals to open the file locally
+                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
+                    // For bash
+                    commands.push(`export ORIG_PROMPT_COMMAND="$PROMPT_COMMAND"`);
+                    commands.push(`export PROMPT_COMMAND='source /tmp/.Kelvin_sshfs PC; $ORIG_PROMPT_COMMAND'`);
+                    // For sh
+                    commands.push(`export OLD_ENV="$ENV"`); // not actually used (yet?)
+                    commands.push(`export ENV=/tmp/.Kelvin_sshfs`);
+                }
                 // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {
-                    commands.push(replaceVariables(options.command, actualConfig));
+                    commands.push(replaceVariables(options.command.replace(/$SHELL/g, SHELL), actualConfig));
                 } else {
                     const tc = joinCommands(actualConfig.terminalCommand, separator);
-                    commands.push(tc ? replaceVariables(tc, actualConfig) : '$SHELL');
+                    let cmd = tc ? replaceVariables(tc.replace(/$SHELL/g, SHELL), actualConfig) : SHELL;
+                    commands.push(cmd);
                 }
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
