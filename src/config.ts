@@ -367,9 +367,19 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
   return scope;
 }
 
+/* List of flags
+  DF-GE (boolean) (default=false)
+    - Disables the 'diffie-hellman-group-exchange' kex algorithm as a default option
+    - Originally for issue #239
+    - Automatically enabled for Electron v11.0, v11.1 and v11.2
+  DEBUG_SSH2 (boolean) (default=false)
+    - Enables debug logging in the ssh2 library (set at the start of each connection)
+  WINDOWS_COMMAND_SEPARATOR (boolean) (default=false)
+    - Makes it that commands are joined together using ` && ` instead of `; `
+*/
 export type FlagValue = string | boolean | null;
 export type FlagCombo = [value: FlagValue, origin: string];
-export const DEFAULT_FLAGS: string[] = ['-DF-GE'];
+export const DEFAULT_FLAGS: string[] = [];
 let cachedFlags: Record<string, FlagCombo> = {};
 function calculateFlags(): Record<string, FlagCombo> {
   const flags: Record<string, FlagCombo> = {};
