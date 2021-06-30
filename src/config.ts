@@ -376,6 +376,8 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Enables debug logging in the ssh2 library (set at the start of each connection)
   WINDOWS_COMMAND_SEPARATOR (boolean) (default=false)
     - Makes it that commands are joined together using ` && ` instead of `; `
+  CHECK_HOME (boolean) (default=true)
+    - Determines whether we check if the home directory exists during `createFileSystem` in the Manager
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo = [value: FlagValue, origin: string];

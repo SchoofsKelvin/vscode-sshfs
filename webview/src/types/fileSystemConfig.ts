@@ -88,7 +88,7 @@ export interface FileSystemConfig extends ConnectConfig {
   group?: string;
   /** Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings) */
   merge?: boolean;
-  /** Path on the remote server where the root path in vscode should point to. Defaults to / */
+  /** Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/` */
   root?: string;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
   putty?: string | boolean;

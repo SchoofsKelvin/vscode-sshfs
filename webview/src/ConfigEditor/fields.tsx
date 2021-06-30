@@ -70,7 +70,7 @@ export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): Re
 
 export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): React.ReactElement {
   const callback = (value: string) => onChange('root', value);
-  const description = 'Path on the remote server where the root path in vscode should point to. Defaults to /';
+  const description = 'Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/`';
   return <FieldString key="root" label="Root" value={config.root} onChange={callback} optional validator={pathValidator} description={description} />
 }
 

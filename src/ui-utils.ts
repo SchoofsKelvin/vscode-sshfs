@@ -65,8 +65,10 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             contextValue: 'connection',
         };
     } else if ('onDidChangeFile' in item) { // SSHFileSystem
+        const { label, name, group } = item.config;
+        const description = group ? `${group}.${name} ` : (label && name);
         return {
-            item, description: item.root, contextValue: 'filesystem',
+            item, description, contextValue: 'filesystem',
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: asAbsolutePath?.('resources/icon.svg'),
         }

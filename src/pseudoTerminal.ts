@@ -5,7 +5,6 @@ import * as vscode from "vscode";
 import { getFlagBoolean } from './config';
 import { Connection, environmentToExportString, joinCommands, mergeEnvironment } from './connection';
 import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
-import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { toPromise } from "./toPromise";
 
@@ -77,14 +76,14 @@ export function replaceVariables(value: string, config: FileSystemConfig): strin
         switch (key) {
             case 'remoteWorkspaceRoot':
             case 'remoteWorkspaceFolder':
-                return getRemotePath(config, getFolderUri());
+                return getFolderUri().path;
             case 'remoteWorkspaceRootFolderName':
             case 'remoteWorkspaceFolderBasename':
                 return path.basename(getFolderUri().path);
             case 'remoteFile':
-                return getRemotePath(config, getFilePath());
+                return getFilePath().path;
             case 'remoteFileWorkspaceFolder':
-                return getRemotePath(config, getFolderPathForFile());
+                return getFolderPathForFile().path;
             case 'remoteRelativeFile':
                 if (sshFolder || argument)
                     return path.relative(getFolderUri().path, getFilePath().path);
@@ -181,6 +180,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 let { workingDirectory } = options;
                 workingDirectory = workingDirectory || actualConfig.root;
                 if (workingDirectory) {
+                    // TODO: Maybe replace with `connection.home`?
                     if (workingDirectory.startsWith('~')) {
                         // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
                         // `"~"` would also fail but `~/""` works fine it seems

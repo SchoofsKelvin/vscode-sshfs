@@ -1,15 +1,17 @@
-import type { Client } from 'ssh2';
+import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
+import { toPromise } from './toPromise';
 
 export interface Connection {
     config: FileSystemConfig;
     actualConfig: FileSystemConfig;
     client: Client;
+    home: string;
     environment: EnvironmentVariable[];
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
@@ -52,6 +54,17 @@ export function joinCommands(commands: string | string[] | undefined, separator:
     return commands.filter(c => c && c.trim()).join(separator);
 }
 
+async function tryGetHome(ssh: Client): Promise<string | null> {
+    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
+    let home = '';
+    exec.stdout.on('data', (chunk: any) => home += chunk);
+    await toPromise(cb => exec.on('close', cb));
+    if (!home) return null;
+    const mat = home.match(/^Home: (.*?)\r?\n?$/);
+    if (!mat) return null;
+    return mat[1];
+}
+
 export class ConnectionManager {
     protected onConnectionAddedEmitter = new vscode.EventEmitter<Connection>();
     protected onConnectionRemovedEmitter = new vscode.EventEmitter<Connection>();
@@ -81,22 +94,32 @@ export class ConnectionManager {
         const logging = Logging.scope(`createConnection(${name},${config ? 'config' : 'undefined'})`);
         logging.info(`Creating a new connection for '${name}'`);
         const { createSSH, calculateActualConfig } = await import('./connect');
+        // Query and calculate the actual config
         config = config || (await loadConfigs()).find(c => c.name === name);
         if (!config) throw new Error(`No configuration with name '${name}' found`);
         const actualConfig = await calculateActualConfig(config);
         if (!actualConfig) throw new Error('Connection cancelled');
+        // Start the actual SSH connection
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
+        // Query home directory
+        const home = await tryGetHome(client);
+        if (!home) {
+            await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
+            throw new Error(`Could not detect home directory`);
+        }
+        // Calculate the environment
         const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
+        // Set up the Connection object
         let timeoutCounter = 0;
         const con: Connection = {
-            config, client, actualConfig, environment,
+            config, client, actualConfig, home, environment,
             terminals: [],
             filesystems: [],
             pendingUserCount: 0,
             idleTimer: setInterval(() => { // Automatically close connection when idle for a while
                 timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;
-                if (con.pendingUserCount) return;
+                if (con.pendingUserCount) return; // Still got starting filesystems/terminals on this connection
                 con.filesystems = con.filesystems.filter(fs => !fs.closed && !fs.closing);
                 if (con.filesystems.length) return; // Still got active filesystems on this connection
                 if (con.terminals.length) return; // Still got active terminals on this connection

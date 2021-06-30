@@ -1,27 +1,13 @@
 
-import * as path from 'path';
-import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager, joinCommands } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
-import { getRemotePath } from './fileSystemRouter';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
-import { catchingPromise, toPromise } from './toPromise';
+import { catchingPromise } from './toPromise';
 import type { Navigation } from './webviewMessages';
-
-async function tryGetHome(ssh: Client): Promise<string | null> {
-  const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
-  let home = '';
-  exec.stdout.on('data', (chunk: any) => home += chunk);
-  await toPromise(cb => exec.on('close', cb));
-  if (!home) return null;
-  const mat = home.match(/^Home: (.*?)\r?\n?$/);
-  if (!mat) return null;
-  return mat[1];
-}
 
 function commandArgumentToName(arg?: string | FileSystemConfig | Connection): string {
   if (!arg) return 'undefined';
@@ -71,37 +57,10 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       config = con.actualConfig;
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
-      // Query/calculate the root directory
-      let root = config!.root || '/';
-      if (root.startsWith('~')) {
-        const home = await tryGetHome(con.client);
-        if (!home) {
-          await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
-          return reject();
-        }
-        root = root.replace(/^~/, home.replace(/\/$/, ''));
-      }
       // Create the actual SFTP session (using the connection's actualConfig, otherwise it'll reprompt for passwords etc)
       const sftp = await getSFTP(con.client, con.actualConfig);
-      const fs = new SSHFileSystem(name, sftp, root, config!);
+      const fs = new SSHFileSystem(name, sftp, con.actualConfig);
       Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);
-      // Sanity check that we can actually access the root directory (maybe it requires permissions we don't have)
-      try {
-        const rootUri = vscode.Uri.parse(`ssh://${name}/`);
-        const stat = await fs.stat(rootUri);
-        // tslint:disable-next-line:no-bitwise
-        if (!(stat.type & vscode.FileType.Directory)) {
-          throw vscode.FileSystemError.FileNotADirectory(rootUri);
-        }
-      } catch (e) {
-        let message = `Couldn't read the root directory '${fs.root}' on the server for SSH FS '${name}'`;
-        if (e instanceof vscode.FileSystemError) {
-          message = `Path '${fs.root}' in SSH FS '${name}' is not a directory`;
-        }
-        Logging.error(e);
-        await vscode.window.showErrorMessage(message, 'Okay');
-        return reject();
-      }
       this.connectionManager.update(con, con => con.filesystems.push(fs));
       this.fileSystems.push(fs);
       delete this.creatingFileSystems[name];
@@ -112,6 +71,23 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
       // con.client.once('close', hadError => !fs.closing && this.promptReconnect(name));
       this.connectionManager.update(con, con => con.pendingUserCount--);
+      // Sanity check that we can access the home directory
+      const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
+      if (flagCH) try {
+        const homeUri = vscode.Uri.parse(`ssh://${name}/${con.home}`);
+        const stat = await fs.stat(homeUri);
+        if (!(stat.type & vscode.FileType.Directory)) {
+          throw vscode.FileSystemError.FileNotADirectory(homeUri);
+        }
+      } catch (e) {
+        let message = `Couldn't read the home directory '${con.home}' on the server for SSH FS '${name}', this might be a sign of bad permissions`;
+        if (e instanceof vscode.FileSystemError) {
+          message = `The home directory '${con.home}' in SSH FS '${name}' is not a directory, this might be a sign of bad permissions`;
+        }
+        Logging.error(e);
+        const answer = await vscode.window.showWarningMessage(message, 'Stop', 'Ignore');
+        if (answer === 'Okay') return reject(new Error('User stopped filesystem creation after unaccessible home directory error'));
+      }
       return resolve(fs);
     }).catch((e) => {
       if (con) this.connectionManager.update(con, con => con.pendingUserCount--); // I highly doubt resolve(fs) will error
@@ -139,11 +115,9 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
     const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
-    // Calculate working directory if applicable
-    const workingDirectory = uri && getRemotePath(con.actualConfig, uri);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
-    const pty = await createTerminal({ connection: con, workingDirectory });
+    const pty = await createTerminal({ connection: con, workingDirectory: uri?.path || con.actualConfig.root });
     pty.onDidClose(() => this.connectionManager.update(con, con => con.terminals = con.terminals.filter(t => t !== pty)));
     this.connectionManager.update(con, con => (con.terminals.push(pty), con.pendingUserCount--));
     // Create and show the graphical representation
@@ -221,22 +195,14 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     while (true) {
       const match = PATH_REGEX.exec(line);
       if (!match) break;
-      const [filepath] = match;
-      let relative: string | undefined;
-      for (const fs of conn.filesystems) {
-        const rel = path.posix.relative(fs.root, filepath);
-        if (!rel.startsWith('../') && !path.posix.isAbsolute(rel)) {
-          relative = rel;
-          break;
-        }
-      }
-      const uri = relative ? vscode.Uri.parse(`ssh://${conn.actualConfig.name}/${relative}`) : undefined;
-      // TODO: Support absolute path stuff, maybe `ssh://${conn.actualConfig.name}:root//${filepath}` or so?
+      let [filepath] = match;
+      if (filepath.startsWith('~')) filepath = conn.home + filepath.substring(1);
+      const uri = vscode.Uri.parse(`ssh://${conn.actualConfig.name}/${filepath}`);
       links.push({
         uri,
         startIndex: match.index,
         length: filepath.length,
-        tooltip: uri ? '[SSH FS] Open file' : '[SSH FS] Cannot open remote file outside configured root directory',
+        tooltip: '[SSH FS] Open file',
       });
     }
     return links;
@@ -246,13 +212,19 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     await vscode.window.showTextDocument(link.uri);
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
-  public commandConnect(config: FileSystemConfig) {
+  public async commandConnect(config: FileSystemConfig) {
     Logging.info(`Command received to connect ${config.name}`);
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === config.name);
     if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+    let { root = '/' } = config;
+    if (root.startsWith('~')) {
+      const con = this.connectionManager.getActiveConnection(config.name, config);
+      if (con) root = con.home + root.substring(1);
+    }
+    if (root.startsWith('/')) root = root.substring(1);
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, {
-      uri: vscode.Uri.parse(`ssh://${config.name}/`),
+      uri: vscode.Uri.parse(`ssh://${config.name}/${root}`),
       name: `SSH FS - ${config.label || config.name}`,
     });
   }
@@ -286,8 +258,6 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async commandTerminal(target: FileSystemConfig | Connection, uri?: vscode.Uri) {
     Logging.info(`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`);
     const config = 'client' in target ? target.actualConfig : target;
-    // If no Uri is given, default to ssh://<target>/ which should respect config.root
-    uri = uri || vscode.Uri.parse(`ssh://${config.name}/`, true);
     try {
       await this.createTerminal(config.label || config.name, target, uri);
     } catch (e) {
