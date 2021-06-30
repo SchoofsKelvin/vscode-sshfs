@@ -4,7 +4,7 @@ import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldString } from '../FieldTypes/string';
 import { FileSystemConfig } from '../types/fileSystemConfig';
-import { FieldFactory, FSCChanged, FSCChangedMultiple } from './fields';
+import type { FieldFactory, FSCChanged, FSCChangedMultiple } from './fields';
 
 export function proxy(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): React.ReactElement {
     const onChangeHost = (host: string) => onChange('proxy', { ...config.proxy!, host });

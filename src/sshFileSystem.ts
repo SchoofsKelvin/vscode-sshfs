@@ -3,7 +3,7 @@ import * as path from 'path';
 import type * as ssh2 from 'ssh2';
 import type * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './fileSystemConfig';
+import type { FileSystemConfig } from './fileSystemConfig';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 
 // This makes it report a single line of the stacktrace of where the e.g. logger.info() call happened

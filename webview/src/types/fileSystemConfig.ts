@@ -10,8 +10,8 @@ export type ConfigLocation = number | string;
 
 /** Might support conditional stuff later, although ssh2/OpenSSH might not support that natively */
 export interface EnvironmentVariable {
-    key: string;
-    value: string;
+  key: string;
+  value: string;
 }
 
 export function formatConfigLocation(location?: ConfigLocation): string {

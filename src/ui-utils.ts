@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { Connection, ConnectionManager } from './connection';
-import { parseConnectionString, FileSystemConfig } from './fileSystemConfig';
+import { FileSystemConfig, parseConnectionString } from './fileSystemConfig';
 import type { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
