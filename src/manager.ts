@@ -1,12 +1,12 @@
 
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
-import { Connection, ConnectionManager, joinCommands } from './connection';
+import { Connection, ConnectionManager } from './connection';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
-import { catchingPromise } from './toPromise';
+import { catchingPromise, joinCommands } from './utils';
 import type { Navigation } from './webviewMessages';
 
 function commandArgumentToName(arg?: string | FileSystemConfig | Connection): string {

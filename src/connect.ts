@@ -8,7 +8,7 @@ import { getConfig, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import type { PuttySession } from './putty';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 
 // tslint:disable-next-line:variable-name
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);

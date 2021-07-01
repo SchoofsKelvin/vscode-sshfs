@@ -4,7 +4,7 @@ import { request } from 'http';
 import { SocksClient } from 'socks';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 
 async function resolveHostname(hostname: string): Promise<string> {
   return toPromise<string>(cb => dns.lookup(hostname, cb)).then((ip) => {

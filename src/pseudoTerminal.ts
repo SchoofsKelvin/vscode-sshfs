@@ -3,10 +3,10 @@ import type { ClientChannel, PseudoTtyOptions } from "ssh2";
 import type { Readable } from "stream";
 import * as vscode from "vscode";
 import { getFlagBoolean } from './config';
-import { Connection, environmentToExportString, joinCommands, mergeEnvironment } from './connection';
+import type { Connection } from './connection';
 import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
-import { toPromise } from "./toPromise";
+import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
 const [HEIGHT, WIDTH] = [480, 640];
 const PSEUDO_TTY_OPTIONS: PseudoTtyOptions = {

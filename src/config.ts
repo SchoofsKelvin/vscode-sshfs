@@ -4,7 +4,7 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as vscode from 'vscode';
 import { ConfigLocation, FileSystemConfig, invalidConfigName, parseConnectionString } from './fileSystemConfig';
 import { Logging } from './logging';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 
 // Logger scope with default warning/error options (which enables stacktraces) disabled
 const logging = Logging.scope(undefined, false);
