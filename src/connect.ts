@@ -8,7 +8,7 @@ import { getConfig, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import type { PuttySession } from './putty';
-import { toPromise } from './utils';
+import { toPromise, validatePort } from './utils';
 
 // tslint:disable-next-line:variable-name
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
@@ -66,7 +66,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   if (config.username !== '$USER') config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');
-  if (port) config.port = Number(port);
+  config.port = port ? validatePort(port) : 22;
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
   logging.info(`Calculating actual config`);

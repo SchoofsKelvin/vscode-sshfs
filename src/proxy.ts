@@ -4,7 +4,7 @@ import { request } from 'http';
 import { SocksClient } from 'socks';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
-import { toPromise } from './utils';
+import { toPromise, validatePort } from './utils';
 
 async function resolveHostname(hostname: string): Promise<string> {
   return toPromise<string>(cb => dns.lookup(hostname, cb)).then((ip) => {
@@ -15,9 +15,10 @@ async function resolveHostname(hostname: string): Promise<string> {
 
 function validateConfig(config: FileSystemConfig) {
   if (!config.proxy) throw new Error(`Missing field 'config.proxy'`);
+  if (!config.proxy.type) throw new Error(`Missing field 'config.proxy.type'`);
   if (!config.proxy.host) throw new Error(`Missing field 'config.proxy.host'`);
   if (!config.proxy.port) throw new Error(`Missing field 'config.proxy.port'`);
-  if (!config.proxy.type) throw new Error(`Missing field 'config.proxy.type'`);
+  config.proxy.port = validatePort(config.proxy.port);
 }
 
 export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableStream> {

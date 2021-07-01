@@ -27,6 +27,14 @@ export async function catchingPromise<T>(executor: (resolve: (value?: T | Promis
     });
 }
 
+/** Converts the given number/string to a port number. Throws an error for invalid strings or ports outside the 1-65565 range */
+export function validatePort(port: string | number): number {
+    const p = Number(port);
+    if (!Number.isInteger(p)) throw new Error(`Wanting to use non-int '${port}' as port`);
+    if (p < 0 || p > 65565) throw new Error(`Wanting to use port ${p} outside the 1-65565 range`);
+    return p;
+}
+
 const CLEAN_BASH_VALUE_REGEX = /^[\w-/\\]+$/;
 /** Based on way 1 in https://stackoverflow.com/a/20053121 */
 function escapeBashValue(value: string) {
