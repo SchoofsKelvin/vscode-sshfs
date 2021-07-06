@@ -135,11 +135,21 @@ export class ConnectionManager {
         // Start the actual SSH connection
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
+        logging.info(`Remote version: ${(client as any)._remoteVer || 'N/A'}`);
         // Query home directory
-        const home = await tryGetHome(client);
+        let home = await tryGetHome(client);
         if (!home) {
-            await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
-            throw new Error(`Could not detect home directory`);
+            const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
+            logging.error('Could not detect home directory');
+            if (flagCH) {
+                logging.info('If this is expected, disable the CHECK_HOME flag with \'-CHECK_HOME\':');
+                logging.info('https://github.com/SchoofsKelvin/vscode-sshfs/issues/270');
+                await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
+                throw new Error(`Could not detect home directory`);
+            } else {
+                logging.warning('The CHECK_HOME flag is disabled, default to \'/\' and ignore the error');
+                home = '';
+            }
         }
         // Calculate the environment
         const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
