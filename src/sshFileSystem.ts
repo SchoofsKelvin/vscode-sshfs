@@ -3,7 +3,7 @@ import * as path from 'path';
 import type * as ssh2 from 'ssh2';
 import type * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { FileSystemConfig } from './fileSystemConfig';
+import type { FileSystemConfig } from './fileSystemConfig';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 
 // This makes it report a single line of the stacktrace of where the e.g. logger.info() call happened
@@ -42,23 +42,14 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   public onClose = this.onCloseEmitter.event;
   public onDidChangeFile = this.onDidChangeFileEmitter.event;
   protected logging: Logger;
-  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper,
-    public readonly root: string, public readonly config: FileSystemConfig) {
-    this.logging = Logging.scope(`SSHFileSystem(${root})`, false);
+  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper, public readonly config: FileSystemConfig) {
+    this.logging = Logging.scope(`SSHFileSystem(${authority})`, false);
     this.sftp.on('end', () => (this.closed = true, this.onCloseEmitter.fire()));
     this.logging.info('SSHFileSystem created');
   }
   public disconnect() {
     this.closing = true;
     this.sftp.end();
-  }
-  public relative(relPath: string) {
-    // ssh://a/b/c.d should result in relPath being "/b/c.d"
-    // So // means absolute path, / means relative path
-    // NOTE: Apparently VSCode automatically replaces multiple slashes with a single /
-    // (so the // part is useless right now)
-    if (relPath.startsWith('//')) return relPath.substr(1);
-    return path.posix.resolve(this.root, relPath.substr(1));
   }
   public continuePromise<T>(func: (cb: (err: Error | null | undefined, res?: T) => void) => boolean): Promise<T> {
     return new Promise<T>((resolve, reject) => {
@@ -85,7 +76,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     return new vscode.Disposable(() => { });
   }
   public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
-    const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb))
+    const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(uri.path, cb))
       .catch(e => this.handleError(uri, e, true) as never);
     const { mtime, size } = stat;
     let type = vscode.FileType.Unknown;
@@ -100,7 +91,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     };
   }
   public async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-    const entries = await this.continuePromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(this.relative(uri.path), cb))
+    const entries = await this.continuePromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(uri.path, cb))
       .catch((e) => this.handleError(uri, e, true) as never);
     return Promise.all(entries.map(async (file) => {
       const furi = uri.with({ path: `${uri.path}${uri.path.endsWith('/') ? '' : '/'}${file.filename}` });
@@ -121,11 +112,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     }));
   }
   public createDirectory(uri: vscode.Uri): void | Promise<void> {
-    return this.continuePromise<void>(cb => this.sftp.mkdir(this.relative(uri.path), cb)).catch(e => this.handleError(uri, e, true));
+    return this.continuePromise<void>(cb => this.sftp.mkdir(uri.path, cb)).catch(e => this.handleError(uri, e, true));
   }
   public readFile(uri: vscode.Uri): Uint8Array | Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      const stream = this.sftp.createReadStream(this.relative(uri.path), { autoClose: true });
+      const stream = this.sftp.createReadStream(uri.path, { autoClose: true });
       const bufs = [];
       stream.on('data', bufs.push.bind(bufs));
       stream.on('error', e => this.handleError(uri, e, reject));
@@ -139,7 +130,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       let mode: number | string | undefined;
       let fileExists = false;
       try {
-        const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(this.relative(uri.path), cb));
+        const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(uri.path, cb));
         mode = stat.mode;
         fileExists = true;
       } catch (e) {
@@ -147,11 +138,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
           mode = this.config.newFileMode;
         } else {
           this.handleError(uri, e);
-          vscode.window.showWarningMessage(`Couldn't read the permissions for '${this.relative(uri.path)}', permissions might be overwritten`);
+          vscode.window.showWarningMessage(`Couldn't read the permissions for '${uri.path}', permissions might be overwritten`);
         }
       }
       mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this
-      const stream = this.sftp.createWriteStream(this.relative(uri.path), { mode, flags: 'w' });
+      const stream = this.sftp.createWriteStream(uri.path, { mode, flags: 'w' });
       stream.on('error', e => this.handleError(uri, e, reject));
       stream.end(content, () => {
         this.onDidChangeFileEmitter.fire([{ uri, type: fileExists ? vscode.FileChangeType.Changed : vscode.FileChangeType.Created }]);
@@ -164,18 +155,18 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     const fireEvent = () => this.onDidChangeFileEmitter.fire([{ uri, type: vscode.FileChangeType.Deleted }]);
     // tslint:disable no-bitwise */
     if (stats.type & (vscode.FileType.SymbolicLink | vscode.FileType.File)) {
-      return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb))
+      return this.continuePromise(cb => this.sftp.unlink(uri.path, cb))
         .then(fireEvent).catch(e => this.handleError(uri, e, true));
     } else if ((stats.type & vscode.FileType.Directory) && options.recursive) {
-      return this.continuePromise(cb => this.sftp.rmdir(this.relative(uri.path), cb))
+      return this.continuePromise(cb => this.sftp.rmdir(uri.path, cb))
         .then(fireEvent).catch(e => this.handleError(uri, e, true));
     }
-    return this.continuePromise(cb => this.sftp.unlink(this.relative(uri.path), cb))
+    return this.continuePromise(cb => this.sftp.unlink(uri.path, cb))
       .then(fireEvent).catch(e => this.handleError(uri, e, true));
     // tslint:enable no-bitwise */
   }
   public rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Promise<void> {
-    return this.continuePromise<void>(cb => this.sftp.rename(this.relative(oldUri.path), this.relative(newUri.path), cb))
+    return this.continuePromise<void>(cb => this.sftp.rename(oldUri.path, newUri.path, cb))
       .then(() => this.onDidChangeFileEmitter.fire([
         { uri: oldUri, type: vscode.FileChangeType.Deleted },
         { uri: newUri, type: vscode.FileChangeType.Created }
@@ -185,6 +176,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   // Helper function to handle/report errors with proper (and minimal) stacktraces and such
   protected handleError(uri: vscode.Uri, e: Error & { code?: any }, doThrow: (boolean | ((error: any) => void)) = false): any {
     if (e.code === 2 && shouldIgnoreNotFound(uri.path)) {
+      e = vscode.FileSystemError.FileNotFound(uri);
       // Whenever a workspace opens, VSCode (and extensions) (indirectly) stat a bunch of files
       // (.vscode/tasks.json etc, .git/, node_modules for NodeJS, pom.xml for Maven, ...)
       this.logging.debug(`Ignored FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);

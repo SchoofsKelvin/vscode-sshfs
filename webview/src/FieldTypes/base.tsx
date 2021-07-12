@@ -8,6 +8,8 @@ interface Props<T> {
     value: T;
     optional?: boolean;
     group?: FieldGroup;
+    preface?: React.ReactNode;
+    postface?: React.ReactNode;
     validator?(value: T): string | null;
     onChange(newValue?: T): void;
 }
@@ -40,7 +42,7 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
         if (oldProps.value === value) return;
         this.setState({ oldValue: value, newValue: value });
     }
-    public abstract renderInput(): React.ReactNode;
+    protected abstract renderInput(): React.ReactNode;
     public getError(): string | null {
         const { newValue } = this.state;
         const { validator, optional } = this.props;
@@ -60,17 +62,22 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
     public getLabel() {
         return this.props.label;
     }
+    protected getClassName(): string {
+        return 'Field';
+    }
     public render() {
         const error = this.getError();
-        const { description, label, optional } = this.props;
-        return <div className="Field">
+        const { description, label, optional, preface, postface } = this.props;
+        return <div className={this.getClassName()}>
             <FieldGroup.Consumer>{group => (group?.register(this), [])}</FieldGroup.Consumer>
             <div className="label">{label}</div>{optional && <div className="optional">Optional</div>}
             {description && <div className="description">{description}</div>}
+            {preface}
             {error && <div className="error">{error}</div>}
             <div className="value">
                 {this.renderInput()}
             </div>
+            {postface}
         </div>;
     }
 }

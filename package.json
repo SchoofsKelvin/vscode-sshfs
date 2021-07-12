@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system, terminal and task provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "engines": {
         "vscode": "^1.49.0"
     },
@@ -312,6 +312,30 @@
                     "when": "explorerResourceIsFolder && resourceScheme == ssh",
                     "group": "navigation@30"
                 }
+            ],
+            "statusBar/remoteIndicator": [
+                {
+                    "command": "sshfs.add",
+                    "group": "remote_11_ssh_sshfs@1"
+                },
+                {
+                    "command": "sshfs.terminal",
+                    "group": "remote_11_ssh_sshfs@2"
+                },
+                {
+                    "command": "sshfs.settings",
+                    "group": "remote_11_ssh_sshfs@3"
+                },
+                {
+                    "command": "sshfs.disconnect",
+                    "group": "remote_11_ssh_sshfs@4",
+                    "when": "sshfs.openConnections > 0"
+                },
+                {
+                    "command": "sshfs.disconnectAll",
+                    "group": "remote_11_ssh_sshfs@5",
+                    "when": "sshfs.openConnections > 0"
+                }
             ]
         },
         "configuration": {
@@ -371,14 +395,41 @@
                     "command"
                 ]
             }
+        ],
+        "resourceLabelFormatters": [
+            {
+                "scheme": "ssh",
+                "formatting": {
+                    "label": "${scheme}://${authority}/${path} (SSH FS)",
+                    "separator": "/",
+                    "tildify": false,
+                    "stripPathStartingSeparator": true,
+                    "workspaceSuffix": "SSH FS"
+                }
+            }
+        ],
+        "viewsWelcome": [
+            {
+                "view": "sshfs-configs",
+                "contents": "No configurations created yet"
+            },
+            {
+                "view": "sshfs-connections",
+                "contents": "Not connected to anything"
+            }
         ]
+    },
+    "capabilities": {
+        "virtualWorkspaces": true,
+        "untrustedWorkspaces": {
+            "supported": true
+        }
     },
     "scripts": {
         "vscode:prepublish": "yarn run build && cd webview && yarn run build",
         "build": "webpack --mode production",
-        "compile": "webpack --mode none --info-verbosity verbose --display-modules",
-        "profile": "webpack --mode production --profile --json > stats.json",
-        "watch": "webpack --mode none --watch --info-verbosity verbose --display-modules"
+        "compile": "webpack --mode development",
+        "watch": "webpack --mode development --watch"
     },
     "devDependencies": {
         "@types/node": "^12.7.12",
@@ -387,12 +438,13 @@
         "@types/vscode": "~1.49.0",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
-        "clean-webpack-plugin": "^2.0.0",
+        "clean-webpack-plugin": "^4.0.0-alpha.0",
+        "source-map": "^0.7.3",
         "source-map-support": "^0.5.19",
-        "ts-loader": "^7.0.5",
-        "typescript": "^4.2.3",
-        "webpack": "^4.29.6",
-        "webpack-cli": "^3.2.3"
+        "ts-loader": "^9.2.3",
+        "typescript": "^4.3.4",
+        "webpack": "^5.40.0",
+        "webpack-cli": "^4.7.2"
     },
     "dependencies": {
         "event-stream": "^4.0.1",

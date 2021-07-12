@@ -9,7 +9,7 @@ import { Manager } from './manager';
 import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
-import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath } from './ui-utils';
+import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath, setupWhenClauseContexts } from './ui-utils';
 
 function getVersion(): string | undefined {
   const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
@@ -61,6 +61,8 @@ export function activate(context: vscode.ExtensionContext) {
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
   subscribe(vscode.window.registerTerminalLinkProvider(manager));
 
+  setupWhenClauseContexts(manager.connectionManager);
+
   function registerCommandHandler(name: string, handler: CommandHandler) {
     const callback = async (arg?: string | FileSystemConfig | Connection | SSHPseudoTerminal | ActivePortForwarding | vscode.Uri) => {
       if (handler.promptOptions && (!arg || typeof arg === 'string')) {
@@ -95,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.disconnect(target: string | FileSystemConfig | Connection)
   registerCommandHandler('sshfs.disconnect', {
-    promptOptions: { promptConfigs: true, promptConnections: true },
+    promptOptions: { promptConnections: true },
     handleString: name => manager.commandDisconnect(name),
     handleConfig: config => manager.commandDisconnect(config.name),
     handleConnection: con => manager.commandDisconnect(con),

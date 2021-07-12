@@ -1,13 +1,13 @@
 
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
-import type { Connection } from './connection';
+import type { Connection, ConnectionManager } from './connection';
 import { FileSystemConfig, parseConnectionString } from './fileSystemConfig';
 import type { Manager } from './manager';
 import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 
 export interface FormattedItem extends vscode.QuickPickItem, vscode.TreeItem {
     item: any;
@@ -21,6 +21,25 @@ export function formatAddress(config: FileSystemConfig): string {
 }
 
 export const capitalize = (str: string) => str.substring(0, 1).toUpperCase() + str.substring(1);
+
+export function setWhenClauseContext(key: string, value: any) {
+    return vscode.commands.executeCommand('setContext', `sshfs.${key}`, value);
+}
+
+export function setupWhenClauseContexts(connectionManager: ConnectionManager): Promise<void> {
+    async function refresh() {
+        const active = connectionManager.getActiveConnections();
+        const pending = connectionManager.getPendingConnections();
+        await setWhenClauseContext('openConnections', active.length + pending.length);
+        await setWhenClauseContext('openTerminals', active.reduce((tot, con) => tot + con.terminals.length, 0));
+        await setWhenClauseContext('openFileSystems', active.reduce((tot, con) => tot + con.filesystems.length, 0));
+    }
+    connectionManager.onConnectionAdded(refresh);
+    connectionManager.onConnectionRemoved(refresh);
+    connectionManager.onConnectionUpdated(refresh);
+    connectionManager.onPendingChanged(refresh);
+    return refresh();
+}
 
 export let asAbsolutePath: vscode.ExtensionContext['asAbsolutePath'] | undefined;
 export const setAsAbsolutePath = (value: typeof asAbsolutePath) => asAbsolutePath = value;
@@ -50,8 +69,10 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             contextValue: 'connection',
         };
     } else if ('onDidChangeFile' in item) { // SSHFileSystem
+        const { label, name, group } = item.config;
+        const description = group ? `${group}.${name} ` : (label && name);
         return {
-            item, description: item.root, contextValue: 'filesystem',
+            item, description, contextValue: 'filesystem',
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: asAbsolutePath?.('resources/icon.svg'),
         }

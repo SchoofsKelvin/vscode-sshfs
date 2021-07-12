@@ -1,7 +1,7 @@
 
 import * as Winreg from 'winreg';
 import { Logging } from './logging';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 
 const winreg = new Winreg({
   hive: Winreg.HKCU,

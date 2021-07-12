@@ -4,11 +4,11 @@ import { userInfo } from 'os';
 import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
-import { getConfig, getFlag, getFlagBoolean } from './config';
+import { getConfig, getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { censorConfig, Logging } from './logging';
 import type { PuttySession } from './putty';
-import { toPromise } from './toPromise';
+import { toPromise, validatePort } from './utils';
 
 // tslint:disable-next-line:variable-name
 const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
@@ -66,7 +66,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   if (config.username !== '$USER') config.username = replaceVariables(config.username);
   config.host = replaceVariables(config.host);
   const port = replaceVariables((config.port || '') + '');
-  if (port) config.port = Number(port);
+  config.port = port ? validatePort(port) : 22;
   config.agent = replaceVariables(config.agent);
   config.privateKeyPath = replaceVariables(config.privateKeyPath);
   logging.info(`Calculating actual config`);
@@ -165,6 +165,10 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     // Issue with the ssh2 dependency apparently not liking false
     delete config.passphrase;
   }
+  if (config.agentForward && !config.agent) {
+    logging.debug(`\tNo agent while having agentForward, disabling agent forwarding`);
+    config.agentForward = false;
+  }
   if (!config.privateKey && !config.agent && !config.password) {
     logging.debug(`\tNo privateKey, agent or password. Gonna prompt for password`);
     config.password = true as any;
@@ -253,13 +257,13 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     });
     try {
       const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
-      if (config.debug || getFlag('DEBUG_SSH2') !== undefined) {
+      if (config.debug || getFlagBoolean('DEBUG_SSH2', false, config.flags)[0]) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
       }
       // Unless the flag 'DF-GE' is specified, disable DiffieHellman groupex algorithms (issue #239)
       // Note: If the config already specifies a custom `algorithms.key`, ignore it (trust the user?)
-      const [flagV, flagR] = getFlagBoolean('DF-GE', false);
+      const [flagV, flagR] = getFlagBoolean('DF-GE', false, config.flags);
       if (flagV) {
         logging.info(`Flag "DF-GE" enabled due to '${flagR}', disabling DiffieHellman kex groupex algorithms`);
         let kex: string[] = require('ssh2-streams/lib/constants').ALGORITHMS.KEX;

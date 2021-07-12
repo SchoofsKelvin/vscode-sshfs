@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import type { Connection } from "./connection";
 import type { FileSystemConfig } from './fileSystemConfig';
 import type { Manager } from './manager';
-import { toPromise } from './toPromise';
+import { toPromise } from './utils';
 import { capitalize, promptQuickPick } from './ui-utils';
 
 /** Represents a dynamic port forwarding (DynamicForward) */

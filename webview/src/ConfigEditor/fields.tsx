@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { FieldCheckbox } from '../FieldTypes/checkbox';
 import { FieldDropdown } from '../FieldTypes/dropdown';
 import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
 import { FieldNumber } from '../FieldTypes/number';
@@ -69,7 +70,7 @@ export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): Re
 
 export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): React.ReactElement {
   const callback = (value: string) => onChange('root', value);
-  const description = 'Path on the remote server where the root path in vscode should point to. Defaults to /';
+  const description = 'Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/`';
   return <FieldString key="root" label="Root" value={config.root} onChange={callback} optional validator={pathValidator} description={description} />
 }
 
@@ -110,6 +111,16 @@ export function passphrase(config: FileSystemConfig, onChange: FSCChanged<'passp
   return <FieldDropdownWithInput key="passphrase" label="Passphrase" {...{ value, values, description }} onChange={callback} optional />
 }
 
+export function agentForward(config: FileSystemConfig, onChange: FSCChanged<'agentForward'>): React.ReactElement {
+  const callback = (newValue?: boolean) => onChange('agentForward', newValue);
+  const description = 'Whether to enable to use OpenSSH agent forwarding (`auth-agent@openssh.com`) when authenticating using an agent';
+  const postface = (config.agentForward && !config.agent) && <p className="warning">
+    Agent forwarding will be disabled if not authenticated with an agent! E.g. password authentication will disable agent forwarding!
+    In case of using PuTTY with the PuTTY using an agent, this will still work without having to explicitly specify the agent.
+  </p>;
+  return <FieldCheckbox key="agentForward" label="Forward agent" value={!!config.agentForward} onChange={callback} description={description} postface={postface} />;
+}
+
 export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('sftpCommand', newValue);
   const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
@@ -146,5 +157,5 @@ export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onCh
 export const FIELDS: FieldFactory[] = [
   name, merge, label, group, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
-  sftpCommand, sftpSudo, terminalCommand, taskCommand,
+  agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
   PROXY_FIELD];

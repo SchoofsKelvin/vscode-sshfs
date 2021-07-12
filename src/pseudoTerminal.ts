@@ -1,11 +1,12 @@
 import * as path from 'path';
-import type { Client, ClientChannel, PseudoTtyOptions } from "ssh2";
+import type { ClientChannel, PseudoTtyOptions } from "ssh2";
 import type { Readable } from "stream";
 import * as vscode from "vscode";
-import type { FileSystemConfig } from "./fileSystemConfig";
-import { getRemotePath } from './fileSystemRouter';
+import { getFlagBoolean } from './config';
+import type { Connection } from './connection';
+import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
-import { toPromise } from "./toPromise";
+import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
 const [HEIGHT, WIDTH] = [480, 640];
 const PSEUDO_TTY_OPTIONS: PseudoTtyOptions = {
@@ -17,8 +18,7 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     onDidOpen: vscode.Event<void>;
     handleInput(data: string): void; // We don't support/need read-only terminals for now
     status: 'opening' | 'open' | 'closed';
-    config: FileSystemConfig;
-    client: Client;
+    connection: Connection;
     /** Could be undefined if it only gets created during psy.open() instead of beforehand */
     channel?: ClientChannel;
     /** Either set by the code calling createTerminal, otherwise "calculated" and hopefully found */
@@ -27,24 +27,17 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
 
 export function isSSHPseudoTerminal(terminal: vscode.Pseudoterminal): terminal is SSHPseudoTerminal {
     const term = terminal as SSHPseudoTerminal;
-    return !!(term.config && term.status && term.client);
+    return !!(term.connection && term.status && term.handleInput);
 }
 
 export interface TerminalOptions {
-    client: Client;
-    config: FileSystemConfig;
+    connection: Connection;
+    environment?: EnvironmentVariable[];
     /** If absent, this defaults to config.root if present, otherwise whatever the remote shell picks as default */
     workingDirectory?: string;
     /** The command to run in the remote shell. If undefined, a (regular interactive) shell is started instead by running $SHELL*/
     command?: string;
 }
-
-export function joinCommands(commands?: string | string[]): string | undefined {
-    if (!commands) return undefined;
-    if (typeof commands === 'string') return commands;
-    return commands.join('; ');
-}
-
 
 export function replaceVariables(value: string, config: FileSystemConfig): string {
     return value.replace(/\$\{(.*?)\}/g, (str, match: string) => {
@@ -83,14 +76,14 @@ export function replaceVariables(value: string, config: FileSystemConfig): strin
         switch (key) {
             case 'remoteWorkspaceRoot':
             case 'remoteWorkspaceFolder':
-                return getRemotePath(config, getFolderUri());
+                return getFolderUri().path;
             case 'remoteWorkspaceRootFolderName':
             case 'remoteWorkspaceFolderBasename':
                 return path.basename(getFolderUri().path);
             case 'remoteFile':
-                return getRemotePath(config, getFilePath());
+                return getFilePath().path;
             case 'remoteFileWorkspaceFolder':
-                return getRemotePath(config, getFolderPathForFile());
+                return getFolderPathForFile().path;
             case 'remoteRelativeFile':
                 if (sshFolder || argument)
                     return path.relative(getFolderUri().path, getFilePath().path);
@@ -144,7 +137,8 @@ export async function replaceVariablesRecursive<T>(object: T, handler: (value: s
 }
 
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
-    const { client, config } = options;
+    const { connection } = options;
+    const { actualConfig, client } = connection;
     const onDidWrite = new vscode.EventEmitter<string>();
     const onDidClose = new vscode.EventEmitter<number>();
     const onDidOpen = new vscode.EventEmitter<void>();
@@ -152,7 +146,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
     // Won't actually open the remote terminal until pseudo.open(dims) is called
     const pseudo: SSHPseudoTerminal = {
         status: 'opening',
-        config, client,
+        connection,
         onDidWrite: onDidWrite.event,
         onDidClose: onDidClose.event,
         onDidOpen: onDidOpen.event,
@@ -167,19 +161,37 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             pseudo.channel = undefined;
         },
         async open(dims) {
-            onDidWrite.fire(`Connecting to ${config.label || config.name}...\r\n`);
+            onDidWrite.fire(`Connecting to ${actualConfig.label || actualConfig.name}...\r\n`);
             try {
+                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, actualConfig.flags);
+                const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
+                let SHELL = '$SHELL';
+                // Add exports for environment variables if needed
+                const env = mergeEnvironment(connection.environment, options.environment);
+                commands.push(environmentToExportString(env));
+                // Beta feature to add a "code <file>" command in terminals to open the file locally
+                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
+                    // For bash
+                    commands.push(`export ORIG_PROMPT_COMMAND="$PROMPT_COMMAND"`);
+                    commands.push(`export PROMPT_COMMAND='source /tmp/.Kelvin_sshfs PC; $ORIG_PROMPT_COMMAND'`);
+                    // For sh
+                    commands.push(`export OLD_ENV="$ENV"`); // not actually used (yet?)
+                    commands.push(`export ENV=/tmp/.Kelvin_sshfs`);
+                }
+                // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {
-                    commands.push(options.command);
+                    commands.push(replaceVariables(options.command.replace(/$SHELL/g, SHELL), actualConfig));
                 } else {
-                    const tc = joinCommands(config.terminalCommand);
-                    commands.push(tc ? replaceVariables(tc, config) : '$SHELL');
+                    const tc = joinCommands(actualConfig.terminalCommand, separator);
+                    let cmd = tc ? replaceVariables(tc.replace(/$SHELL/g, SHELL), actualConfig) : SHELL;
+                    commands.push(cmd);
                 }
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
-                workingDirectory = workingDirectory || config.root;
+                workingDirectory = workingDirectory || actualConfig.root;
                 if (workingDirectory) {
+                    // TODO: Maybe replace with `connection.home`?
                     if (workingDirectory.startsWith('~')) {
                         // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
                         // `"~"` would also fail but `~/""` works fine it seems
@@ -190,7 +202,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     commands.unshift(`cd ${workingDirectory}`);
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands)!, { pty: pseudoTtyOptions }, cb));
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands, separator)!, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
                 channel.on('exit', onDidClose.fire);

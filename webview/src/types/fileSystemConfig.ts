@@ -8,6 +8,12 @@ export interface ProxyConfig {
 
 export type ConfigLocation = number | string;
 
+/** Might support conditional stuff later, although ssh2/OpenSSH might not support that natively */
+export interface EnvironmentVariable {
+  key: string;
+  value: string;
+}
+
 export function formatConfigLocation(location?: ConfigLocation): string {
   if (!location) return 'Unknown location';
   if (typeof location === 'number') {
@@ -82,7 +88,7 @@ export interface FileSystemConfig extends ConnectConfig {
   group?: string;
   /** Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings) */
   merge?: boolean;
-  /** Path on the remote server where the root path in vscode should point to. Defaults to / */
+  /** Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/` */
   root?: string;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
   putty?: string | boolean;
@@ -100,10 +106,14 @@ export interface FileSystemConfig extends ConnectConfig {
   terminalCommand?: string | string[];
   /** The command(s) to run when a `ssh-shell` task gets run. Defaults to the placeholder `$COMMAND`. Internally the command `cd ...` is run first */
   taskCommand?: string | string[];
+  /** An object with environment variables to add to the SSH connection. Affects the whole connection thus all terminals */
+  environment?: EnvironmentVariable[] | Record<string, string>;
   /** The filemode to assign to created files */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */
   instantConnection?: boolean;
+  /** List of special flags to enable/disable certain fixes/features. Flags are usually used for issues or beta testing. Flags can disappear/change anytime! */
+  flags?: string[];
   /** Internal property saying where this config comes from. Undefined if this config is merged or something */
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
@@ -124,14 +134,14 @@ export function invalidConfigName(name: string) {
  * - `user;abc=def,a-b=1-5@server.example.com:22/some/file.ext`
  * - `user@server.example.com/directory`
  * - `server:22/directory`
- * - `user@server`
+ * - `test-user@server`
  * - `server`
  * - `@server/path` - Unlike OpenSSH, we allow a @ (and connection parameters) without a username
  * 
  * The resulting FileSystemConfig will have as name basically the input, but without the path. If there is no
  * username given, the name will start with `@`, as to differentiate between connection strings and config names.
  */
-const CONNECTION_REGEX = /^((?<user>\w+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^@\\/:,=]+)(:(?<port>\d+))?(?<path>\/.*)?$/;
+const CONNECTION_REGEX = /^((?<user>[\w\-._]+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^\s@\\/:,=]+)(:(?<port>\d+))?(?<path>\/\S*)?$/;
 
 export function parseConnectionString(input: string): [config: FileSystemConfig, path?: string] | string {
   input = input.trim();

@@ -1,6 +1,4 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import type { Manager } from './manager';
 
@@ -10,20 +8,6 @@ function isWorkspaceStale(uri: vscode.Uri) {
     if (folder.uri.authority === uri.authority) return false;
   }
   return true;
-}
-
-export function getRemotePath(config: FileSystemConfig, relativePath: string | vscode.Uri) {
-  if (relativePath instanceof vscode.Uri) {
-    if (relativePath.authority !== config.name)
-      throw new Error(`Uri authority for '${relativePath}' does not match config with name '${config.name}'`);
-    relativePath = relativePath.path;
-  }
-  if (relativePath.startsWith('/')) relativePath = relativePath.substr(1);
-  if (!config.root) return '/' + relativePath;
-  const result = path.posix.join(config.root, relativePath);
-  if (result.startsWith('~')) return result; // Home directory, leave the ~/
-  if (result.startsWith('/')) return result; // Already starts with /
-  return '/' + result; // Add the / to make sure it isn't seen as a relative path
 }
 
 export class FileSystemRouter implements vscode.FileSystemProvider {
