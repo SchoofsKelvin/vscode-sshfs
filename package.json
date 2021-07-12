@@ -450,6 +450,7 @@
         "event-stream": "^4.0.1",
         "ip-matching": "^2.0.0",
         "jsonc-parser": "^2.0.0",
+        "node-socksv5": "^1.0.3",
         "socks": "^2.6.1",
         "ssh2": "^0.8.9",
         "winreg": "^1.2.4"

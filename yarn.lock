@@ -900,6 +900,11 @@ node-releases@^1.1.71:
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-1.1.73.tgz#dd4e81ddd5277ff846b80b52bb40c49edf7a7b20"
   integrity sha512-uW7fodD6pyW2FZNZnp/Z3hvWKeEW1Y8R1+1CnErE8cXFXzl5blBOoVB41CvMer6P6Q0S5FXDwcHgFd1Wj0U9zg==
 
+node-socksv5@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/node-socksv5/-/node-socksv5-1.0.3.tgz#35efe7e611b7dc47969962d316541c11d0760248"
+  integrity sha512-XnUtdmQgX/YZ+Z56g0V+xKdQuPKHMs33t4vG/GRSwKuhTD7UTB5pCdXFt0nMnL5bzrgtLNBpTlRLUuRpHp4i7w==
+
 npm-run-path@^4.0.1:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/npm-run-path/-/npm-run-path-4.0.1.tgz#b7ecd1e5ed53da8e37a55e1c2269e0b97ed748ea"
