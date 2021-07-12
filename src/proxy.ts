@@ -1,7 +1,6 @@
 
 import * as dns from 'dns';
 import { request } from 'http';
-import { SocksClient } from 'socks';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise, validatePort } from './utils';
@@ -31,6 +30,7 @@ export async function socks(config: FileSystemConfig): Promise<NodeJS.ReadableSt
     const ipaddress = (await resolveHostname(config.proxy!.host));
     if (!ipaddress) throw new Error(`Couldn't resolve '${config.proxy!.host}'`);
     Logging.debug(`\tConnecting to ${config.host}:${config.port} over ${config.proxy!.type} proxy at ${ipaddress}:${config.proxy!.port}`);
+    const { SocksClient } = await import('socks');
     const con = await SocksClient.createConnection({
       command: 'connect',
       destination: {
