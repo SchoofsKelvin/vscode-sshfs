@@ -450,7 +450,7 @@
         "event-stream": "^4.0.1",
         "ip-matching": "^2.0.0",
         "jsonc-parser": "^2.0.0",
-        "socks": "^2.2.0",
+        "socks": "^2.6.1",
         "ssh2": "^0.8.9",
         "winreg": "^1.2.4"
     },
