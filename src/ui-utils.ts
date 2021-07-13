@@ -80,7 +80,11 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
         let label = iconInLabel ? '$(ports-forward-icon) ' : '';
         const [forw] = item;
         if (forw.type === 'local' || forw.type === 'remote') {
-            label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '?'}:${forw.localPort}` || '?';
+            if (forw.localPort || forw.localAddress) {
+                label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '?'}:${forw.localPort}` || '?';
+            } else {
+                label += 'SOCKSv5';
+            }
             label += forw.type === 'local' ? ' → ' : ' ← ';
             label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '?'}:${forw.remotePort}` || '?';
         } else if (forw.type === 'dynamic') {
@@ -93,6 +97,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
         return {
             item, label, contextValue: 'forwarding',
             detail, tooltip: detail,
+            collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
             iconPath: new vscode.ThemeIcon('ports-forward-icon'),
         };
     }

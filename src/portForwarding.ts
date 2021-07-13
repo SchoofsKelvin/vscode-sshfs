@@ -7,7 +7,7 @@ import type { Connection } from "./connection";
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { Manager } from './manager';
-import { capitalize, promptQuickPick } from './ui-utils';
+import { promptQuickPick } from './ui-utils';
 import { toPromise } from './utils';
 
 /** Represents a dynamic port forwarding (DynamicForward) */
@@ -39,7 +39,8 @@ export function isActivePortForwarding(apf: any): apf is ActivePortForwarding {
 }
 
 function validateLocalRemoteForwarding(forwarding: PortForwardingLocalRemote) {
-    if (forwarding.localPort === undefined && !forwarding.localAddress) {
+    if (forwarding.type === 'local' && forwarding.localPort === undefined && !forwarding.localAddress) {
+        // The 'remote' one can omit both `localPort` and `localAddress`, indicating it's the proxy thing
         throw new Error(`Missing both 'localPort' and 'localAddress' fields for a ${forwarding.type} port forwarding`);
     }
     if (forwarding.remotePort === undefined && !forwarding.remoteAddress) {
@@ -80,17 +81,27 @@ async function createLocalForwarding(connection: Connection, forwarding: PortFor
 
 async function createRemoteForwarding(connection: Connection, forwarding: PortForwardingLocalRemote): Promise<ActivePortForwarding> {
     validateLocalRemoteForwarding(forwarding);
+    const { Server, Auth } = await import('node-socksv5');
+    let socksServer: import('node-socksv5').Server | undefined;
+    if (forwarding.localPort === undefined && !forwarding.localPort) {
+        // Expect a proxy server
+        socksServer = new Server({ auths: [Auth.none()] });
+    }
     const channels = new Set<Duplex>();
     const onSocket = (channel: Duplex) => {
         channels.add(channel);
-        channel.on('close', () => channels.delete(socket));
+        channel.on('close', () => channels.delete(channel));
         let socket: net.Socket;
-        if (forwarding.localPort === undefined) {
+        if (socksServer) {
+            socket = new net.Socket();
+            ((socksServer as any).onConnection as (typeof socksServer)['onConnection'])(channel as net.Socket);
+        } else if (forwarding.localPort === undefined) {
             socket = net.createConnection(forwarding.localAddress!);
+            socket.on('connect', () => socket.pipe(channel).pipe(socket));
         } else {
             socket = net.createConnection(forwarding.localPort!, forwarding.localAddress!);
+            socket.on('connect', () => socket.pipe(channel).pipe(socket));
         }
-        socket.on('connect', () => socket.pipe(channel).pipe(socket));
     };
     let unlisten: () => void;
     if (forwarding.remotePort === undefined) {
@@ -279,7 +290,14 @@ async function promptBindAddress(): Promise<[port: number, address?: string] | u
 export async function promptPortForwarding(config: FileSystemConfig): Promise<PortForwarding | undefined> {
     // TODO: RemoteForward allows omitting the local address/port, making it act as a reverse DynamicForward instead
     // TODO: Make use of config with future GatewayPorts fields and such to suggest default values
-    const type = await promptQuickPick<PortForwarding['type']>('Select type of port forwarding', ['local', 'remote', 'dynamic'], capitalize);
+    const types = {
+        local: 'Local forward',
+        remote: 'Remote forward',
+        remoteProxy: 'Remote proxy (client SOCKSv5 ← server)',
+        dynamic: 'Dynamic forward (client → server SOCKSv5)'
+    };
+    type Type = keyof typeof types;
+    const type = await promptQuickPick<Type>('Select type of port forwarding', Object.keys(types) as Type[], key => types[key]);
     if (!type) return undefined;
     if (type === 'local' || type === 'remote') {
         const local = await promptAddressOrPath('local');
@@ -287,8 +305,13 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
         const remote = await promptAddressOrPath('remote');
         if (!remote) return undefined;
         const [localPort, localAddress] = local;
-        const [remotePort, remoteAddress] = remote
+        const [remotePort, remoteAddress] = remote;
         return { type, localAddress, localPort, remoteAddress, remotePort };
+    } else if (type === 'remoteProxy') {
+        const remote = await promptAddressOrPath('remote');
+        if (!remote) return undefined;
+        const [remotePort, remoteAddress] = remote;
+        return { type: 'remote', remoteAddress, remotePort };
     } else if (type === 'dynamic') {
         const bind = await promptBindAddress();
         if (!bind) return undefined;
