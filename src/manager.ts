@@ -47,15 +47,12 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     });
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
-    const existing = this.fileSystems.find(fs => fs.authority === name);
-    if (existing) return existing;
-    let con: Connection | undefined;
+    const con = await this.connectionManager.createConnection(name, config);
+    let fs = con.filesystems.find(fs => fs.authority === name);
+    if (fs) return fs;
+    this.connectionManager.update(con, con => con.pendingUserCount++);
     return this.creatingFileSystems[name] ||= catchingPromise<SSHFileSystem>(async (resolve, reject) => {
-      config ||= getConfig(name);
-      if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
-      const con = await this.connectionManager.createConnection(name, config);
       this.connectionManager.update(con, con => con.pendingUserCount++);
-      config = con.actualConfig;
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
       // Create the actual SFTP session (using the connection's actualConfig, otherwise it'll reprompt for passwords etc)
@@ -69,11 +66,9 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         this.fileSystems = this.fileSystems.filter(f => f !== fs);
         this.connectionManager.update(con, con => con.filesystems = con.filesystems.filter(f => f !== fs));
       });
-      vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-      // con.client.once('close', hadError => !fs.closing && this.promptReconnect(name));
       this.connectionManager.update(con, con => con.pendingUserCount--);
       // Sanity check that we can access the home directory
-      const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
+      const [flagCH] = getFlagBoolean('CHECK_HOME', true, con.actualConfig.flags);
       if (flagCH) try {
         const homeUri = vscode.Uri.parse(`ssh://${name}/${con.home}`);
         const stat = await fs.stat(homeUri);
@@ -90,8 +85,8 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         if (answer === 'Okay') return reject(new Error('User stopped filesystem creation after unaccessible home directory error'));
       }
       return resolve(fs);
-    }).catch((e) => {
-      if (con) this.connectionManager.update(con, con => con.pendingUserCount--); // I highly doubt resolve(fs) will error
+    }).catch(e => {
+      this.connectionManager.update(con, con => con.pendingUserCount--);
       if (!e) {
         delete this.creatingFileSystems[name];
         this.commandDisconnect(name);
@@ -122,7 +117,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     pty.onDidClose(() => this.connectionManager.update(con, con => con.terminals = con.terminals.filter(t => t !== pty)));
     this.connectionManager.update(con, con => (con.terminals.push(pty), con.pendingUserCount--));
     // Create and show the graphical representation
-    const terminal = vscode.window.createTerminal({ name, pty });
+    const terminal = vscode.window.createTerminal({ name: con.actualConfig.label || con.actualConfig.name, pty });
     pty.terminal = terminal;
     terminal.show();
   }
@@ -220,7 +215,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     let { root = '/' } = config;
     if (root.startsWith('~')) {
-      const con = this.connectionManager.getActiveConnection(config.name, config);
+      const con = await this.connectionManager.createConnection(config.name, config);
       if (con) root = con.home + root.substring(1);
     }
     if (root.startsWith('/')) root = root.substring(1);
@@ -260,7 +255,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     Logging.info(`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`);
     const config = 'client' in target ? target.actualConfig : target;
     try {
-      await this.createTerminal(config.label || config.name, target, uri);
+      await this.createTerminal(config.name, target, uri);
     } catch (e) {
       const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
         `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
