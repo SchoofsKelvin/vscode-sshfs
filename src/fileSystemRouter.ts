@@ -2,14 +2,6 @@ import * as vscode from 'vscode';
 import { Logging } from './logging';
 import type { Manager } from './manager';
 
-function isWorkspaceStale(uri: vscode.Uri) {
-  for (const folder of vscode.workspace.workspaceFolders || []) {
-    if (folder.uri.scheme !== 'ssh') continue;
-    if (folder.uri.authority === uri.authority) return false;
-  }
-  return true;
-}
-
 export class FileSystemRouter implements vscode.FileSystemProvider {
   public onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -19,16 +11,6 @@ export class FileSystemRouter implements vscode.FileSystemProvider {
   public async assertFs(uri: vscode.Uri): Promise<vscode.FileSystemProvider> {
     const fs = this.manager.getFs(uri);
     if (fs) return fs;
-    // There are some edge cases where vscode tries to access files of a WorkspaceFolder
-    // that's (being) removed, or it's being added but the window is supposed to reload.
-    // We only check the first case here
-    if (isWorkspaceStale(uri)) {
-      Logging.warning(`Stale workspace for '${uri}', returning empty file system`);
-      // Throwing an error gives the "${root} · Can not resolve workspace folder"
-      // throw vscode.FileSystemError.Unavailable('Stale workspace');
-      // So let's just act as if everything's fine, but there's only the void.
-      return (await import('./sshFileSystem')).EMPTY_FILE_SYSTEM;
-    }
     return this.manager.createFileSystem(uri.authority);
   }
   /* FileSystemProvider */
