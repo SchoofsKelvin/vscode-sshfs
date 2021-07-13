@@ -4,7 +4,7 @@ import type { Client, ClientChannel, SFTPWrapper } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
-import { Logging } from './logging';
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { ActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
@@ -162,7 +162,13 @@ export class ConnectionManager {
             const cmdPath = await this._createCommandTerminal(client, name);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
             const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
-            await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb));
+            const tmpPath = `/tmp/.Kelvin_sshfs.${actualConfig.username || 'root'}`;
+            await toPromise(cb => sftp.writeFile(tmpPath, TMP_PROFILE_SCRIPT, { mode: 0o644 }, cb)).catch(e => {
+                const msg = `Could not write profile script to: ${tmpPath}`;
+                logging.error(msg, LOGGING_NO_STACKTRACE);
+                logging.error(e);
+                throw new Error(msg);
+            });
         }
         // Set up the Connection object
         let timeoutCounter = 0;
