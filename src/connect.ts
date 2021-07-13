@@ -228,10 +228,10 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   });
 }
 
-export async function createSSH(config: FileSystemConfig, sock?: NodeJS.ReadableStream): Promise<Client | null> {
+export async function createSSH(config: FileSystemConfig): Promise<Client | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
-  sock = sock || (await createSocket(config))!;
+  const sock = await createSocket(config);
   if (!sock) return null;
   const logging = Logging.scope(`createSSH(${config.name})`);
   return new Promise<Client>((resolve, reject) => {

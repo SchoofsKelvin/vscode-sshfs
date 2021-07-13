@@ -192,6 +192,20 @@ export class ConnectionManager {
                 this.closeConnection(con, 'Idle with no active filesystems/terminals');
             }, 5e3),
         };
+        // Setup auto-reconnecting (hacky but better than nothing)
+        (client.once as typeof client.on)('close', async hadError => {
+            if (!hadError) return; // No error, so was expected?
+            logging.warning('Connection closed due to an error');
+            this.closeConnection(con, 'Connection closed due to an error');
+            const choice = await vscode.window.showErrorMessage(`Connection to ${actualConfig.label || actualConfig.name} closed due to an error`, 'Ignore', 'Reconnect');
+            if (choice === 'Ignore') return;
+            // The "Reconnect" is actually just "create brand new connection" without even trying to e.g. reforward ports
+            this.createConnection(name, config).catch(e => {
+                logging.error('Reconnect failed', LOGGING_NO_STACKTRACE);
+                logging.error(e);
+                vscode.window.showErrorMessage(`Reconnect failed: ${e.message || e}`);
+            });
+        });
         this.connections.push(con);
         this.onConnectionAddedEmitter.fire(con);
         return con;
@@ -219,6 +233,8 @@ export class ConnectionManager {
         clearInterval(connection.idleTimer);
         this.onConnectionRemovedEmitter.fire(connection);
         connection.client.destroy();
+        connection.forwardings.forEach(f => f[2]());
+        connection.forwardings = [];
     }
     // Without making createConnection return a Proxy, or making Connection a class with
     // getters and setters informing the manager that created it, we don't know if it updated.
