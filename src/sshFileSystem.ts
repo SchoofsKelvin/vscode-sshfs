@@ -202,19 +202,3 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     if (doThrow) return doThrow(e);
   }
 }
-
-export const EMPTY_FILE_SYSTEM = {
-  onDidChangeFile: new vscode.EventEmitter<vscode.FileChangeEvent[]>().event,
-  watch: (uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }) => new vscode.Disposable(() => { }),
-  stat: (uri: vscode.Uri) => {
-    console.warn('Checking', uri.toString());
-    if (uri.path === '/' || uri.path === '\\') return ({ type: vscode.FileType.Directory }) as vscode.FileStat;
-    throw vscode.FileSystemError.FileNotFound(uri);
-  },
-  readDirectory: (uri: vscode.Uri) => [],
-  createDirectory: (uri: vscode.Uri) => { },
-  readFile: (uri: vscode.Uri) => new Uint8Array(0),
-  writeFile: (uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }) => { },
-  delete: (uri: vscode.Uri, options: { recursive: boolean; }) => { },
-  rename: (oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }) => { },
-} as vscode.FileSystemProvider;
