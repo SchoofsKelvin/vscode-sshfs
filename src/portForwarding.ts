@@ -5,9 +5,10 @@ import type { Duplex } from 'stream';
 import * as vscode from 'vscode';
 import type { Connection } from "./connection";
 import type { FileSystemConfig } from './fileSystemConfig';
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { Manager } from './manager';
-import { toPromise } from './utils';
 import { capitalize, promptQuickPick } from './ui-utils';
+import { toPromise } from './utils';
 
 /** Represents a dynamic port forwarding (DynamicForward) */
 export interface PortForwardingDynamic {
@@ -48,7 +49,7 @@ function validateLocalRemoteForwarding(forwarding: PortForwardingLocalRemote) {
 
 async function createLocalForwarding(connection: Connection, forwarding: PortForwardingLocalRemote): Promise<ActivePortForwarding> {
     validateLocalRemoteForwarding(forwarding);
-    if (forwarding.localAddress === '*') forwarding = { ...forwarding, localAddress: '::' };
+    if (forwarding.localAddress === '*') forwarding = { ...forwarding, localAddress: undefined };
     const { client } = connection;
     const sockets = new Set<net.Socket>();
     const server = net.createServer(socket => {
@@ -122,9 +123,77 @@ async function createRemoteForwarding(connection: Connection, forwarding: PortFo
     }];
 }
 
-function createDynamicForwarding(connection: Connection, forwarding: PortForwardingDynamic): Promise<ActivePortForwarding> {
-    // TODO
-    throw new Error('Dynamic port forwarding is not supported yet');
+function validateDynamicForwarding(forwarding: PortForwardingDynamic) {
+    const { port, address } = forwarding;
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 0 || port > 65565) {
+        throw new Error(`Expected 'port' field to be an integer 0-65565 for a  ${forwarding.type} port forwarding`);
+    }
+    if (address !== undefined && typeof address !== 'string') {
+        throw new Error(`Expected 'address' field to be undefined or a string for a ${forwarding.type} port forwarding`);
+    }
+}
+
+async function createDynamicForwarding(connection: Connection, forwarding: PortForwardingDynamic): Promise<ActivePortForwarding> {
+    validateDynamicForwarding(forwarding);
+    // Default is localhost, so transform `undefined` to 'localhost'
+    if (!forwarding.address) forwarding = { ...forwarding, address: 'localhost' };
+    // But `undefined` in the net API means "any interface", so transform '*' into `undefined`
+    if (forwarding.address === '*') forwarding = { ...forwarding, address: undefined };
+    const logging = Logging.scope(`dynamic(${connection.actualConfig.name}:${forwarding.port})`);
+    logging.info(`Setting up dynamic forwarding on ${forwarding.address || '*'}:${forwarding.port}`);
+    const channels = new Set<Duplex>();
+    let closed = false;
+    const { Server, Command, Auth } = await import('node-socksv5');
+    const server = new Server({ auths: [Auth.none()] }, async (info, accept, deny) => {
+        if (closed) return deny();
+        logging.debug(`Received ${Command[info.command]} command from ${info.source.ip}:${info.source.port} to ${info.destination.host}:${info.destination.port}`);
+        if (info.command !== Command.CONNECT) {
+            logging.error(`Received unsupported ${Command[info.command]} command from ${info.source.ip}:${info.source.port} to ${info.destination.host}:${info.destination.port}`);
+            return deny();
+        }
+        let channel: ClientChannel | undefined;
+        try {
+            channel = await toPromise<ClientChannel>(cb => connection.client.forwardOut(info.source.ip, info.source.port, info.destination.host, info.destination.port, cb));
+            const socket = await accept();
+            channel.pipe(socket).pipe(channel);
+        } catch (e) {
+            if (channel) channel.destroy();
+            logging.error(`Error connecting from ${info.source.ip}:${info.source.port} to ${info.destination.host}:${info.destination.port}:`, LOGGING_NO_STACKTRACE);
+            logging.error(e);
+            return deny();
+        }
+        channels.add(channel);
+    });
+    // The library does some weird thing where it creates a connection to the destination
+    // and then makes accept() return that connection? Very weird and bad for our use
+    // case, so we overwrite this internal method so accept() returns the original socket.
+    const processConnection: (typeof server)['processConnection'] = async function(this: typeof server, socket, destination) {
+        await this.sendSuccessConnection(socket, destination);
+        return socket;
+    };
+    (server as any).processConnection = processConnection;
+    const err = await new Promise((resolve, reject) => {
+        server.once('listening', resolve);
+        server.once('error', reject);
+        server.listen(forwarding.port, forwarding.address);
+    }).then(() => undefined, (e: NodeJS.ErrnoException) => e);
+    if (err) {
+        if (err.code === 'EADDRINUSE') {
+            throw new Error(`Port ${forwarding.port} for interface ${forwarding.address} already in use`);
+        }
+        throw err;
+    }
+    const serverSocket = (server as any).serverSocket as net.Server;
+    const aInfo = serverSocket.address();
+    if (!aInfo || typeof aInfo !== 'object' || !('port' in aInfo))
+        throw new Error(`Could not get bound address for SOCKSv5 server`);
+    logging.info(`Server listening on ${aInfo.family === 'IPv6' ? `[${aInfo.address}]` : aInfo.address}:${aInfo.port}`);
+    forwarding = { ...forwarding, port: aInfo.port, address: aInfo.address };
+    return [forwarding, connection, () => {
+        closed = true;
+        serverSocket.close();
+        channels.forEach(s => s.destroy());
+    }];
 }
 
 function getFactory(type: PortForwarding['type']): (conn: Connection, pf: PortForwarding) => Promise<ActivePortForwarding> {
@@ -200,11 +269,17 @@ async function promptAddressOrPath(location: 'local' | 'remote'): Promise<[port?
     }
 }
 
+async function promptBindAddress(): Promise<[port: number, address?: string] | undefined> {
+    const port = await vscode.window.showInputBox({ prompt: 'Port to bind to', validateInput: validatePort, placeHolder: '0-65535' });
+    if (!port) return undefined; // String so '0' is still truthy
+    const addr = await vscode.window.showInputBox({ prompt: 'Address to bind to', validateInput: validateHost, value: 'localhost' });
+    return [parseInt(port), addr];
+}
+
 export async function promptPortForwarding(config: FileSystemConfig): Promise<PortForwarding | undefined> {
     // TODO: RemoteForward allows omitting the local address/port, making it act as a reverse DynamicForward instead
     // TODO: Make use of config with future GatewayPorts fields and such to suggest default values
-    const type = await promptQuickPick<PortForwarding['type']>('Select type of port forwarding',
-        ['local', 'remote'/*, 'dynamic'*/], capitalize);
+    const type = await promptQuickPick<PortForwarding['type']>('Select type of port forwarding', ['local', 'remote', 'dynamic'], capitalize);
     if (!type) return undefined;
     if (type === 'local' || type === 'remote') {
         const local = await promptAddressOrPath('local');
@@ -215,8 +290,10 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
         const [remotePort, remoteAddress] = remote
         return { type, localAddress, localPort, remoteAddress, remotePort };
     } else if (type === 'dynamic') {
-        // TODO
-        await vscode.window.showWarningMessage('Dynamic port forwarding is not supported yet');
+        const bind = await promptBindAddress();
+        if (!bind) return undefined;
+        const [port, address] = bind;
+        return { type: 'dynamic', port, address };
     }
     return undefined;
 }

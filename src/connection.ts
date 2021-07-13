@@ -138,6 +138,8 @@ export class ConnectionManager {
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
         logging.info(`Remote version: ${(client as any)._remoteVer || 'N/A'}`);
+        // Complains about ssh2 library connecting a 'drain' event for every channel
+        client.setMaxListeners(0);
         // Query home directory
         let home = await tryGetHome(client);
         if (!home) {

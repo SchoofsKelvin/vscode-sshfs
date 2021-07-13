@@ -76,7 +76,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: asAbsolutePath?.('resources/icon.svg'),
         }
-    } else if (isActivePortForwarding(item)) {
+    } else if (isActivePortForwarding(item)) { // ActivePortForwarding
         let label = iconInLabel ? '$(ports-forward-icon) ' : '';
         const [forw] = item;
         if (forw.type === 'local' || forw.type === 'remote') {
@@ -84,7 +84,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             label += forw.type === 'local' ? ' → ' : ' ← ';
             label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '?'}:${forw.remotePort}` || '?';
         } else if (forw.type === 'dynamic') {
-            label += `${forw.address || '?'}:${forw.port} $(globe)`;
+            label += `${forw.address || '?'}:${forw.port} → SOCKSv5`;
         } else {
             label += ' <unrecognized type>';
         }
