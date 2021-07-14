@@ -5,7 +5,8 @@ import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
-import { ActivePortForwarding } from './portForwarding';
+import type { Manager } from './manager';
+import { ActivePortForwarding, addForwarding, formatPortForwarding, parsePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
@@ -66,6 +67,7 @@ export class ConnectionManager {
     public readonly onConnectionUpdated = this.onConnectionUpdatedEmitter.event;
     /** Fired when a pending connection gets added/removed */
     public readonly onPendingChanged = this.onPendingChangedEmitter.event;
+    public constructor(public readonly manager: Manager) { }
     public getActiveConnection(name: string, config?: FileSystemConfig): Connection | undefined {
         const con = config && this.connections.find(con => configMatches(con.config, config));
         return con || (config ? undefined : this.connections.find(con => con.config.name === name));
@@ -205,6 +207,27 @@ export class ConnectionManager {
                 logging.error(e);
                 vscode.window.showErrorMessage(`Reconnect failed: ${e.message || e}`);
             });
+        });
+        // Setup initial port forwardings
+        setImmediate(async () => {
+            const forwards = (actualConfig.forwardings || []).map(parsePortForwarding);
+            const badForwards = forwards.reduce((tot, f) => f ? tot : tot + 1, 0);
+            if (badForwards) vscode.window.showWarningMessage(`Could not parse ${badForwards} of ${forwards.length} port forwarding from the config, ignoring them`);
+            let failed = 0;
+            console.log(forwards);
+            for (const forward of forwards) {
+                logging.debug(`forward: ${forward}`);
+                if (!forward) continue;
+                logging.info(`Adding forwarding ${formatPortForwarding(forward)}`);
+                try {
+                    await addForwarding(this.manager, con, forward);
+                } catch (e) {
+                    logging.error(`Error during forwarding ${formatPortForwarding(forward)}:`, LOGGING_NO_STACKTRACE);
+                    logging.error(e);
+                    failed++;
+                }
+            }
+            if (failed) vscode.window.showWarningMessage(`Failed ${failed} of ${forwards.length - badForwards} port forwardings from the config`);
         });
         this.connections.push(con);
         this.onConnectionAddedEmitter.fire(con);

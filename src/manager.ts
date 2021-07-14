@@ -30,7 +30,7 @@ interface TerminalLinkUri extends vscode.TerminalLink {
 export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider<TerminalLinkUri> {
   protected fileSystems: SSHFileSystem[] = [];
   protected creatingFileSystems: { [name: string]: Promise<SSHFileSystem> } = {};
-  public readonly connectionManager = new ConnectionManager();
+  public readonly connectionManager = new ConnectionManager(this);
   constructor(public readonly context: vscode.ExtensionContext) {
     // In a multi-workspace environment, when the non-main folder gets removed,
     // it might be one of ours, which we should then disconnect if it's

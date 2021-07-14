@@ -32,6 +32,40 @@ export interface PortForwardingLocalRemote {
 
 export type PortForwarding = PortForwardingDynamic | PortForwardingLocalRemote;
 
+// https://regexr.com/61quq
+const PORT_FORWARD_REGEX = /^^(?<type>[a-z]+)\s*?(?:\s+(?:(?<localAddress>[^\s:]+):))?(?<localPort>\d+)(?:\s+(?:(?<remoteAddress>[^\s:]+):)?(?<remotePort>\d+))?$/i;
+const PORT_FORWARD_TYPES = ['remote', 'local', 'dynamic'];
+export function parsePortForwarding(input: string): PortForwarding | undefined {
+    try {
+        const match = input.match(PORT_FORWARD_REGEX);
+        if (!match) throw new Error(`Could not infer PortForwarding from '${input}'`);
+        let type = match.groups?.type.toLowerCase();
+        if (!type) throw new Error(`Could not infer PortForwarding from '${input}'`);
+        if (type.endsWith('forward')) type = type.substring(0, type.length - 7);
+        if (type.length === 1) type = PORT_FORWARD_TYPES.find(t => t[0] === type);
+        if (!type || !PORT_FORWARD_TYPES.includes(type))
+            throw new Error(`Could not recognize PortForwarding type '${match.groups!.type}'`);
+        const { localAddress, localPort, remoteAddress, remotePort } = match.groups as Partial<Record<string, string>>;
+        let pf: PortForwarding;
+        if (type === 'remote' && !remoteAddress && !remotePort) {
+            pf = { type, remoteAddress: localAddress, remotePort: parseInt(localPort!) };
+        } else if (type === 'local' || type === 'remote') {
+            pf = {
+                type,
+                localAddress, localPort: parseInt(localPort!),
+                remoteAddress, remotePort: remotePort ? parseInt(remotePort) : undefined,
+            };
+        } else {
+            pf = { type: 'dynamic', address: localAddress, port: parseInt(localPort!) };
+        }
+        validatePortForwarding(pf);
+        return pf;
+    } catch (e) {
+        Logging.error(`Parsing port forwarding '${input}' failed:\n${e.message || e}`, LOGGING_NO_STACKTRACE);
+        return undefined;
+    }
+}
+
 const formatAddrPortPath = (addr?: string, port?: number): string => {
     if (port === undefined) return addr || 'N/A';
     return `${addr || '*'}:${port}`;
