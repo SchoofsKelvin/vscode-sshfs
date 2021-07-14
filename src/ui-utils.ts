@@ -81,19 +81,19 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
         const [forw] = item;
         if (forw.type === 'local' || forw.type === 'remote') {
             if (forw.localPort || forw.localAddress) {
-                label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '?'}:${forw.localPort}` || '?';
+                label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '*'}:${forw.localPort}` || '?';
             } else {
                 label += 'SOCKSv5';
             }
             label += forw.type === 'local' ? ' → ' : ' ← ';
-            label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '?'}:${forw.remotePort}` || '?';
+            label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '*'}:${forw.remotePort}` || '?';
         } else if (forw.type === 'dynamic') {
             label += `${forw.address || '?'}:${forw.port} → SOCKSv5`;
         } else {
             label += ' <unrecognized type>';
         }
         const connLabel = item[1].actualConfig.label || item[1].actualConfig.name;
-        const detail = `${capitalize(forw.type)} port forwarding to ${connLabel}`
+        const detail = `${capitalize(forw.type)} port forwarding ${forw.type === 'remote' ? 'from' : 'to'} ${connLabel}`
         return {
             item, label, contextValue: 'forwarding',
             detail, tooltip: detail,
