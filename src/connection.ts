@@ -4,7 +4,7 @@ import type { Client, ClientChannel, SFTPWrapper } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
-import { Logging } from './logging';
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
@@ -137,16 +137,18 @@ export class ConnectionManager {
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
         logging.info(`Remote version: ${(client as any)._remoteVer || 'N/A'}`);
         // Query home directory
-        let home = await tryGetHome(client);
-        if (!home) {
+        let home = await tryGetHome(client).catch((e: Error) => e);
+        if (typeof home !== 'string') {
             const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
-            logging.error('Could not detect home directory');
+            logging.error('Could not detect home directory', LOGGING_NO_STACKTRACE);
             if (flagCH) {
+                if (home) logging.error(home);
                 logging.info('If this is expected, disable the CHECK_HOME flag with \'-CHECK_HOME\':');
                 logging.info('https://github.com/SchoofsKelvin/vscode-sshfs/issues/270');
                 await vscode.window.showErrorMessage(`Couldn't detect the home directory for '${name}'`, 'Okay');
                 throw new Error(`Could not detect home directory`);
             } else {
+                if (home) logging.warning(home);
                 logging.warning('The CHECK_HOME flag is disabled, default to \'/\' and ignore the error');
                 home = '';
             }

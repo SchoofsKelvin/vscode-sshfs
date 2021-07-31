@@ -130,7 +130,7 @@ class Logger {
   public info(message: string, options: Partial<LoggingOptions> = {}) {
     this.print('INFO', message, options);
   }
-  public warning(message: string, options: Partial<LoggingOptions> = {}) {
+  public warning(message: string | Error, options: Partial<LoggingOptions> = {}) {
     this.print('WARNING', message, options);
   }
   public error(message: string | Error, options: Partial<LoggingOptions> = {}) {
