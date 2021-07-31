@@ -44,6 +44,10 @@ export interface LoggingOptions {
 export const LOGGING_NO_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 0 };
 export const LOGGING_SINGLE_LINE_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 1 };
 
+function hasPromiseCause(error: Error): error is Error & { promiseCause: string } {
+  return typeof (error as any).promiseCause === 'string';
+}
+
 export type LoggerDefaultLevels = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
 class Logger {
   protected parent?: Logger;
@@ -95,15 +99,23 @@ class Logger {
     if (message instanceof Error && message.stack) {
       let msg = message.message;
       try {
-        msg += `\nJSON: ${JSON.stringify(message)}`;
+        const json = JSON.stringify(message);
+        if (json !== '{}') msg += `\nJSON: ${json}`;
       } finally { }
       const { maxErrorStack } = options;
       if (message.stack && maxErrorStack) {
         let { stack } = message;
         if (maxErrorStack > 0) {
-          stack = stack.split(/\n/g).slice(0, maxErrorStack).join('\n');
+          stack = stack.split(/\n/g).slice(0, maxErrorStack + 1).join('\n');
         }
         msg += '\n' + stack;
+      }
+      if (hasPromiseCause(message) && maxErrorStack) {
+        let { promiseCause } = message;
+        if (maxErrorStack > 0) {
+          promiseCause = promiseCause.split(/\n/g).slice(1, maxErrorStack + 1).join('\n');
+        }
+        msg += '\nCaused by promise:\n' + promiseCause;
       }
       message = msg;
     }

@@ -1,20 +1,9 @@
 import type { EnvironmentVariable } from "./fileSystemConfig";
 
-
-export type toPromiseCallback<T> = (err?: Error | null | void, res?: T) => void;
-/** Wrapper around async callback-based functions */
-export async function toPromise<T>(func: (cb: toPromiseCallback<T>) => void): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-        try {
-            func((err, res) => err ? reject(err) : resolve(res!));
-        } catch (e) {
-            reject(e);
-        }
-    });
-}
-
 /** Wrapper around async callback-based functions */
 export async function catchingPromise<T>(executor: (resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => any): Promise<T> {
+    const promiseCause = new Error();
+    Error.captureStackTrace(promiseCause, catchingPromise);
     return new Promise<T>((resolve, reject) => {
         try {
             const p = executor(resolve, reject);
@@ -24,6 +13,27 @@ export async function catchingPromise<T>(executor: (resolve: (value?: T | Promis
         } catch (e) {
             reject(e);
         }
+    }).catch(e => {
+        if (e instanceof Error) {
+            let t = (e as any).promiseCause;
+            if (!(t instanceof Error)) t = e;
+            if (!('promiseCause' in t)) {
+                Object.defineProperty(e, 'promiseCause', {
+                    value: promiseCause.stack,
+                    configurable: true,
+                    enumerable: false,
+                });
+            }
+        }
+        throw e;
+    });
+}
+
+export type toPromiseCallback<T> = (err?: Error | null | void, res?: T) => void;
+/** Wrapper around async callback-based functions */
+export async function toPromise<T>(func: (cb: toPromiseCallback<T>) => void): Promise<T> {
+    return catchingPromise((resolve, reject) => {
+        func((err, res) => err ? reject(err) : resolve(res!));
     });
 }
 
