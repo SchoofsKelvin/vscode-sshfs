@@ -376,7 +376,7 @@
             {
                 "scheme": "ssh",
                 "formatting": {
-                    "label": "${scheme}://${authority}/${path} (SSH FS)",
+                    "label": "${scheme}://${authority}/${path}",
                     "separator": "/",
                     "tildify": false,
                     "stripPathStartingSeparator": true,
