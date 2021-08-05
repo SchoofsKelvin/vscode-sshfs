@@ -219,8 +219,8 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
     let { root = '/' } = config;
     if (root.startsWith('~')) {
-      const con = this.connectionManager.getActiveConnection(config.name, config);
-      if (con) root = con.home + root.substring(1);
+      const con = await this.connectionManager.createConnection(config.name, config);
+      root = con.home + root.substring(1);
     }
     if (root.startsWith('/')) root = root.substring(1);
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, {
