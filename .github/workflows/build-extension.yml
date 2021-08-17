@@ -33,13 +33,9 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: 12.x
-    - name: Install VSCE
-      run: |
-        yarn global add vsce
-        echo "$(yarn global bin)" >> $GITHUB_PATH
     - name: Get Yarn cache directory
       id: yarn-cache
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
     - name: Yarn cache
       uses: actions/cache@v2.1.4
       with:
@@ -47,13 +43,10 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
-    - name: Install dependencies in /
-      run: yarn --frozen-lockfile
-    - name: Install dependencies in /webview/
-      working-directory: webview
-      run: yarn --frozen-lockfile
+    - name: Install dependencies
+      run: yarn --immutable
     - name: Build extension
-      run: vsce package -o ${{ steps.utils.outputs.artifact_name }}
+      run: yarn dlx vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.1
       with:

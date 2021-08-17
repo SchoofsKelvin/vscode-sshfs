@@ -1,7 +1,8 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=827846
-    // for the documentation about the extensions.json format
-    "recommendations": [
-        "eamodio.tsl-problem-matcher"
-    ]
+  // See https://go.microsoft.com/fwlink/?LinkId=827846
+  // for the documentation about the extensions.json format
+  "recommendations": [
+    "eamodio.tsl-problem-matcher",
+    "arcanis.vscode-zipfs"
+  ]
 }

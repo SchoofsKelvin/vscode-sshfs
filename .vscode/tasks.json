@@ -32,7 +32,7 @@
         {
             "type": "shell",
             "label": "Extension WebView - Watch",
-            "command": "npm start",
+            "command": "yarn start",
             "options": {
                 "cwd": "./webview"
             },
