@@ -9,7 +9,12 @@ export function setDebug(debug: boolean) {
   console.warn(`[vscode-sshfs] Debug mode set to ${debug}`);
   DEBUG = debug;
   if (!debug) return;
-  import('source-map-support/register').catch(e => console.warn('Could not register source-map-support:', e));
+  try { require('../.pnp.cjs').setup(); } catch (e) {
+    console.warn('Could not set up .pnp.cjs:', e);
+  }
+  try { require('source-map-support').install(); } catch (e) {
+    console.warn('Could not install source-map-support:', e);
+  }
 }
 
 const outputChannel = vscode.window.createOutputChannel('SSH FS');
