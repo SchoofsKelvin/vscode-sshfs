@@ -1,7 +1,7 @@
 
 # Changelog
 
-## Unreleased
+## 1.22.0 (2021-09-21)
 
 ### Fixes
 - Partially fix issue with debug mode on code-server (05e1b69, #279)
