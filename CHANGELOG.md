@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+### Changes
+- Proxy hop field now actually lists all known configs to pick from, instead of "TO DO" (#290)
+
 ### Development changes
 - Webpack setup has been improved quite a bit, mostly to clean up long ugly paths and make builds deterministic:
   - The custom `ProblemMatcherReporter` plugin is moved to `/webpack.plugin.js` and renamed to `WebpackPlugin`
