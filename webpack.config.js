@@ -5,6 +5,7 @@
 const { join, resolve, dirname } = require('path');
 const fs = require('fs');
 const webpack = require('webpack');
+const { WebpackPlugin } = require('./webpack.plugin');
 
 /**
  * @template T
@@ -45,20 +46,6 @@ class CopyPuttyExecutable {
     }
 }
 
-class ProblemMatcherReporter {
-    /**
-     * @param {webpack.Compiler} compiler
-     */
-    apply(compiler) {
-        compiler.hooks.beforeCompile.tap('ProblemMatcherReporter-BeforeCompile', () => {
-            console.log('Compilation starting');
-        });
-        compiler.hooks.afterCompile.tap('ProblemMatcherReporter-AfterCompile', () => {
-            console.log('Compilation finished');
-        });
-    }
-}
-
 /**@type {webpack.Configuration}*/
 const config = {
     mode: 'development',
@@ -95,7 +82,7 @@ const config = {
     },
     plugins: [
         new CopyPuttyExecutable(),
-        new ProblemMatcherReporter(),
+        new WebpackPlugin(),
     ],
     optimization: {
         splitChunks: {
@@ -114,18 +101,6 @@ const config = {
         modules: true,
         groupModulesByPath: true,
         modulesSpace: 50,
-        excludeModules(name, { issuerPath }) {
-            if (name.startsWith('external ')) return true;
-            const issuer = issuerPath && (issuerPath[issuerPath.length - 1].name || '').replace(/\\/g, '/');
-            if (!issuer) return false;
-            if (issuer.startsWith('./.yarn/')) return true;
-            if (issuer.startsWith('../')) {
-                const lower = issuer.toLowerCase();
-                if (lower.includes('/yarn/berry/cache/')) return true;
-                if (lower.includes('/.yarn/berry/cache/')) return true;
-            }
-            return false;
-        },
     },
 }
 

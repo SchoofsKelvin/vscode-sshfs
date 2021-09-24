@@ -10,6 +10,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const ESLintWebpackPlugin = require('eslint-webpack-plugin');
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
+const { WebpackPlugin } = require('../webpack.plugin');
 
 require('dotenv').config();
 
@@ -133,6 +134,7 @@ module.exports = (env, options) => {
       options.serve && new webpack.HotModuleReplacementPlugin(),
       options.serve && new ReactRefreshWebpackPlugin(),
       new webpack.DefinePlugin(options.env),
+      new WebpackPlugin(),
       isEnvProduction && new MiniCssExtractPlugin({
         filename: 'static/css/[name].[contenthash:8].css',
         chunkFilename: 'static/css/[name].[contenthash:8].chunk.css',
@@ -166,6 +168,15 @@ module.exports = (env, options) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
+    },
+    stats: {
+        ids: true,
+        assets: false,
+        chunks: false,
+        entrypoints: true,
+        modules: true,
+        groupModulesByPath: true,
+        modulesSpace: 50,
     },
   };
   return config;

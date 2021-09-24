@@ -1,11 +1,27 @@
 
 # Changelog
 
+## Development changes
+- Webpack setup has been improved quite a bit, mostly to clean up long ugly paths and make builds deterministic:
+  - The custom `ProblemMatcherReporter` plugin is moved to `/webpack.plugin.js` and renamed to `WebpackPlugin`
+  - Now both webpack configs (extension and webview) make use of this plugin
+  - The plugin has the ability to remap module names/paths, accounting for several things:
+    - Paths in the global `/Yarn/Berry/` folder are now displayed as `/yarn/` and are simplified for easier reading
+    - Paths in the local `.yarn` folder get the same treatment as global ones, but using `.yarn/` as the prefix
+    - Other paths that are located within the (config's) project are made relative to the (config's) project root
+  - The plugin enhances the stats printer to use the clean simplified paths instead of e.g. `../../../Yarn/etc`
+  - The plugin handles generating chunk ids (`optimization.chunkIds` option)
+    - Acts mostly like a simplified version of the built-in `deterministic` option
+    - Uses the path remapping, resulting in paths not being different depending on where your global Yarn folder is
+    - These deterministic builds result in e.g. the same output chunk filenames
+    - Building the same commit on GitHub Actions or your own PC should result in e.g. the same source maps
+  - The `excludeModules` is now configured (and better handled) by the plugin
+- The problem matcher for the `Extension Webview - Watch` task has been simplified and fixed due to the above change
+
 ## 1.22.0 (2021-09-21)
 
 ### Fixes
 - Partially fix issue with debug mode on code-server (05e1b69, #279)
-
 
 ### Development changes
 - I've added a `CHANGELOG.md` file to the repository containing the changelog for earlier versions. It'll contain already committed changes that have yet to be released.

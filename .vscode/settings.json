@@ -15,6 +15,7 @@
     "**/.gitattributes": true,
     "**/.eslintcache": true,
     "**/webpack.config.js": true,
+    "webpack.plugin.js": true,
     "**/tslint.json": true,
     "**/tsconfig.json": true
   },
