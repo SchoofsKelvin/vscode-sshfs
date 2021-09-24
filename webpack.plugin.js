@@ -61,10 +61,13 @@ class WebpackPlugin {
     /** @param {webpack.Compiler} compiler */
     apply(compiler) {
         // Output start/stop messages making the $ts-webpack-watch problemMatcher (provided by an extension) work
-        compiler.hooks.beforeCompile.tap('WebpackPlugin-BeforeCompile', () => {
+        let compilationDepth = 0; // We ignore nested compilations
+        compiler.hooks.beforeCompile.tap('WebpackPlugin-BeforeCompile', (params) => {
+            if (compilationDepth++) return;
             console.log('Compilation starting');
         });
         compiler.hooks.afterCompile.tap('WebpackPlugin-AfterCompile', () => {
+            if (--compilationDepth) return;
             console.log('Compilation finished');
         });
         compiler.hooks.compilation.tap('WebpackPlugin-Compilation', compilation => {
