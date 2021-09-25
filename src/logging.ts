@@ -9,7 +9,7 @@ export function setDebug(debug: boolean) {
   console.warn(`[vscode-sshfs] Debug mode set to ${debug}`);
   DEBUG = debug;
   if (!debug) return;
-  try { require('../.pnp.cjs').setup(); } catch (e) {
+  try { require('.pnp.cjs').setup(); } catch (e) {
     console.warn('Could not set up .pnp.cjs:', e);
   }
   try { require('source-map-support').install(); } catch (e) {

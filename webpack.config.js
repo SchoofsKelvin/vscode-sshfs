@@ -66,6 +66,7 @@ const config = {
     externals: {
         vscode: 'commonjs vscode',
         request: 'commonjs request',
+        '.pnp.cjs': 'commonjs ../.pnp.cjs',
         'source-map-support': 'commonjs source-map-support',
     },
     resolve: {
