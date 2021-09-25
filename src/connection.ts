@@ -212,7 +212,7 @@ export class ConnectionManager {
         });
         // Setup initial port forwardings
         setImmediate(async () => {
-            const forwards = (actualConfig.forwardings || []).map(parsePortForwarding);
+            const forwards = (actualConfig.forwardings || []).map(f => parsePortForwarding(f, 'report'));
             const badForwards = forwards.reduce((tot, f) => f ? tot : tot + 1, 0);
             if (badForwards) vscode.window.showWarningMessage(`Could not parse ${badForwards} of ${forwards.length} port forwarding from the config, ignoring them`);
             let failed = 0;
