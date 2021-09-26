@@ -179,9 +179,9 @@ export function validatePortForwarding(forwarding: PortForwarding): PortForwardi
 
 async function createLocalForwarding(connection: Connection, forwarding: PortForwardingLocalRemote): Promise<ActivePortForwarding> {
     validateLocalRemoteForwarding(forwarding);
+    if (forwarding.localAddress === '') forwarding = { ...forwarding, localAddress: undefined };
+    if (forwarding.localAddress === '*') forwarding = { ...forwarding, localAddress: undefined };
     const { localAddress, localPort, remoteAddress, remotePort } = forwarding;
-    if (forwarding.localAddress === '*') forwarding = { ...forwarding, localAddress: undefined };
-    if (forwarding.localAddress === '*') forwarding = { ...forwarding, localAddress: undefined };
     const logging = Logging.scope(formatPortForwarding(forwarding));
     logging.info(`Setting up local forwarding`);
     const { client } = connection;
@@ -260,11 +260,12 @@ async function createRemoteForwarding(connection: Connection, forwarding: PortFo
         unlisten = () => connection.client.off('unix connection', listener);
         logging.info(`Listening on remote socket path: ${remoteAddress}`);
     } else {
-        const actualPort = await toPromise<number>(cb => connection.client.forwardIn(remoteAddress || '', remotePort!, cb));
+        const rAddr = remoteAddress === '*' ? '' : remoteAddress || '';
+        const actualPort = await toPromise<number>(cb => connection.client.forwardIn(rAddr, remotePort!, cb));
         forwarding = { ...forwarding, remotePort: actualPort };
         const listener = (details: TcpConnectionDetails, accept: () => ClientChannel) => {
             if (details.destPort !== actualPort) return;
-            if (details.destIP !== (remoteAddress || '')) return;
+            if (details.destIP !== rAddr) return;
             onSocket(accept());
         };
         connection.client.on('tcp connection', listener);
@@ -455,17 +456,17 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
             ];
         } else if (picker.value) {
             const type = picker.value.toLowerCase().trimLeft().match(/^[a-zA-Z]*/)![0].replace(/Forward$/, '');
-                let detail: string;
-                if (type === 'l' || type === 'local') {
+            let detail: string;
+            if (type === 'l' || type === 'local') {
                 detail = 'Local [localAddress]:localPort remoteAddress:remotePort';
-                } else if (type === 'r' || type === 'remote') {
+            } else if (type === 'r' || type === 'remote') {
                 detail = 'Remote [localAddress:localPort] [remoteAddress]:remotePort';
-                } else if (type === 'd' || type === 'dynamic') {
-                    detail = 'Dynamic localAddress:localPort';
-                } else {
-                    detail = 'Select or type a port forwarding type';
+            } else if (type === 'd' || type === 'dynamic') {
+                detail = 'Dynamic localAddress:localPort';
+            } else {
+                detail = 'Select or type a port forwarding type';
                 items = [...ITEMS];
-                }
+            }
             try {
                 const forward = parsePortForwarding(picker.value, 'throw')!;
                 suggested.push(formatPF(forward));
@@ -503,11 +504,11 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
                 if (picker.value === 'examples') {
                     // Looking at examples, don't actually accept but copy the value
                     picker.value = formatPortForwardingConfig(item);
-            } else {
-                resolve(item);
-                picker.hide();
+                } else {
+                    resolve(item);
+                    picker.hide();
                     return;
-            }
+                }
             }
             updateItems();
         });
