@@ -111,6 +111,18 @@ export class ConnectionManager {
                             }
                         } catch (e) {
                             if (e instanceof vscode.FileSystemError) {
+                                if (e.code === 'FileNotFound') {
+                                    logging.warning(`File '${absolutePath}' not found, prompting to create empty file`);
+                                    const choice = await vscode.window.showWarningMessage(`File '${absolutePath}' not found, create it?`, { modal: true }, 'Yes');
+                                    if (choice !== 'Yes') return;
+                                    try { await vscode.workspace.fs.writeFile(uri, Buffer.of()); } catch (e) {
+                                        logging.error(e);
+                                        vscode.window.showErrorMessage(`Failed to create an empty file at '${absolutePath}'`);
+                                        return;
+                                    }
+                                    await vscode.window.showTextDocument(uri);
+                                    return;
+                                }
                                 vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.name.replace(/ \(FileSystemError\)/g, '')}`);
                             } else {
                                 vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.message || e}`);
