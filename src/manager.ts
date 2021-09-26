@@ -114,7 +114,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async createTerminal(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<void> {
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
-    const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
+    const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(config?.name || name, config);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
     const pty = await createTerminal({ connection: con, workingDirectory: uri?.path || con.actualConfig.root });

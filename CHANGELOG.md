@@ -5,6 +5,7 @@
 
 ### Fixes
 - Fix remote `code` command (#267) not working without the filesystem already connected (#292)
+- Fix bug with broken connections when connections are initiated by spawning named terminals
 
 ### Changes
 - Proxy hop field now actually lists all known configs to pick from, instead of "TO DO" (#290)
