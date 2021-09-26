@@ -1,5 +1,18 @@
+
+# Build output
 dist
 util
-node_modules
+
+# Build artifacts 
 *.vsix
 stats.json
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+!.yarn/yarn.lock
+.pnp.*

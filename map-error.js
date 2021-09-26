@@ -18,8 +18,8 @@ for (const file of fs.readdirSync('./dist')) {
 
 console.log();
 
-const SOURCE_NAME_REGEX = /^\s*at .*? \(.*?[/\\]dist[/\\](\d+\.extension\.js):(\d+):(\d+)\)$/;
-const SOURCE_ANOM_REGEX = /^\s*at .*?[/\\]dist[/\\](\d+\.extension\.js):(\d+):(\d+)$/;
+const SOURCE_NAME_REGEX = /^\s*at .*? \(.*?[/\\]dist[/\\]((?:\d+\.)?extension\.js):(\d+):(\d+)\)$/;
+const SOURCE_ANOM_REGEX = /^\s*at .*?[/\\]dist[/\\]((?:\d+\.)?extension\.js):(\d+):(\d+)$/;
 
 let error = '';
 rl.createInterface(process.stdin).on('line', async l => {
@@ -32,8 +32,17 @@ rl.createInterface(process.stdin).on('line', async l => {
             line = parseInt(line);
             column = parseInt(column);
             const map = await maps[file];
-            if (!map) throw new Error(`Missing map for '${file}'`);
+            if (!map) {
+                stack += ' [MISSING]';
+                console.log(stack);
+                continue;
+            }
             const pos = map.originalPositionFor({ line, column });
+            if (!pos.line) {
+                stack += ' [MISMAPPED]';
+                console.log(stack);
+                continue;
+            }
             const ws = stack.match(/^\s*/)[0];
             if (named && pos.name) {
                 stack = `${ws}at ${pos.name} (${pos.source}:${pos.line}:${pos.column})`;

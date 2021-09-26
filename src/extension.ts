@@ -31,7 +31,7 @@ interface CommandHandler {
 export function activate(context: vscode.ExtensionContext) {
   Logging.info(`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`);
 
-  setDebug(context.extensionMode !== vscode.ExtensionMode.Production);
+  setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
   // Likely that we'll have a breaking change in the future that requires users to check
   // their configs, or at least reconfigure already existing workspaces with new URIs.

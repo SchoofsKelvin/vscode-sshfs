@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { FieldDropdown } from '../FieldTypes/dropdown';
-import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldString } from '../FieldTypes/string';
+import { connect } from '../redux';
 import { FileSystemConfig } from '../types/fileSystemConfig';
 import type { FieldFactory, FSCChanged, FSCChangedMultiple } from './fields';
 
-export function proxy(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): React.ReactElement {
+function proxy(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): React.ReactElement {
     const onChangeHost = (host: string) => onChange('proxy', { ...config.proxy!, host });
     const onChangePort = (port: number) => onChange('proxy', { ...config.proxy!, port });
     console.log('Current config:', config);
@@ -19,12 +19,24 @@ export function proxy(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): 
     </React.Fragment>;
 }
 
-export function hop(config: FileSystemConfig, onChange: FSCChanged<'hop'>): React.ReactElement {
-    const callback = (newValue?: string) => onChange('hop', newValue);
-    const description = 'Use another configuration as proxy, using a SSH tunnel through the targeted config to the actual remote system';
-    const values = ['TO', ' DO'];
-    return <FieldDropdownWithInput key="hop" label="Hop" {...{ values, description }} value={config.hop} onChange={callback} optional={true} />;
+interface HopFieldProps {
+    config: FileSystemConfig;
+    configs: [name: string, label: string][];
+    onChange: FSCChanged<'hop'>;
 }
+const HopField = connect(({ config, configs, onChange }: HopFieldProps) => {
+    const callback = (newValue?: [string, string]) => onChange('hop', newValue?.[0]);
+    const description = 'Use another configuration as proxy, using a SSH tunnel through the targeted config to the actual remote system';
+    const displayName = (item: [string, string]) => item[1];
+    const value = config.hop ? [config.hop, configs.find(c => c[0] === config.hop)?.[1] || config.hop] as const : undefined;
+    return <FieldDropdown key="hop" label="Hop"  {...{ value, values: configs, description, displayName } as const} onChange={callback} optional />;
+})<Pick<HopFieldProps, 'configs'>>(state => {
+    const pairs = new Map<string, string>();
+    for (const { name, label } of state.data.configs) {
+        pairs.set(name, label || name);
+    }
+    return { configs: Array.from(pairs) };
+});
 
 const ProxyTypeToString = {
     http: 'HTTP',
@@ -39,7 +51,7 @@ const ProxyStringToType = {
 } as const;
 type ProxyStrings = keyof typeof ProxyStringToType;
 
-export function merged(config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple): React.ReactElement | null {
+function merged(config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple): React.ReactElement | null {
     function callback(newValue?: ProxyStrings) {
         // Fields starting with _ don't get saved to file
         // We use it here so we know when to display the hop stuff
@@ -74,8 +86,8 @@ export function merged(config: FileSystemConfig, onChange: FSCChanged, onChangeM
     const type = config.proxy && config.proxy.type;
     const value = showHop ? 'SSH Hop' : (type && ProxyTypeToString[type]);
     return <React.Fragment key="proxy">
-        <FieldDropdown<ProxyStrings | undefined> key="proxy" label="Proxy" {...{ value, values, description }} onChange={callback} optional={true} />
-        {showHop && hop(config, onChange)}
+        <FieldDropdown key="proxy" label="Proxy" {...{ value, values, description } as const} onChange={callback} optional />
+        {showHop && <HopField config={config} onChange={onChange} />}
         {config.proxy && proxy(config, onChange)}
     </React.Fragment>;
 }

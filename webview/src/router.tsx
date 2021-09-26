@@ -1,4 +1,3 @@
-import * as React from 'react';
 import ConfigEditor from './ConfigEditor';
 import ConfigLocator from './ConfigLocator';
 import NewConfig from './NewConfig';

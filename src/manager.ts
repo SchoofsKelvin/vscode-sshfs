@@ -216,7 +216,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     let { root = '/' } = config;
     if (root.startsWith('~')) {
       const con = await this.connectionManager.createConnection(config.name, config);
-      if (con) root = con.home + root.substring(1);
+      root = con.home + root.substring(1);
     }
     if (root.startsWith('/')) root = root.substring(1);
     vscode.workspace.updateWorkspaceFolders(folders ? folders.length : 0, 0, {

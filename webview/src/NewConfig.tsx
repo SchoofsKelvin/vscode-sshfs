@@ -30,7 +30,7 @@ class NewConfig extends React.Component<StateProps & DispatchProps> {
                 <h2>Create new configuration</h2>
                 <FieldString
                     label="Name"
-                    description="Name of the config. Can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@"
+                    description="Name of the config. Accepted characters: [0-9a-z_.+-@]"
                     value={name}
                     validator={invalidConfigName}
                     onChange={setName}

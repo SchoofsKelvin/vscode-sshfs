@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { FieldBase } from './base';
 
 interface Props {
