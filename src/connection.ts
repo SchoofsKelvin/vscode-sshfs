@@ -22,14 +22,12 @@ export interface Connection {
 }
 
 async function tryGetHome(ssh: Client): Promise<string | null> {
-    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
+    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo "::sshfs:home:$(echo ~)\n"', cb));
     let home = '';
     exec.stdout.on('data', (chunk: any) => home += chunk);
     await toPromise(cb => exec.on('close', cb));
     if (!home) return null;
-    const mat = home.match(/^Home: (.*?)\r?\n?$/);
-    if (!mat) return null;
-    return mat[1];
+    return home.match(/::sshfs:home:(.*?)\n/)?.[1] || null;
 }
 
 const TMP_PROFILE_SCRIPT = `
