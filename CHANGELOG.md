@@ -29,6 +29,8 @@
     - Building the same commit on GitHub Actions or your own PC should result in e.g. the same source maps
   - The `excludeModules` is now configured (and better handled) by the plugin
 - The problem matcher for the `Extension Webview - Watch` task has been simplified and fixed due to the above change
+- Updated Yarn to 3.0.2 (with manual git issue fix applied)
+- Updated TypeScript to ^4.4.3
 
 ## 1.22.0 (2021-09-21)
 
