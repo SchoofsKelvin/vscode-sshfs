@@ -1,17 +1,17 @@
 
 # Changelog
 
-## Unreleased
+## v1.23.0 (2021-10-02)
 
 ### Fixes
-- Fix remote `code` command (#267) not working without the filesystem already connected (#292)
-- Fix bug with broken connections when connections are initiated by spawning named terminals
-- Fix issue where `.bashrc` echoing would result in home directory detection failing (#294)
+- Fix remote `code` command (#267) not working without the filesystem already connected (#292) (b821bae)
+- Fix bug with broken connections when connections are initiated by spawning named terminals (6f6e3ad)
+- Fix issue where `.bashrc` echoing would result in home directory detection failing (860f65a, #294)
 
 ### Changes
-- Proxy hop field now actually lists all known configs to pick from, instead of "TO DO" (#290)
-- Remote `code` command (#267) now prompts to create an empty file for non-existing path
-- Remote `code` command (#267) now displays a help message when not providing arguments
+- Proxy hop field now actually lists all known configs to pick from, instead of "TO DO" (1f7e333, #290)
+- Remote `code` command (#267) now prompts to create an empty file for non-existing path (30c213a)
+- Remote `code` command (#267) now displays a help message when not providing arguments (518e246)
 
 ### Development changes
 - Webpack setup has been improved quite a bit, mostly to clean up long ugly paths and make builds deterministic:
@@ -28,10 +28,11 @@
     - These deterministic builds result in e.g. the same output chunk filenames
     - Building the same commit on GitHub Actions or your own PC should result in e.g. the same source maps
   - The `excludeModules` is now configured (and better handled) by the plugin
-- The problem matcher for the `Extension Webview - Watch` task has been simplified and fixed due to the above change
-- Updated Yarn to 3.0.2 (with manual git issue fix applied)
-- Updated TypeScript to ^4.4.3
-- Added `enhance-changelog.js`  which add commits to "top-level" items in the changelog's "Unreleased" section
+  - Commits: 3d1aff3, 865969f, c121647
+- The problem matcher for the `Extension Webview - Watch` task has been simplified and fixed due to the above change (3d1aff3)
+- Updated Yarn to 3.0.2 (with manual git issue fix applied) (06c8e21)
+- Updated TypeScript to ^4.4.3 (06c8e21)
+- Added `enhance-changelog.js`  which add commits to "top-level" items in the changelog's "Unreleased" section (dce279d)
 
 ## 1.22.0 (2021-09-21)
 
