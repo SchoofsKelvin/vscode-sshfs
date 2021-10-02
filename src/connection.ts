@@ -37,7 +37,12 @@ if type code > /dev/null 2> /dev/null; then
     return 0;
 fi
 code() {
-    if [ ! -n "$KELVIN_SSHFS_CMD_PATH" ]; then
+    if [ "$#" -ne 1 ] || [ $1 = "help" ] || [ $1 = "--help" ] || [ $1 = "-h" ] || [ $1 = "-?" ]; then
+        echo "Usage:";
+        echo "  code <path_to_existing_file>    Will make VS Code open the file";
+        echo "  code <path_to_existing_folder>  Will make VS Code add the folder as an additional workspace folder";
+        echo "  code <path_to_nonexisting_file> Will prompt VS Code to create an empty file, then open it afterwards";
+    elif [ ! -n "$KELVIN_SSHFS_CMD_PATH" ]; then
         echo "Not running in a terminal spawned by SSH FS? Failed to sent!"
     elif [ -c "$KELVIN_SSHFS_CMD_PATH" ]; then
         echo "::sshfs:code:$(pwd):::$1" >> $KELVIN_SSHFS_CMD_PATH;
@@ -74,7 +79,7 @@ export class ConnectionManager {
     public getPendingConnections(): [string, FileSystemConfig | undefined][] {
         return Object.keys(this.pendingConnections).map(name => [name, this.pendingConnections[name][1]]);
     }
-    protected async _createCommandTerminal(client: Client, authority: string): Promise<string> {
+    protected async _createCommandTerminal(client: Client, authority: string, debugLogging: boolean): Promise<string> {
         const logging = Logging.scope(`CmdTerm(${authority})`);
         const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
         shell.write('echo ::sshfs:TTY:$(tty)\n');
@@ -83,7 +88,7 @@ export class ConnectionManager {
             shell.stdout.once('error', rejectPath);
             shell.once('close', () => rejectPath());
             rl.on('line', async line => {
-                // logging.debug('<< ' + line);
+                if (debugLogging) logging.debug('<< ' + line);
                 const [, prefix, cmd, args] = line.match(/(.*?)::sshfs:(\w+):(.*)$/) || [];
                 if (!cmd || prefix.endsWith('echo ')) return;
                 switch (cmd) {
@@ -170,8 +175,10 @@ export class ConnectionManager {
         // Set up stuff for receiving remote commands
         const [flagRCV, flagRCR] = getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags);
         if (flagRCV) {
-            logging.info(`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal`);
-            const cmdPath = await this._createCommandTerminal(client, name);
+            const [flagRCDV, flagRCDR] = getFlagBoolean('DEBUG_REMOTE_COMMANDS', false, actualConfig.flags);
+            const withDebugStr = flagRCDV ? ` with debug logging enabled by '${flagRCDR}'` : '';
+            logging.info(`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`);
+            const cmdPath = await this._createCommandTerminal(client, name, flagRCDV);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
             const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
             await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb));

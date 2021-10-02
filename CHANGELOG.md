@@ -10,6 +10,7 @@
 ### Changes
 - Proxy hop field now actually lists all known configs to pick from, instead of "TO DO" (#290)
 - Remote `code` command (#267) now prompts to create an empty file for non-existing path
+- Remote `code` command (#267) now displays a help message when not providing arguments
 
 ### Development changes
 - Webpack setup has been improved quite a bit, mostly to clean up long ugly paths and make builds deterministic:

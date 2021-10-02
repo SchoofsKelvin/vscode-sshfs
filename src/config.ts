@@ -382,9 +382,11 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
   REMOTE_COMMANDS (boolean) (default=false)
     - Enables automatically launching a background command terminal during connection setup
     - Enables attempting to inject a file to be sourced by the remote shells (which adds the `code` alias)
+  DEBUG_REMOTE_COMMANDS (boolean) (default=false)
+    - Enables debug logging for the remote command terminal (thus useless if REMOTE_COMMANDS isn't true)
 */
 export type FlagValue = string | boolean | null;
-export type FlagCombo = [value: FlagValue, origin: string];
+export type FlagCombo<V extends FlagValue = FlagValue> = [value: V, origin: string];
 export const DEFAULT_FLAGS: string[] = [];
 let cachedFlags: Record<string, FlagCombo> = {};
 function calculateFlags(): Record<string, FlagCombo> {
@@ -456,12 +458,12 @@ export function getFlag(target: string, flags?: string[]): FlagCombo | undefined
  * @param flags An optional array of flags to check before the global ones
  * @returns The matching FlagCombo or `[missingValue, 'missing']` instead
  */
-export function getFlagBoolean(target: string, missingValue: boolean, flags?: string[]): FlagCombo {
+export function getFlagBoolean(target: string, missingValue: boolean, flags?: string[]): FlagCombo<boolean> {
   const combo = getFlag(target, flags);
   if (!combo) return [missingValue, 'missing'];
   const [value, reason] = combo;
   if (value == null) return [true, reason];
-  if (typeof value === 'boolean') return combo;
+  if (typeof value === 'boolean') return [value, reason];
   const lower = value.toLowerCase();
   if (lower === 'true' || lower === 't' || lower === 'yes' || lower === 'y') return [true, reason];
   if (lower === 'false' || lower === 'f' || lower === 'no' || lower === 'n') return [false, reason];
