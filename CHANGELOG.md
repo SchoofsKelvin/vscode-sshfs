@@ -31,6 +31,7 @@
 - The problem matcher for the `Extension Webview - Watch` task has been simplified and fixed due to the above change
 - Updated Yarn to 3.0.2 (with manual git issue fix applied)
 - Updated TypeScript to ^4.4.3
+- Added `enhance-changelog.js`  which add commits to "top-level" items in the changelog's "Unreleased" section
 
 ## 1.22.0 (2021-09-21)
 
