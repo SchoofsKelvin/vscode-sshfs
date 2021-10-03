@@ -67,7 +67,7 @@ export async function open() {
 }
 
 export async function navigate(navigation: Navigation) {
-  Logging.debug(`Navigation requested: ${JSON.stringify(navigation, null, 4)}`);
+  Logging.debug`Navigation requested: ${navigation}`;
   pendingNavigation = navigation;
   postMessage({ navigation, type: 'navigate' });
   return open();
@@ -78,8 +78,8 @@ function postMessage<T extends Message>(message: T) {
 }
 
 async function handleMessage(message: Message): Promise<any> {
-  if (!webviewPanel) return Logging.warning(`Got message without webviewPanel: ${JSON.stringify(message, null, 4)}`);
-  Logging.debug(`Got message: ${JSON.stringify(message, null, 4)}`);
+  if (!webviewPanel) return Logging.warning`Got message without webviewPanel: ${message}`;
+  Logging.debug`Got message: ${message}`;
   if (pendingNavigation) {
     postMessage({
       type: 'navigate',
@@ -124,9 +124,7 @@ async function handleMessage(message: Message): Promise<any> {
         const uris = await vscode.window.showOpenDialog({});
         if (uris) [uri] = uris;
       } catch (e) {
-        Logging.error('Error handling promptPath message for settings UI:', LOGGING_NO_STACKTRACE);
-        Logging.error(JSON.stringify(message), LOGGING_NO_STACKTRACE);
-        Logging.error(e);
+        Logging.error`Error handling promptPath message for settings UI:\n${message}\n${e}`;
         error = e.message;
       }
       return postMessage({

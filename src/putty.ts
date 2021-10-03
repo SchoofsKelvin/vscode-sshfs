@@ -49,7 +49,7 @@ export function formatSession(session: PuttySession): string {
 }
 
 export async function getSessions() {
-  Logging.info(`Fetching PuTTY sessions from registry`);
+  Logging.info`Fetching PuTTY sessions from registry`;
   const values = await toPromise<Winreg.Registry[]>(cb => winreg.keys(cb));
   const sessions: PuttySession[] = [];
   await Promise.all(values.map(regSession => (async () => {
@@ -59,8 +59,8 @@ export async function getSessions() {
     props.forEach(prop => properties[prop.name.toLowerCase()] = valueFromItem(prop));
     sessions.push({ name, ...(properties as any) });
   })()));
-  Logging.debug(`\tFound ${sessions.length} sessions:`);
-  sessions.forEach(s => Logging.debug(`\t- ${formatSession(s)}`));
+  Logging.debug`\tFound ${sessions.length} sessions:`;
+  sessions.forEach(s => Logging.debug`\t- ${formatSession(s)}`);
   return sessions;
 }
 

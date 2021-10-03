@@ -105,7 +105,7 @@ class Logger {
   protected formatValue(value: any, options: LoggingOptions): string {
     if (typeof value === 'string') return value;
     if (value instanceof Error && value.stack) {
-    // Format errors with stacktraces to display the JSON and the stacktrace if needed
+      // Format errors with stacktraces to display the JSON and the stacktrace if needed
       let result = `${value.name}: ${value.message}`;
       try {
         const json = JSON.stringify(value);
@@ -170,7 +170,7 @@ class Logger {
         return result.logger.print(result.type, message, result.options)
       } else if (Array.isArray(message)) {
         return result.logger.printTemplate(result.type, message, args, result.options)
-  }
+      }
       result.logger.error`Trying to log type ${type} with message=${message} and args=${args}`;
     };
     result.logger = this;

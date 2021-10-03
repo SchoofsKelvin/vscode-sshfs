@@ -40,7 +40,7 @@ export async function renameNameless() {
       }
     });
     if (okay) return;
-    return conf.update('configs', v, loc).then(() => { }, res => logging.error(`Error while saving configs (CT=${loc}): ${res}`));
+    return conf.update('configs', v, loc).then(() => { }, res => logging.error`Error while saving configs (CT=${loc}): ${res}`);
   }
   await patch(inspect.globalValue, vscode.ConfigurationTarget.Global);
   await patch(inspect.workspaceValue, vscode.ConfigurationTarget.Workspace);
@@ -58,18 +58,18 @@ async function readConfigFile(location: string, shouldExist = false): Promise<Fi
   const content = await toPromise<Buffer>(cb => readFile(location, cb)).catch((e: NodeJS.ErrnoException) => e);
   if (content instanceof Error) {
     if (content.code === 'ENOENT' && !shouldExist) return [];
-    logging.error(`Error while reading config file ${location}: ${content.message}`);
+    logging.error`Error while reading config file ${location}: ${content}`;
     return [];
   }
   const errors: ParseError[] = [];
   const parsed: FileSystemConfig[] | null = parseJsonc(content.toString(), errors);
   if (!parsed || errors.length) {
-    logging.error(`Couldn't parse ${location} as a 'JSON with Comments' file`);
+    logging.error`Couldn't parse ${location} as a 'JSON with Comments' file`;
     vscode.window.showErrorMessage(`Couldn't parse ${location} as a 'JSON with Comments' file`);
     return [];
   }
   parsed.forEach(c => c._locations = [c._location = location]);
-  logging.debug(`Read ${parsed.length} configs from ${location}`);
+  logging.debug`Read ${parsed.length} configs from ${location}`;
   return parsed;
 }
 
@@ -132,7 +132,7 @@ export async function loadConfigsRaw(): Promise<FileSystemConfig[]> {
       const fConfig = vscode.workspace.getConfiguration('sshfs', uri).inspect<FileSystemConfig[]>('configs');
       const fConfigs = fConfig && fConfig.workspaceFolderValue || [];
       if (fConfigs.length) {
-        logging.debug(`Read ${fConfigs.length} configs from workspace folder ${uri}`);
+        logging.debug`Read ${fConfigs.length} configs from workspace folder ${uri}`;
         fConfigs.forEach(c => c._locations = [c._location = `WorkspaceFolder ${uri}`]);
       }
       layered.folder = [
@@ -149,7 +149,7 @@ export async function loadConfigsRaw(): Promise<FileSystemConfig[]> {
   // Let the user do some cleaning with the raw configs
   for (const conf of all) {
     if (!conf.name) {
-      logging.error(`Skipped an invalid SSH FS config (missing a name field):\n${JSON.stringify(conf, undefined, 4)}`);
+      logging.error`Skipped an invalid SSH FS config (missing a name field):\n${conf}`;
       vscode.window.showErrorMessage(`Skipped an invalid SSH FS config (missing a name field)`);
     } else if (invalidConfigName(conf.name)) {
       logging.warning(`Found a SSH FS config with the invalid name "${conf.name}", prompting user how to handle`);
@@ -158,14 +158,14 @@ export async function loadConfigsRaw(): Promise<FileSystemConfig[]> {
           const name = await vscode.window.showInputBox({ prompt: `New name for: ${conf.name}`, validateInput: invalidConfigName, placeHolder: 'New name' });
           if (name) {
             const oldName = conf.name;
-            logging.info(`Renaming config "${oldName}" to "${name}"`);
+            logging.info`Renaming config "${oldName}" to "${name}"`;
             conf.name = name;
             return updateConfig(conf, oldName);
           }
         } else if (answer === 'Delete') {
           return deleteConfig(conf);
         }
-        logging.warning(`Skipped SSH FS config '${conf.name}'`);
+        logging.warning`Skipped SSH FS config '${conf.name}'`;
         vscode.window.showWarningMessage(`Skipped SSH FS config '${conf.name}'`);
       });
     }
@@ -186,19 +186,19 @@ export async function loadConfigs(): Promise<FileSystemConfig[]> {
         // The folder settings should overwrite the higher up defined settings
         // Since .sshfs.json gets read after vscode settings, these can overwrite configs
         // of the same level, which I guess is a nice feature?
-        logging.debug(`\tMerging duplicate ${conf.name} from ${conf._locations}`);
+        logging.debug`\tMerging duplicate ${conf.name} from ${conf._locations}`;
         dup._locations = [...dup._locations, ...conf._locations];
         Object.assign(dup, Object.assign(conf, dup));
       } else {
-        logging.debug(`\tIgnoring duplicate ${conf.name} from ${conf._locations}`);
+        logging.debug`\tIgnoring duplicate ${conf.name} from ${conf._locations}`;
       }
     } else {
-      logging.debug(`\tAdded configuration ${conf.name} from ${conf._locations}`);
+      logging.debug`\tAdded configuration ${conf.name} from ${conf._locations}`;
       configs.push(conf);
     }
   }
   loadedConfigs = configs;
-  logging.info(`Found ${loadedConfigs.length} configurations`);
+  logging.info`Found ${loadedConfigs.length} configurations`;
   UPDATE_LISTENERS.forEach(listener => listener(loadedConfigs));
   return loadedConfigs;
 }
@@ -223,7 +223,7 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
         return newConfig;
       });
       await conf.update('configs', modified, location);
-      logging.debug(`\tUpdated configs in ${[, 'Global', 'Workspace', 'WorkspaceFolder'][location]} settings.json`);
+      logging.debug`\tUpdated configs in ${[, 'Global', 'Workspace', 'WorkspaceFolder'][location]} settings.json`;
       return;
   }
   if (typeof location !== 'string') throw new Error(`Invalid _location field: ${location}`);
@@ -240,10 +240,10 @@ export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlte
   const data = JSON.stringify(altered, null, 4);
   await toPromise(cb => writeFile(location, data, cb))
     .catch((e: NodeJS.ErrnoException) => {
-      logging.error(`Error while writing configs to ${location}: ${e.message}`);
+      logging.error`Error while writing configs to ${location}: ${e}`;
       throw e;
     });
-  logging.debug(`\tWritten modified configs to ${location}`);
+  logging.debug`\tWritten modified configs to ${location}`;
   await loadConfigs();
 }
 
@@ -251,18 +251,18 @@ export async function updateConfig(config: FileSystemConfig, oldName = config.na
   const { name, _location } = config;
   if (!name) throw new Error(`The given config has no name field`);
   if (!_location) throw new Error(`The given config has no _location field`);
-  logging.info(`Saving config ${name} to ${_location}`);
+  logging.info`Saving config ${name} to ${_location}`;
   if (oldName !== config.name) {
-    logging.debug(`\tSaving ${name} will try to overwrite old config ${oldName}`);
+    logging.debug`\tSaving ${name} will try to overwrite old config ${oldName}`;
   }
   await alterConfigs(_location, (configs) => {
-    logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
+    logging.debug`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`;
     const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === oldName.toLowerCase() : false);
     if (index === -1) {
-      logging.debug(`\tAdding the new config to the existing configs`);
+      logging.debug`\tAdding the new config to the existing configs`;
       configs.push(config);
     } else {
-      logging.debug(`\tOverwriting config '${configs[index].name}' at index ${index} with the new config`);
+      logging.debug`\tOverwriting config '${configs[index].name}' at index ${index} with the new config`;
       configs[index] = config;
     }
     return configs;
@@ -273,12 +273,12 @@ export async function deleteConfig(config: FileSystemConfig) {
   const { name, _location } = config;
   if (!name) throw new Error(`The given config has no name field`);
   if (!_location) throw new Error(`The given config has no _location field`);
-  logging.info(`Deleting config ${name} in ${_location}`);
+  logging.info`Deleting config ${name} in ${_location}`;
   await alterConfigs(_location, (configs) => {
-    logging.debug(`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`);
+    logging.debug`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`;
     const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === name.toLowerCase() : false);
     if (index === -1) throw new Error(`Config '${name}' not found in ${_location}`);
-    logging.debug(`\tDeleting config '${configs[index].name}' at index ${index}`);
+    logging.debug`\tDeleting config '${configs[index].name}' at index ${index}`;
     configs.splice(index, 1);
     return configs;
   });
@@ -299,7 +299,7 @@ export function getConfig(input: string): FileSystemConfig | undefined {
   // If we're using the instant connection string, the host name might be a config name
   const existing = getConfigs().find(c => c.name.toLowerCase() === parsed.host!.toLowerCase());
   if (existing) {
-    Logging.info(`getConfig('${input}') led to '${parsed.name}' which matches config '${existing.name}'`);
+    Logging.info`getConfig('${input}') led to '${parsed.name}' which matches config '${existing.name}'`;
     // Take the existing config, but (more or less) override it with the values present in `parsed`
     // `name` be the same as in `parsed`, meaning it can be reused with `getConfig` on window reload.
     return {
@@ -404,7 +404,7 @@ function calculateFlags(): Record<string, FlagCombo> {
   applyList(config.globalValue, 'Global Settings');
   applyList(config.workspaceValue, 'Workspace Settings');
   applyList(config.workspaceFolderValue, 'WorkspaceFolder Settings');
-  Logging.info(`Calculated config flags: ${JSON.stringify(flags)}`);
+  Logging.info`Calculated config flags: ${flags}`;
   return cachedFlags = flags;
 }
 

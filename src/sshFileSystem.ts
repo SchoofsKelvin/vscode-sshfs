@@ -104,8 +104,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         // tslint:disable-next-line:no-bitwise
         return [file.filename, type | link] as [string, vscode.FileType];
       } catch (e) {
-        this.logging.warning(`Error in readDirectory for ${furi}`, LOGGING_NO_STACKTRACE);
-        this.logging.warning(e, LOGGING_SINGLE_LINE_STACKTRACE);
+        this.logging.warning.withOptions(LOGGING_SINGLE_LINE_STACKTRACE)`Error in readDirectory for ${furi}: ${e}`;
         // tslint:disable-next-line:no-bitwise
         return [file.filename, vscode.FileType.Unknown | link] as [string, vscode.FileType];
       }
@@ -182,8 +181,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       this.logging.debug(`Ignored FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
       if (doThrow === true) throw e; else if (doThrow) return doThrow(e); else return;
     }
-    Logging.error(`Error handling uri: ${uri}`, LOGGING_NO_STACKTRACE);
-    Logging.error(e, LOGGING_HANDLE_ERROR);
+    Logging.error.withOptions(LOGGING_HANDLE_ERROR)`Error handling uri: ${uri}\n${e}`;
     // Convert SSH2Stream error codes into VS Code errors
     if (doThrow && typeof e.code === 'number') {
       const oldE = e;

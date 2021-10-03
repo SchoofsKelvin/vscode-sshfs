@@ -27,7 +27,7 @@ interface CommandHandler {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  Logging.info(`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`);
+  Logging.info`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`;
 
   setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
   if (!previousVersion) {
     Logging.info('No previous version detected. Fresh or pre-v1.21.0 installation?');
   } else if (previousVersion !== getVersion()) {
-    Logging.info(`Previously used version ${previousVersion}, first run after install.`);
+    Logging.info`Previously used version ${previousVersion}, first run after install.`;
   }
 
   // Really too bad we *need* the ExtensionContext for relative resources

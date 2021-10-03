@@ -33,19 +33,19 @@ export class FileSystemRouter implements vscode.FileSystemProvider {
     return (await this.assertFs(uri)).createDirectory(uri);
   }
   public async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-    Logging.debug(`Reading ${uri}`);
+    Logging.debug`Reading ${uri}`;
     return (await this.assertFs(uri)).readFile(uri);
   }
   public async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): Promise<void> {
-    Logging.debug(`Writing ${content.length} bytes to ${uri}`);
+    Logging.debug`Writing ${content.length} bytes to ${uri}`;
     return (await this.assertFs(uri)).writeFile(uri, content, options);
   }
   public async delete(uri: vscode.Uri, options: { recursive: boolean; }): Promise<void> {
-    Logging.debug(`Deleting ${uri}`);
+    Logging.debug`Deleting ${uri}`;
     return (await this.assertFs(uri)).delete(uri, options);
   }
   public async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): Promise<void> {
-    Logging.debug(`Renaming ${oldUri} to ${newUri}`);
+    Logging.debug`Renaming ${oldUri} to ${newUri}`;
     const fs = await this.assertFs(oldUri);
     if (fs !== (await this.assertFs(newUri))) throw new Error(`Can't rename between different SSH filesystems`);
     return fs.rename(oldUri, newUri, options);

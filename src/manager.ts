@@ -60,7 +60,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       // Create the actual SFTP session (using the connection's actualConfig, otherwise it'll reprompt for passwords etc)
       const sftp = await getSFTP(con.client, con.actualConfig);
       const fs = new SSHFileSystem(name, sftp, con.actualConfig);
-      Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);
+      Logging.info`Created SSHFileSystem for ${name}, reading root directory...`;
       this.connectionManager.update(con, con => con.filesystems.push(fs));
       this.fileSystems.push(fs);
       delete this.creatingFileSystems[name];
@@ -96,8 +96,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         this.commandDisconnect(name);
         throw e;
       }
-      Logging.error(`Error while connecting to SSH FS ${name}:\n${e.message}`);
-      Logging.error(e);
+      Logging.error`Error while connecting to SSH FS ${name}:\n${e}`;
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
@@ -213,7 +212,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public async commandConnect(config: FileSystemConfig) {
-    Logging.info(`Command received to connect ${config.name}`);
+    Logging.info`Command received to connect ${config.name}`;
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === config.name);
     if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
@@ -229,7 +228,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     });
   }
   public commandDisconnect(target: string | Connection) {
-    Logging.info(`Command received to disconnect ${commandArgumentToName(target)}`);
+    Logging.info`Command received to disconnect ${commandArgumentToName(target)}`;
     let cons: Connection[];
     if (typeof target === 'object' && 'client' in target) {
       cons = [target];
@@ -256,11 +255,12 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     vscode.workspace.updateWorkspaceFolders(start, folders.length - start, ...left);
   }
   public async commandTerminal(target: FileSystemConfig | Connection, uri?: vscode.Uri) {
-    Logging.info(`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`);
+    Logging.info`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`;
     const config = 'client' in target ? target.actualConfig : target;
     try {
       await this.createTerminal(config.label || config.name, target, uri);
     } catch (e) {
+      Logging.error`Error while creating terminal:\n${e}`;
       const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
         `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
         { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
@@ -268,7 +268,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     }
   }
   public async commandConfigure(target: string | FileSystemConfig) {
-    Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
+    Logging.info`Command received to configure ${typeof target === 'string' ? target : target.name}`;
     if (typeof target === 'object') {
       if (!target._location && !target._locations.length) {
         vscode.window.showErrorMessage('Cannot configure a config-less connection!');
@@ -282,7 +282,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     configs = configs.filter(c => c.name === target);
     if (configs.length === 0) {
       vscode.window.showErrorMessage(`Found no matching configs for '${target}'`);
-      return Logging.error(`Unexpectedly found no matching configs for '${target}' in commandConfigure?`);
+      return Logging.error`Unexpectedly found no matching configs for '${target}' in commandConfigure?`;
     }
     const config = configs.length === 1 ? configs[0] : configs;
     this.openSettings({ config, type: 'editconfig' });

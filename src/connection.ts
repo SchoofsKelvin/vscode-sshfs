@@ -97,12 +97,12 @@ export class ConnectionManager {
                     case 'code':
                         let [pwd, target] = args.split(':::');
                         if (!pwd || !target) {
-                            logging.error(`Malformed 'code' command args: ${args}`);
+                            logging.error`Malformed 'code' command args: ${args}`;
                             return;
                         }
                         pwd = pwd.trim();
                         target = target.trim();
-                        logging.info(`Received command to open '${target}' while in '${pwd}'`);
+                        logging.info`Received command to open '${target}' while in '${pwd}'`;
                         const absolutePath = target.startsWith('/') ? target : path.join(pwd, target);
                         const uri = vscode.Uri.parse(`ssh://${authority}/${absolutePath}`);
                         try {
@@ -133,14 +133,14 @@ export class ConnectionManager {
                         }
                         return;
                     default:
-                        logging.error(`Unrecognized command ${cmd} with args: ${args}`);
+                        logging.error`Unrecognized command ${cmd} with args: ${args}`;
                 }
             });
         })
     }
     protected async _createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
         const logging = Logging.scope(`createConnection(${name},${config ? 'config' : 'undefined'})`);
-        logging.info(`Creating a new connection for '${name}'`);
+        logging.info`Creating a new connection for '${name}'`;
         const { createSSH, calculateActualConfig } = await import('./connect');
         // Query and calculate the actual config
         config = config || (await loadConfigs()).find(c => c.name === name);
@@ -150,7 +150,7 @@ export class ConnectionManager {
         // Start the actual SSH connection
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
-        logging.info(`Remote version: ${(client as any)._remoteVer || 'N/A'}`);
+        logging.info`Remote version: ${(client as any)._remoteVer || 'N/A'}`;
         // Query home directory
         let home = await tryGetHome(client).catch((e: Error) => e);
         if (typeof home !== 'string') {
@@ -175,7 +175,7 @@ export class ConnectionManager {
         if (flagRCV) {
             const [flagRCDV, flagRCDR] = getFlagBoolean('DEBUG_REMOTE_COMMANDS', false, actualConfig.flags);
             const withDebugStr = flagRCDV ? ` with debug logging enabled by '${flagRCDR}'` : '';
-            logging.info(`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`);
+            logging.info`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`;
             const cmdPath = await this._createCommandTerminal(client, name, flagRCDV);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
             const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
@@ -221,7 +221,7 @@ export class ConnectionManager {
         const index = this.connections.indexOf(connection);
         if (index === -1) return;
         reason = reason ? `'${reason}' as reason` : ' no reason given';
-        Logging.info(`Closing connection to '${connection.actualConfig.name}' with ${reason}`);
+        Logging.info`Closing connection to '${connection.actualConfig.name}' with ${reason}`;
         this.connections.splice(index, 1);
         clearInterval(connection.idleTimer);
         this.onConnectionRemovedEmitter.fire(connection);
