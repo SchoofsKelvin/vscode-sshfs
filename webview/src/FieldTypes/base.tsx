@@ -2,7 +2,7 @@ import * as React from 'react';
 import { FieldGroup } from './group';
 import './index.css';
 
-interface Props<T> {
+export interface Props<T> {
     label: string;
     description?: string;
     value: T;

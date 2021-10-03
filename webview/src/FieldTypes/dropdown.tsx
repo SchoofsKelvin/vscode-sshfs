@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { FieldBase } from './base';
 
-interface Props<T> {
+export interface Props<T> {
     values: T[];
     displayName?(item: T): string;
     displayStyle?(item: T): React.CSSProperties;
