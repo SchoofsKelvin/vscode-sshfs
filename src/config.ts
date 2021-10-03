@@ -8,7 +8,8 @@ import { toPromise } from './utils';
 
 // Logger scope with default warning/error options (which enables stacktraces) disabled
 const logging = Logging.scope(undefined, false);
-logging.overriddenTypeOptions = {};
+logging.warning.options = {};
+logging.error.options = {};
 
 function randomAvailableName(configs: FileSystemConfig[], index = 0): [string, number] {
   let name = index ? `unnamed${index}` : 'unnamed';

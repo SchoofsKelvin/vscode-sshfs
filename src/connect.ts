@@ -174,7 +174,7 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     config.password = true as any;
     await promptFields(config, 'password');
   }
-  logging.debug(`\tFinal configuration:\n${JSON.stringify(censorConfig(config), null, 4)}`);
+  logging.debug`\tFinal configuration:\n${config}`;
   return config;
 }
 

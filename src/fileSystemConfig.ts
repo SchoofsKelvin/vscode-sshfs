@@ -122,6 +122,10 @@ export interface FileSystemConfig extends ConnectConfig {
   _calculated?: FileSystemConfig;
 }
 
+export function isFileSystemConfig(config: any): config is FileSystemConfig {
+  return typeof config === 'object' && typeof config.name === 'string' && Array.isArray(config._locations);
+}
+
 export function invalidConfigName(name: string) {
   if (!name) return 'Missing a name for this SSH FS';
   if (name.match(/^[\w_\\/.@\-+]+$/)) return null;

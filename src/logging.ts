@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { FileSystemConfig } from './fileSystemConfig';
+import { FileSystemConfig, isFileSystemConfig } from './fileSystemConfig';
 
 // Since the Extension Development Host runs with debugger, we can use this to detect if we're debugging.
 // The only things it currently does is copying Logging messages to the console, while also enabling
@@ -54,6 +54,17 @@ function hasPromiseCause(error: Error): error is Error & { promiseCause: string 
 }
 
 export type LoggerDefaultLevels = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+
+export interface LoggerForType {
+  logger: Logger;
+  type: LoggerDefaultLevels;
+  options: Partial<LoggingOptions>;
+  (error: Error, options?: Partial<LoggingOptions>): void;
+  (message: string, options?: Partial<LoggingOptions>): void;
+  (template: TemplateStringsArray, ...args: any[]): void;
+  withOptions(options: Partial<LoggingOptions>): LoggerForType;
+}
+
 class Logger {
   protected parent?: Logger;
   protected stack?: string;
@@ -63,20 +74,14 @@ class Logger {
     callStacktraceOffset: 0,
     maxErrorStack: 0,
   };
-  public overriddenTypeOptions: { [type in LoggerDefaultLevels]?: Partial<LoggingOptions> } = {
-    WARNING: { callStacktrace: 3, reportedFromLevel: 2 },
-    ERROR: { callStacktrace: 5, reportedFromLevel: 2, maxErrorStack: 10 },
-  };
   protected constructor(protected name?: string, generateStack: number | boolean = false) {
     if (generateStack) {
       const len = typeof generateStack === 'number' ? generateStack : 5;
-      let stack = new Error().stack;
-      stack = stack && stack.split('\n').slice(3, 3 + len).join('\n');
+      const stack = new Error().stack?.split('\n').slice(3, 3 + len).join('\n');
       this.stack = stack || '<stack unavailable>';
     }
   }
-  protected do_print(type: string, message: string, options: LoggingOptions) {
-    options = { ...this.defaultLoggingOptions, ...options };
+  protected doPrint(type: string, message: string, options: LoggingOptions) {
     const { reportedFromLevel } = options;
     // Calculate prefix
     const prefix = this.name ? `[${this.name}] ` : '';
@@ -90,40 +95,54 @@ class Logger {
       suffix = `\nReported from:\n${this.stack}`;
     }
     // If there is a parent logger, pass the message with prefix/suffix on
-    if (this.parent) return this.parent.do_print(type, `${prefix}${message}${suffix}`, options);
+    if (this.parent) return this.parent.doPrint(type, `${prefix}${message}${suffix}`, options);
     // There is no parent, we're responsible for actually logging the message
     const space = ' '.repeat(Math.max(0, 8 - type.length));
     const msg = `[${type}]${space}${prefix}${message}${suffix}`
     outputChannel.appendLine(msg);
     if (DEBUG) (console[type.toLowerCase()] || console.log).call(console, msg);
   }
-  protected print(type: string, message: string | Error, partialOptions?: Partial<LoggingOptions>) {
-    type = type.toUpperCase();
-    const options: LoggingOptions = { ...this.defaultLoggingOptions, ...this.overriddenTypeOptions[type], ...partialOptions };
+  protected formatValue(value: any, options: LoggingOptions): string {
+    if (typeof value === 'string') return value;
+    if (value instanceof Error && value.stack) {
     // Format errors with stacktraces to display the JSON and the stacktrace if needed
-    if (message instanceof Error && message.stack) {
-      let msg = message.message;
+      let result = `${value.name}: ${value.message}`;
       try {
-        const json = JSON.stringify(message);
-        if (json !== '{}') msg += `\nJSON: ${json}`;
+        const json = JSON.stringify(value);
+        if (json !== '{}') result += `\nJSON: ${json}`;
       } finally { }
       const { maxErrorStack } = options;
-      if (message.stack && maxErrorStack) {
-        let { stack } = message;
+      if (value.stack && maxErrorStack) {
+        let { stack } = value;
         if (maxErrorStack > 0) {
           stack = stack.split(/\n/g).slice(0, maxErrorStack + 1).join('\n');
         }
-        msg += '\n' + stack;
+        result += '\n' + stack;
       }
-      if (hasPromiseCause(message) && maxErrorStack) {
-        let { promiseCause } = message;
+      if (hasPromiseCause(value) && maxErrorStack) {
+        let { promiseCause } = value;
         if (maxErrorStack > 0) {
           promiseCause = promiseCause.split(/\n/g).slice(1, maxErrorStack + 1).join('\n');
         }
-        msg += '\nCaused by promise:\n' + promiseCause;
+        result += '\nCaused by promise:\n' + promiseCause;
       }
-      message = msg;
+      return result;
+    } else if (isFileSystemConfig(value)) {
+      return JSON.stringify(censorConfig(value), null, 4);
     }
+    try {
+      const short = JSON.stringify(value);
+      if (short.length < 100) return short;
+      return JSON.stringify(value, null, 4);
+    } catch (e) {
+      try { return `${value}`; } catch (e) {
+        return `[Error formatting value: ${e.message || e}]`;
+      }
+    }
+  }
+  protected print(type: string, message: string | Error, partialOptions?: Partial<LoggingOptions>) {
+    const options: LoggingOptions = { ...this.defaultLoggingOptions, ...partialOptions };
+    message = this.formatValue(message, options);
     // Do we need to also output a stacktrace?
     const { callStacktrace, callStacktraceOffset = 0 } = options;
     if (callStacktrace) {
@@ -134,25 +153,36 @@ class Logger {
       message += `\nLogged at:\n${stack}`;
     }
     // Start the (recursive parent-related) printing
-    this.do_print(type, `${message}`, options as LoggingOptions)
+    this.doPrint(type.toUpperCase(), message, options as LoggingOptions)
+  }
+  protected printTemplate(type: string, template: TemplateStringsArray, args: any[], partialOptions?: Partial<LoggingOptions>) {
+    const options: LoggingOptions = { ...this.defaultLoggingOptions, ...partialOptions };
+    this.print(type, template.reduce((acc, part, i) => acc + part + this.formatValue(args[i] || '', options), ''), partialOptions);
   }
   public scope(name?: string, generateStack: number | boolean = false) {
     const logger = new Logger(name, generateStack);
     logger.parent = this;
     return logger;
   }
-  public debug(message: string, options: Partial<LoggingOptions> = {}) {
-    this.print('DEBUG', message, options);
+  public wrapType(type: LoggerDefaultLevels, options: Partial<LoggingOptions> = {}): LoggerForType {
+    const result: LoggerForType = (message: string | Error | TemplateStringsArray, ...args: any[]) => {
+      if (typeof message === 'string' || message instanceof Error) {
+        return result.logger.print(result.type, message, result.options)
+      } else if (Array.isArray(message)) {
+        return result.logger.printTemplate(result.type, message, args, result.options)
   }
-  public info(message: string, options: Partial<LoggingOptions> = {}) {
-    this.print('INFO', message, options);
+      result.logger.error`Trying to log type ${type} with message=${message} and args=${args}`;
+    };
+    result.logger = this;
+    result.type = type;
+    result.options = options;
+    result.withOptions = newOptions => this.wrapType(result.type, { ...result.options, ...newOptions });
+    return result;
   }
-  public warning(message: string | Error, options: Partial<LoggingOptions> = {}) {
-    this.print('WARNING', message, options);
-  }
-  public error(message: string | Error, options: Partial<LoggingOptions> = {}) {
-    this.print('ERROR', message, options);
-  }
+  public debug = this.wrapType('DEBUG');
+  public info = this.wrapType('INFO');
+  public warning = this.wrapType('WARNING', { callStacktrace: 3, reportedFromLevel: 2 });
+  public error = this.wrapType('ERROR', { callStacktrace: 5, reportedFromLevel: 2, maxErrorStack: 10 });
 }
 
 export type { Logger };
@@ -166,7 +196,7 @@ export interface CensoredFileSystemConfig extends Omit<FileSystemConfig, 'sock' 
   _calculated?: CensoredFileSystemConfig;
 }
 
-export function censorConfig(config: FileSystemConfig): CensoredFileSystemConfig {
+function censorConfig(config: FileSystemConfig): CensoredFileSystemConfig {
   return {
     ...config,
     password: typeof config.password === 'string' ? '<censored>' : config.password,
@@ -179,8 +209,9 @@ export function censorConfig(config: FileSystemConfig): CensoredFileSystemConfig
 
 export const Logging = new (Logger as any) as Logger;
 
-Logging.info('Created output channel for vscode-sshfs');
-Logging.info(`When posting your logs somewhere, keep the following in mind:
+Logging.info`
+Created output channel for vscode-sshfs
+When posting your logs somewhere, keep the following in mind:
   - While the logging tries to censor your passwords/passphrases/..., double check!
     Maybe you also want to censor out e.g. the hostname/IP you're connecting to.
   - If you want to report an issue regarding authentication or something else that
@@ -188,4 +219,4 @@ Logging.info(`When posting your logs somewhere, keep the following in mind:
     to reconnect with this added to your User Settings (settings.json) first:
       "sshfs.flags": [ "DEBUG_SSH2" ],
     This will (for new connections) also enable internal SSH2 logging.
-`);
+`;
