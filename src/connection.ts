@@ -22,12 +22,12 @@ export interface Connection {
 }
 
 async function tryGetHome(ssh: Client): Promise<string | null> {
-    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo "::sshfs:home:$(echo ~)\n"', cb));
+    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo "::sshfs:home:`echo ~`:"', cb));
     let home = '';
     exec.stdout.on('data', (chunk: any) => home += chunk);
     await toPromise(cb => exec.on('close', cb));
     if (!home) return null;
-    return home.match(/::sshfs:home:(.*?)\n/)?.[1] || null;
+    return home.match(/::sshfs:home:(.*?):/)?.[1] || null;
 }
 
 const TMP_PROFILE_SCRIPT = `
@@ -80,8 +80,9 @@ export class ConnectionManager {
     protected async _createCommandTerminal(client: Client, authority: string, debugLogging: boolean): Promise<string> {
         const logging = Logging.scope(`CmdTerm(${authority})`);
         const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
-        shell.write('echo ::sshfs:TTY:$(tty)\n');
+        shell.write('echo ::sshfs:TTY:`tty`\n');
         return new Promise((resolvePath, rejectPath) => {
+            setTimeout(() => rejectPath(new Error('Timeout fetching command path')), 10e3);
             const rl = readline.createInterface(shell.stdout);
             shell.stdout.once('error', rejectPath);
             shell.once('close', () => rejectPath());
@@ -168,6 +169,7 @@ export class ConnectionManager {
                 home = '';
             }
         }
+        logging.debug`Home path: ${home}`;
         // Calculate the environment
         const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
         // Set up stuff for receiving remote commands
@@ -179,8 +181,12 @@ export class ConnectionManager {
             const cmdPath = await this._createCommandTerminal(client, name, flagRCDV);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
             const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
-            await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb));
+            await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb)).catch(e => {
+                logging.error`Failed to write profile script to /tmp/.Kelvin_sshfs:\n${e}\nDisabling REMOTE_COMMANDS flag`;
+                actualConfig.flags = ['-REMOTE_COMMANDS', ...(actualConfig.flags || [])];
+            });
         }
+        logging.debug`Environment: ${environment}`;
         // Set up the Connection object
         let timeoutCounter = 0;
         const con: Connection = {

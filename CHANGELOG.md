@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+### Hotfix
+- Fix the issue with failing home detecting for `csh`/`tcsh` shells (#295)
+
 ### Development changes
 - More improvements in logging, especially regarding async stack tracing
   - Properly "set boundaries",  detect/analyze and log `toPromise`/`catchingPromise` calls
