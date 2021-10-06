@@ -1,6 +1,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Development changes
+- More improvements in logging, especially regarding async stack tracing
+  - Properly "set boundaries",  detect/analyze and log `toPromise`/`catchingPromise` calls
+
 ## v1.23.0 (2021-10-02)
 
 ### Fixes

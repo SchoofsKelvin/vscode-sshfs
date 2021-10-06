@@ -1,10 +1,28 @@
 import type { EnvironmentVariable } from "./fileSystemConfig";
+import { DEBUG } from "./logging";
 
+function prepareStackTraceDefault(error: Error, stackTraces: NodeJS.CallSite[]): string {
+    return stackTraces.reduce((s, c) => `${s}\n\tat ${c} (${c.getFunction()})`, `${error.name || "Error"}: ${error.message || ""}`);
+}
+function trimError(error: Error, depth: number): [string[], Error] {
+    const pst = Error.prepareStackTrace;
+    let trimmed = '';
+    Error.prepareStackTrace = (err, stack) => {
+        const result = (pst || prepareStackTraceDefault)(err, stack.slice(depth + 1));
+        trimmed = (pst || prepareStackTraceDefault)(err, stack.slice(0, depth + 1));
+        return result;
+    };
+    Error.captureStackTrace(error);
+    error.stack = error.stack;
+    Error.prepareStackTrace = pst;
+    return [trimmed.split('\n').slice(1), error];
+}
 /** Wrapper around async callback-based functions */
-export async function catchingPromise<T>(executor: (resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => any): Promise<T> {
-    const promiseCause = new Error();
-    Error.captureStackTrace(promiseCause, catchingPromise);
+export async function catchingPromise<T>(executor: (resolve: (value?: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => any, trimStack = 0, causeName = 'catchingPromise'): Promise<T> {
+    let [trimmed, promiseCause]: [string[], Error] = [] as any;
     return new Promise<T>((resolve, reject) => {
+        [trimmed, promiseCause] = trimError(new Error(), trimStack + 2);
+        if (DEBUG) promiseCause.stack = promiseCause.stack!.split('\n', 2)[0] + trimmed.map(l => l.replace('at', '~at')).join('\n') + '\n' + promiseCause.stack!.split('\n').slice(1).join('\n');
         try {
             const p = executor(resolve, reject);
             if (p instanceof Promise) {
@@ -15,11 +33,26 @@ export async function catchingPromise<T>(executor: (resolve: (value?: T | Promis
         }
     }).catch(e => {
         if (e instanceof Error) {
+            let stack = e.stack;
+            if (stack) {
+                const lines = stack.split('\n');
+                let index = lines.indexOf(trimmed[3]);
+                if (index !== -1) {
+                    index -= 2 + trimStack;
+                    e.stack = lines[0] + '\n' + lines.slice(1, index).join('\n');
+                    if (DEBUG) e.stack += '\n' + lines.slice(index).map(l => l.replace('at', '~at')).join('\n');
+                }
+            }
             let t = (e as any).promiseCause;
             if (!(t instanceof Error)) t = e;
             if (!('promiseCause' in t)) {
-                Object.defineProperty(e, 'promiseCause', {
-                    value: promiseCause.stack,
+                Object.defineProperty(t, 'promiseCause', {
+                    value: promiseCause,
+                    configurable: true,
+                    enumerable: false,
+                });
+                Object.defineProperty(t, 'promiseCauseName', {
+                    value: causeName,
                     configurable: true,
                     enumerable: false,
                 });
@@ -34,7 +67,7 @@ export type toPromiseCallback<T> = (err?: Error | null | void, res?: T) => void;
 export async function toPromise<T>(func: (cb: toPromiseCallback<T>) => void): Promise<T> {
     return catchingPromise((resolve, reject) => {
         func((err, res) => err ? reject(err) : resolve(res!));
-    });
+    }, 2, 'toPromise');
 }
 
 /** Converts the given number/string to a port number. Throws an error for invalid strings or ports outside the 1-65565 range */

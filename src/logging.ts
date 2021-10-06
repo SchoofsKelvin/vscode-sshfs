@@ -20,28 +20,33 @@ export function setDebug(debug: boolean) {
 const outputChannel = vscode.window.createOutputChannel('SSH FS');
 
 export interface LoggingOptions {
-  /** The level of outputting the logger's name/stacktrace:
-   * 0: Don't report anything
-   * 1: Only report the name (or first line of stacktrace if missing)
-   * 2: Report name and stacktrace (if available)
+  /**
+   * The level of outputting the logger's name/stacktrace:
+   * - `0`: Don't report anything (default for `WARNING`/`ERROR`)
+   * - `1`: Only report the name (or first line of stacktrace if missing)
+   * - `2`: Report name and stacktrace (if available) (default for `WARNING`/`ERROR`)
    */
   reportedFromLevel: number;
-  /** Whether to output a stacktrace of the .info() call etc
-   * 0: Don't output a stacktrace
-   * -1: Output the whole stacktrace
-   * N: Only output the first N frames
+  /**
+   * Whether to output a stacktrace of the .info() call etc
+   * - `0`: Don't output a stacktrace
+   * - `-1`: Output the whole stacktrace
+   * - `N`: Only output the first N frames
+   * 
+   * Defaults to `3` for `WARNING`, `5` for `ERROR` and `0` for everything else.
   */
   callStacktrace: number;
-  /** Used with .callStacktrace to skip the given amount of stacktraces in the beginning.
-   * Useful when .info() etc is called from a helper function which itself isn't worth logging the stacktrace of.
-   * Defaults to 0 meaning no offset.
+  /**
+   * Used with `.callStacktrace` to skip the given amount of stacktraces in the beginning.
+   * Useful when `.info()` etc is called from a helper function which itself isn't worth logging the stacktrace of.
+   * Defaults to `0` meaning no offset.
    */
   callStacktraceOffset: number;
-  /** Used when the "message" to be logged is an Error object with a stack.
-   * 0: Don't output the stack
-   * -1: Output the whole stack
-   * N: Only output the first N lines
-   * The stack gets stringified in the first logger, so child loggers don't inherit, it uses the default (which is 0)
+  /**
+   * Used when the "message" to be logged is an Error object with a stack:
+   * - `0`: Don't output the stack (which is the default for `DEBUG` and `INFO`)
+   * - `-1`: Output the whole stack
+   * - `N`: Only output the first N lines
    */
   maxErrorStack: number;
 }
@@ -49,8 +54,8 @@ export interface LoggingOptions {
 export const LOGGING_NO_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 0 };
 export const LOGGING_SINGLE_LINE_STACKTRACE: Partial<LoggingOptions> = { callStacktrace: 1 };
 
-function hasPromiseCause(error: Error): error is Error & { promiseCause: string } {
-  return typeof (error as any).promiseCause === 'string';
+function hasPromiseCause(error: Error): error is Error & { promiseCause: Error; promiseCauseName: string } {
+  return 'promiseCause' in error && (error as any).promiseCause instanceof Error;
 }
 
 export type LoggerDefaultLevels = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
@@ -76,7 +81,7 @@ class Logger {
   };
   protected constructor(protected name?: string, generateStack: number | boolean = false) {
     if (generateStack) {
-      const len = typeof generateStack === 'number' ? generateStack : 5;
+      const len = typeof generateStack === 'number' ? generateStack : 1;
       const stack = new Error().stack?.split('\n').slice(3, 3 + len).join('\n');
       this.stack = stack || '<stack unavailable>';
     }
@@ -88,11 +93,13 @@ class Logger {
     // Calculate suffix
     let suffix = '';
     if (this.name && this.stack && reportedFromLevel >= 2) {
-      suffix = `\nReported from ${this.name}:\n${this.stack}`;
+      suffix = `\nReported by logger ${this.name}:\n${this.stack}`;
     } else if (this.name && reportedFromLevel >= 1) {
-      suffix = `\nReported from ${this.name}`;
+      suffix = `\nReported by logger ${this.name}`;
     } else if (this.stack && reportedFromLevel >= 2) {
-      suffix = `\nReported from:\n${this.stack}`;
+      suffix = `\nReported by logger:\n${this.stack}`;
+    } else if (this.stack && reportedFromLevel === 1) {
+      suffix = `\nReported by logger:\n${this.stack.split('\n', 2)[0]}`;
     }
     // If there is a parent logger, pass the message with prefix/suffix on
     if (this.parent) return this.parent.doPrint(type, `${prefix}${message}${suffix}`, options);
@@ -119,14 +126,15 @@ class Logger {
         }
         result += '\n' + stack;
       }
-      if (hasPromiseCause(value) && maxErrorStack) {
-        let { promiseCause } = value;
-        if (maxErrorStack > 0) {
-          promiseCause = promiseCause.split(/\n/g).slice(1, maxErrorStack + 1).join('\n');
-        }
-        result += '\nCaused by promise:\n' + promiseCause;
+      if (maxErrorStack !== 0) for (let cause = value; hasPromiseCause(cause); cause = cause.promiseCause) {
+        let promiseStack = cause.promiseCause.stack?.split(/\n/g);
+        if (!promiseStack) continue;
+        if (maxErrorStack > 0) promiseStack = promiseStack.slice(1, maxErrorStack + 1);
+        result += `\nCaused by ${cause.promiseCauseName || 'promise'}:\n${promiseStack.join('\n')}`;
       }
       return result;
+    } else if (value instanceof vscode.Uri) {
+      return value.toString();
     } else if (isFileSystemConfig(value)) {
       return JSON.stringify(censorConfig(value), null, 4);
     }
@@ -157,6 +165,7 @@ class Logger {
   }
   protected printTemplate(type: string, template: TemplateStringsArray, args: any[], partialOptions?: Partial<LoggingOptions>) {
     const options: LoggingOptions = { ...this.defaultLoggingOptions, ...partialOptions };
+    options.callStacktraceOffset = (options.callStacktraceOffset || 0) + 1;
     this.print(type, template.reduce((acc, part, i) => acc + part + this.formatValue(args[i] || '', options), ''), partialOptions);
   }
   public scope(name?: string, generateStack: number | boolean = false) {
@@ -166,10 +175,12 @@ class Logger {
   }
   public wrapType(type: LoggerDefaultLevels, options: Partial<LoggingOptions> = {}): LoggerForType {
     const result: LoggerForType = (message: string | Error | TemplateStringsArray, ...args: any[]) => {
+      const options = { ...result.options };
+      options.callStacktraceOffset = (options.callStacktraceOffset || 0) + 1;
       if (typeof message === 'string' || message instanceof Error) {
-        return result.logger.print(result.type, message, result.options)
+        return result.logger.print(result.type, message, options)
       } else if (Array.isArray(message)) {
-        return result.logger.printTemplate(result.type, message, args, result.options)
+        return result.logger.printTemplate(result.type, message, args, options)
       }
       result.logger.error`Trying to log type ${type} with message=${message} and args=${args}`;
     };
