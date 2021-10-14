@@ -180,9 +180,11 @@ export class ConnectionManager {
             logging.info`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`;
             const cmdPath = await this._createCommandTerminal(client, name, flagRCDV);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
+            const profilePath = `/tmp/.Kelvin_sshfs.${actualConfig.username || Date.now()}`;
+            environment.push({ key: 'KELVIN_SSHFS_PROFILE_PATH', value: profilePath });
             const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
-            await toPromise(cb => sftp.writeFile('/tmp/.Kelvin_sshfs', TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb)).catch(e => {
-                logging.error`Failed to write profile script to /tmp/.Kelvin_sshfs:\n${e}\nDisabling REMOTE_COMMANDS flag`;
+            await toPromise(cb => sftp.writeFile(profilePath, TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb)).catch(e => {
+                logging.error`Failed to write profile script to '${profilePath}':\n${e}\nDisabling REMOTE_COMMANDS flag`;
                 actualConfig.flags = ['-REMOTE_COMMANDS', ...(actualConfig.flags || [])];
             });
         }

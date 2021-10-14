@@ -172,12 +172,14 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 commands.push(environmentToExportString(env));
                 // Beta feature to add a "code <file>" command in terminals to open the file locally
                 if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
+                    const profilePathEnv = env.find(e => e.key === 'KELVIN_SSHFS_PROFILE_PATH');
+                    if (!profilePathEnv) throw new Error(`Missing KELVIN_SSHFS_PROFILE_PATH environment variable`);
                     // For bash
                     commands.push(`export ORIG_PROMPT_COMMAND="$PROMPT_COMMAND"`);
-                    commands.push(`export PROMPT_COMMAND='source /tmp/.Kelvin_sshfs PC; $ORIG_PROMPT_COMMAND'`);
+                    commands.push(`export PROMPT_COMMAND='source "${profilePathEnv.value}" PC; $ORIG_PROMPT_COMMAND'`);
                     // For sh
                     commands.push(`export OLD_ENV="$ENV"`); // not actually used (yet?)
-                    commands.push(`export ENV=/tmp/.Kelvin_sshfs`);
+                    commands.push(`export ENV="${profilePathEnv.value}"`);
                 }
                 // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {
