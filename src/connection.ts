@@ -6,6 +6,7 @@ import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
+import { calculateShellConfig, ShellConfig, tryEcho } from './shellConfig';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
 
@@ -14,20 +15,12 @@ export interface Connection {
     actualConfig: FileSystemConfig;
     client: Client;
     home: string;
+    shellConfig: ShellConfig;
     environment: EnvironmentVariable[];
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
-}
-
-async function tryGetHome(ssh: Client): Promise<string | null> {
-    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo "::sshfs:home:`echo ~`:"', cb));
-    let home = '';
-    exec.stdout.on('data', (chunk: any) => home += chunk);
-    await toPromise(cb => exec.on('close', cb));
-    if (!home) return null;
-    return home.match(/::sshfs:home:(.*?):/)?.[1] || null;
 }
 
 const TMP_PROFILE_SCRIPT = `
@@ -152,8 +145,10 @@ export class ConnectionManager {
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
         logging.info`Remote version: ${(client as any)._remoteVer || 'N/A'}`;
+        // Calculate shell config
+        const shellConfig = await calculateShellConfig(client, logging);
         // Query home directory
-        let home = await tryGetHome(client).catch((e: Error) => e);
+        let home = await tryEcho(client, shellConfig, '~').catch((e: Error) => e);
         if (typeof home !== 'string') {
             const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
             logging.error('Could not detect home directory', LOGGING_NO_STACKTRACE);
@@ -192,7 +187,7 @@ export class ConnectionManager {
         // Set up the Connection object
         let timeoutCounter = 0;
         const con: Connection = {
-            config, client, actualConfig, home, environment,
+            config, client, actualConfig, home, shellConfig, environment,
             terminals: [],
             filesystems: [],
             pendingUserCount: 0,

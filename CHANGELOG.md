@@ -10,6 +10,9 @@
 - Write `REMOTE_COMMANDS` profile script to separate file for each user (#292)
   - Multiple users making use of this feature would use the same `/tmp/...` file, resulting in permission issues
 
+### New features
+- Added a `ShellConfig` system to support more shells regarding `environment`, home detection and `REMOTE_COMMANDS`
+
 ## v1.23.1 (2021-10-06)
 
 ### Hotfix

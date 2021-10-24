@@ -86,33 +86,28 @@ function escapeBashValue(value: string) {
 }
 
 /** Convert an {@link EnvironmentVariable} array to a `export var1=val; export var2='escaped$val'` etc */
-export function environmentToExportString(env: EnvironmentVariable[]): string {
-    return env.map(({ key, value }) => `export ${escapeBashValue(key)}=${escapeBashValue(value)}`).join('; ');
+export function environmentToExportString(env: EnvironmentVariable[], createSetEnv: (key: string, value: string) => string): string {
+    return env.map(({ key, value }) => createSetEnv(escapeBashValue(key), escapeBashValue(value))).join('; ');
 }
 
 /** Returns a new {@link EnvironmentVariable} array with all the given environments merged into it, overwriting same-key variables */
-export function mergeEnvironment(env: EnvironmentVariable[], ...others: (EnvironmentVariable[] | Record<string, string> | undefined)[]): EnvironmentVariable[] {
-    const result = [...env];
-    for (const other of others) {
+export function mergeEnvironment(...environments: (EnvironmentVariable[] | Record<string, string> | undefined)[]): EnvironmentVariable[] {
+    const result = new Map<string, EnvironmentVariable>();
+    for (let other of environments) {
         if (!other) continue;
         if (Array.isArray(other)) {
-            for (const variable of other) {
-                const index = result.findIndex(v => v.key === variable.key);
-                if (index === -1) result.push(variable);
-                else result[index] = variable;
-            }
+            for (const variable of other) result.set(variable.key, variable);
         } else {
             for (const [key, value] of Object.entries(other)) {
-                result.push({ key, value });
+                result.set(key, { key, value });
             }
         }
     }
-    return result;
+    return [...result.values()];
 }
 
 /** Joins the commands together using the given separator. Automatically ignores `undefined` and empty strings */
 export function joinCommands(commands: string | string[] | undefined, separator: string): string | undefined {
-    if (!commands) return undefined;
     if (typeof commands === 'string') return commands;
-    return commands.filter(c => c && c.trim()).join(separator);
+    return commands?.filter(c => c?.trim()).join(separator);
 }
