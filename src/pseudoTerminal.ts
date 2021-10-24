@@ -179,9 +179,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 commands.push(environmentToExportString(env, shellConfig.setEnv));
                 // Beta feature to add a "code <file>" command in terminals to open the file locally
                 if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
-                    const profilePathEnv = env.find(e => e.key === 'KELVIN_SSHFS_PROFILE_PATH');
-                    if (!profilePathEnv) throw new Error(`Missing KELVIN_SSHFS_PROFILE_PATH environment variable`);
-                    commands.push(shellConfig.setupRemoteCommands(profilePathEnv.value));
+                    const rcCmds = await shellConfig.setupRemoteCommands(connection);
+                    if (rcCmds?.length) commands.push(joinCommands(rcCmds, separator)!);
                 }
                 // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {

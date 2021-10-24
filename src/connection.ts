@@ -1,6 +1,6 @@
 import { posix as path } from 'path';
 import * as readline from 'readline';
-import type { Client, ClientChannel, SFTPWrapper } from 'ssh2';
+import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
@@ -19,31 +19,10 @@ export interface Connection {
     environment: EnvironmentVariable[];
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
+    cache: Record<string, any>;
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
 }
-
-const TMP_PROFILE_SCRIPT = `
-if type code > /dev/null 2> /dev/null; then
-    return 0;
-fi
-code() {
-    if [ "$#" -ne 1 ] || [ $1 = "help" ] || [ $1 = "--help" ] || [ $1 = "-h" ] || [ $1 = "-?" ]; then
-        echo "Usage:";
-        echo "  code <path_to_existing_file>    Will make VS Code open the file";
-        echo "  code <path_to_existing_folder>  Will make VS Code add the folder as an additional workspace folder";
-        echo "  code <path_to_nonexisting_file> Will prompt VS Code to create an empty file, then open it afterwards";
-    elif [ ! -n "$KELVIN_SSHFS_CMD_PATH" ]; then
-        echo "Not running in a terminal spawned by SSH FS? Failed to sent!"
-    elif [ -c "$KELVIN_SSHFS_CMD_PATH" ]; then
-        echo "::sshfs:code:$(pwd):::$1" >> $KELVIN_SSHFS_CMD_PATH;
-        echo "Command sent to SSH FS extension";
-    else
-        echo "Missing command shell pty of SSH FS extension? Failed to sent!"
-    fi
-}
-echo "Injected 'code' alias";
-`;
 
 export class ConnectionManager {
     protected onConnectionAddedEmitter = new vscode.EventEmitter<Connection>();
@@ -70,10 +49,11 @@ export class ConnectionManager {
     public getPendingConnections(): [string, FileSystemConfig | undefined][] {
         return Object.keys(this.pendingConnections).map(name => [name, this.pendingConnections[name][1]]);
     }
-    protected async _createCommandTerminal(client: Client, authority: string, debugLogging: boolean): Promise<string> {
+    protected async _createCommandTerminal(client: Client, shellConfig: ShellConfig, authority: string, debugLogging: boolean): Promise<string> {
         const logging = Logging.scope(`CmdTerm(${authority})`);
         const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
-        shell.write('echo ::sshfs:TTY:`tty`\n');
+        logging.debug(`TTY COMMAND: ${`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`}`);
+        shell.write(`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`);
         return new Promise((resolvePath, rejectPath) => {
             setTimeout(() => rejectPath(new Error('Timeout fetching command path')), 10e3);
             const rl = readline.createInterface(shell.stdout);
@@ -173,15 +153,8 @@ export class ConnectionManager {
             const [flagRCDV, flagRCDR] = getFlagBoolean('DEBUG_REMOTE_COMMANDS', false, actualConfig.flags);
             const withDebugStr = flagRCDV ? ` with debug logging enabled by '${flagRCDR}'` : '';
             logging.info`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`;
-            const cmdPath = await this._createCommandTerminal(client, name, flagRCDV);
+            const cmdPath = await this._createCommandTerminal(client, shellConfig, name, flagRCDV);
             environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
-            const profilePath = `/tmp/.Kelvin_sshfs.${actualConfig.username || Date.now()}`;
-            environment.push({ key: 'KELVIN_SSHFS_PROFILE_PATH', value: profilePath });
-            const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
-            await toPromise(cb => sftp.writeFile(profilePath, TMP_PROFILE_SCRIPT, { mode: 0o666 }, cb)).catch(e => {
-                logging.error`Failed to write profile script to '${profilePath}':\n${e}\nDisabling REMOTE_COMMANDS flag`;
-                actualConfig.flags = ['-REMOTE_COMMANDS', ...(actualConfig.flags || [])];
-            });
         }
         logging.debug`Environment: ${environment}`;
         // Set up the Connection object
@@ -190,6 +163,7 @@ export class ConnectionManager {
             config, client, actualConfig, home, shellConfig, environment,
             terminals: [],
             filesystems: [],
+            cache: {},
             pendingUserCount: 0,
             idleTimer: setInterval(() => { // Automatically close connection when idle for a while
                 timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;

@@ -6,6 +6,10 @@
 ### Changes
 - Set `$TERM` to `xterm-256color` instead of the default `vt100` (#299)
 - Terminals that exit within 5 seconds should now remain open until a key is pressed
+- Refactored the `REMOTE_COMMANDS` beta feature (#270) to use the new `ShellConfig` system
+  - Commands (currently only `code`) are now written to a unique folder and passed to `$PATH`
+  - Commands are written in shell scripts (`#!/bin/sh` shebang) and should work on all shells/systems
+  - Using `$PATH` should allow support for recursive shells, switching shells, ...
 
 ### Fixes
 - Write `REMOTE_COMMANDS` profile script to separate file for each user (#292)
