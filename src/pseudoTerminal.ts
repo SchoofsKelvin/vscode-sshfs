@@ -10,7 +10,7 @@ import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } 
 
 const [HEIGHT, WIDTH] = [480, 640];
 const PSEUDO_TTY_OPTIONS: PseudoTtyOptions = {
-    height: HEIGHT, width: WIDTH,
+    height: HEIGHT, width: WIDTH, term: 'xterm-256color',
 };
 
 export interface SSHPseudoTerminal extends vscode.Pseudoterminal {

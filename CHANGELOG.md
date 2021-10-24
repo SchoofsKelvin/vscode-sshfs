@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+### Changes
+- Set `$TERM` to `xterm-256color` instead of the default `vt100` (#299)
+
 ### Fixes
 - Write `REMOTE_COMMANDS` profile script to separate file for each user (#292)
   - Multiple users making use of this feature would use the same `/tmp/...` file, resulting in permission issues
