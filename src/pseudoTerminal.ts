@@ -1,6 +1,5 @@
 import * as path from 'path';
 import type { ClientChannel, PseudoTtyOptions } from "ssh2";
-import type { Readable } from "stream";
 import * as vscode from "vscode";
 import { getFlagBoolean } from './config';
 import type { Connection } from './connection';
@@ -17,7 +16,7 @@ export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     onDidClose: vscode.Event<number>; // Redeclaring that it isn't undefined
     onDidOpen: vscode.Event<void>;
     handleInput(data: string): void; // We don't support/need read-only terminals for now
-    status: 'opening' | 'open' | 'closed';
+    status: 'opening' | 'open' | 'closed' | 'wait-to-close';
     connection: Connection;
     /** Could be undefined if it only gets created during psy.open() instead of beforehand */
     channel?: ClientChannel;
@@ -151,14 +150,22 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         onDidClose: onDidClose.event,
         onDidOpen: onDidOpen.event,
         close() {
-            const { channel } = pseudo;
-            if (!channel) return;
-            pseudo.status = 'closed';
-            channel.signal('INT');
-            channel.signal('SIGINT');
-            channel.write('\x03');
-            channel.close();
-            pseudo.channel = undefined;
+            const { channel, status } = pseudo;
+            if (status === 'closed') return;
+            if (channel) {
+                pseudo.status = 'closed';
+                channel.signal('INT');
+                channel.signal('SIGINT');
+                channel.write('\x03');
+                channel.close();
+                pseudo.channel = undefined;
+            }
+            if (status === 'wait-to-close') {
+                pseudo.terminal?.dispose();
+                pseudo.terminal = undefined;
+                pseudo.status = 'closed';
+                onDidClose.fire(0);
+            }
         },
         async open(dims) {
             onDidWrite.fire(`Connecting to ${actualConfig.label || actualConfig.name}...\r\n`);
@@ -204,19 +211,36 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
-                channel.on('exit', onDidClose.fire);
-                channel.on('close', () => onDidClose.fire(0));
-                (channel as Readable).on('data', chunk => onDidWrite.fire(chunk.toString()));
-                // TODO: Keep track of stdout's color, switch to red, output, then switch back?
+                const startTime = Date.now();
+                channel.once('exit', (code, signal, _, description) => {
+                    Logging.debug`Terminal session closed: ${{ code, signal, description, status: pseudo.status }}`;
+                    if (code && (Date.now() < startTime + 1000) && !options.command) {
+                        // Terminal failed within a second, let's keep it open for the user to see the error (if this isn't a task)
+                        onDidWrite.fire(`Got error code ${code}${signal ? ` with signal ${signal}` : ''}\r\n`);
+                        if (description) onDidWrite.fire(`Extra info: ${description}\r\n`);
+                        onDidWrite.fire('Press a key to close the terminal\r\n');
+                        onDidWrite.fire('Possible more stdout/stderr below:\r\n');
+                        pseudo.status = 'wait-to-close';
+                    } else {
+                        onDidClose.fire(code || 0);
+                        pseudo.status = 'closed';
+                    }
+                });
+                channel.once('readable', () => {
+                    // Inform others (e.g. createTaskTerminal) that the terminal is ready to be used
+                    if (pseudo.status === 'opening') pseudo.status = 'open';
+                    onDidOpen.fire();
+                });
+                channel.stdout.on('data', chunk => onDidWrite.fire(chunk.toString()));
                 channel.stderr.on('data', chunk => onDidWrite.fire(chunk.toString()));
-                // Inform others (e.g. createTaskTerminal) that the terminal is ready to be used
-                pseudo.status = 'open';
-                onDidOpen.fire();
+                // TODO: ^ Keep track of stdout's color, switch to red, output, then switch back?
             } catch (e) {
+                Logging.error`Error starting SSH terminal:\n${e}`;
                 onDidWrite.fire(`Error starting SSH terminal:\r\n${e}\r\n`);
                 onDidClose.fire(1);
                 pseudo.status = 'closed';
                 pseudo.channel?.destroy();
+                pseudo.channel = undefined;
             }
         },
         get terminal(): vscode.Terminal | undefined {
@@ -229,6 +253,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             pseudo.channel?.setWindow(dims.rows, dims.columns, HEIGHT, WIDTH);
         },
         handleInput(data) {
+            if (pseudo.status === 'wait-to-close') return pseudo.close();
             pseudo.channel?.write(data);
         },
     };

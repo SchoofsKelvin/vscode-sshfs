@@ -5,6 +5,7 @@
 
 ### Changes
 - Set `$TERM` to `xterm-256color` instead of the default `vt100` (#299)
+- Terminals that exit within 5 seconds should now remain open until a key is pressed
 
 ### Fixes
 - Write `REMOTE_COMMANDS` profile script to separate file for each user (#292)
