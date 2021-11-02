@@ -1,22 +1,22 @@
 
 # Changelog
 
-## Unreleased
+## v1.24.0 (2021-11-02)
 
 ### Changes
-- Set `$TERM` to `xterm-256color` instead of the default `vt100` (#299)
-- Terminals that exit within 5 seconds should now remain open until a key is pressed
-- Refactored the `REMOTE_COMMANDS` beta feature (#270) to use the new `ShellConfig` system
+- Set `$TERM` to `xterm-256color` instead of the default `vt100` (16ffd1e, #299)
+- Terminals that exit within 5 seconds should now remain open until a key is pressed (55d7216)
+- Refactored the `REMOTE_COMMANDS` beta feature (#270) to use the new `ShellConfig` system (b9f226e)
   - Commands (currently only `code`) are now written to a unique folder and passed to `$PATH`
   - Commands are written in shell scripts (`#!/bin/sh` shebang) and should work on all shells/systems
   - Using `$PATH` should allow support for recursive shells, switching shells, ...
 
 ### Fixes
-- Write `REMOTE_COMMANDS` profile script to separate file for each user (#292)
+- Write `REMOTE_COMMANDS` profile script to separate file for each user (69c2370, #292)
   - Multiple users making use of this feature would use the same `/tmp/...` file, resulting in permission issues
 
 ### New features
-- Added a `ShellConfig` system to support more shells regarding `environment`, home detection and `REMOTE_COMMANDS`
+- Added a `ShellConfig` system to support more shells regarding `environment`, home detection and `REMOTE_COMMANDS` (cc823c6)
 
 ## v1.23.1 (2021-10-06)
 
