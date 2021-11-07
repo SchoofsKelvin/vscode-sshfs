@@ -1,6 +1,11 @@
 
 # Changelog
 
+## Unreleased
+
+### Development changes
+- Fix/improve `map-error.js` utility (now also uses `formatId` from `webpack.plugin.js`)
+
 ## v1.24.0 (2021-11-02)
 
 ### Changes
