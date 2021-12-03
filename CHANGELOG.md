@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+### New features
+- The settings UI now has a table-like field to modify `newFileMode` (#214)
+
 ### Changes
 - The default `newFileMode` is now `0o664` instead defaulting to the underlying library's `0o666` (#214)
   - **This changes the permission for newly created files**, defaulting to `rw-rw-r--` instead of `rw-rw-rw-`

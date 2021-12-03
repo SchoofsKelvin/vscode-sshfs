@@ -5,6 +5,7 @@ import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldPath } from '../FieldTypes/path';
 import { FieldString } from '../FieldTypes/string';
+import { FieldUmask } from '../FieldTypes/umask';
 import { FileSystemConfig, invalidConfigName } from '../types/fileSystemConfig';
 import FieldConfigGroup from './configGroupField';
 import { PROXY_FIELD } from './proxyFields';
@@ -121,6 +122,13 @@ export function agentForward(config: FileSystemConfig, onChange: FSCChanged<'age
   return <FieldCheckbox key="agentForward" label="Forward agent" value={!!config.agentForward} onChange={callback} description={description} postface={postface} />;
 }
 
+export function newFileMode(config: FileSystemConfig, onChange: FSCChanged<'newFileMode'>): React.ReactElement {
+  const callback = (newValue?: number) => onChange('newFileMode', Number.isInteger(newValue) ? `0o${newValue!.toString(8)}` : undefined);
+  const description = 'The filemode to assign to new files created using VS Code, not the terminal. Similar to umask. Defaults to `rw-rw-r--` (regardless of server config, whether you are root, ...)';
+  const value = Number.isInteger(Number(config.newFileMode)) ? Number(config.newFileMode) : 0o664;
+  return <FieldUmask key="newFileMode" label="New file mode" value={value} onChange={callback} description={description} optional />;
+}
+
 export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('sftpCommand', newValue);
   const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
@@ -157,5 +165,5 @@ export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onCh
 export const FIELDS: FieldFactory[] = [
   name, merge, label, group, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
-  agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
+  newFileMode, agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
   PROXY_FIELD];
