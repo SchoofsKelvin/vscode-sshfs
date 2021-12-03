@@ -62,9 +62,8 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
     public getLabel() {
         return this.props.label;
     }
-    protected getClassName(): string {
-        return 'Field';
-    }
+    protected getClassName(): string { return 'Field'; }
+    protected getValueClassName(): string { return 'value'; }
     public render() {
         const error = this.getError();
         const { description, label, optional, preface, postface } = this.props;
@@ -74,7 +73,7 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
             {description && <div className="description">{description}</div>}
             {preface}
             {error && <div className="error">{error}</div>}
-            <div className="value">
+            <div className={this.getValueClassName()}>
                 {this.renderInput()}
             </div>
             {postface}

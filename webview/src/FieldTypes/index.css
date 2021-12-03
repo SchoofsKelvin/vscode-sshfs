@@ -146,18 +146,23 @@ div.FieldCheckbox > .description {
     display: none;
 }
 
-div.FieldCheckbox > div.value {
+.checkbox > .checkbox-box {
     --checkbox-size: 23px;
     max-width: none;
+    min-width: var(--checkbox-size);
     min-height: var(--checkbox-size);
 }
 
-div.FieldCheckbox > .value > .description {
+.checkbox > .checkbox-box.checkbox-small {
+    --checkbox-size: 18px;
+}
+
+.checkbox > .checkbox-box > .description {
     opacity: 0.75;
     margin-left: calc(var(--checkbox-size) + 10px);
 }
 
-div.FieldCheckbox > .value > .checkbox { 
+.checkbox > .checkbox-box > .checkbox { 
     float: left;
     height: var(--checkbox-size);
     width: var(--checkbox-size);
@@ -168,9 +173,8 @@ div.FieldCheckbox > .value > .checkbox {
     border: 1px solid var(--vscode-settings-checkboxBorder);
 }
 
-div.FieldCheckbox > .value > .checkbox.checked::before {
+.checkbox > .checkbox-box > .checkbox.checked::before {
     content: '\2713';
-    width: var(--checkbox-size);
     display: block;
     text-align: center;
 }

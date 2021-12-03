@@ -11,6 +11,8 @@
   - `vsce` is now added as a `devDependency`, which will also result in a speedup due to Yarn caching
 - The `FieldNumber` component in the webview now doesn't always default to `22` as value
   - This component is only used for the `port` field, which now passes `22` to `FieldNumber` by default
+- Extracted checkbox CSS from `FieldCheckbox` to something generic using CSS classes to allow reuse
+  - Also added `getValueClassName(): string` to `FieldBase` to allow extra classes. Defaults to `"value"`
 
 ## v1.24.0 (2021-11-02)
 
