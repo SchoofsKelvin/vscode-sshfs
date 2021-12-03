@@ -29,10 +29,10 @@ jobs:
       with:
         artifact_prefix: "vscode-sshfs"
         artifact_extension: "vsix"
-    - name: Use Node.js 12.x
+    - name: Use Node.js 14.x
       uses: actions/setup-node@v1
       with:
-        node-version: 12.x
+        node-version: 14.x
     - name: Get Yarn cache directory
       id: yarn-cache
       run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
@@ -46,7 +46,7 @@ jobs:
     - name: Install dependencies
       run: yarn --immutable
     - name: Build extension
-      run: yarn dlx vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn
+      run: yarn vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.1
       with:

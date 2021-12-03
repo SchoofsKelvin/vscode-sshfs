@@ -5,6 +5,10 @@
 
 ### Development changes
 - Fix/improve `map-error.js` utility (now also uses `formatId` from `webpack.plugin.js`)
+- Update build process
+  - Build workflow broke due to using `yarn dlx vsce` and an `vsce` major version update requiring Node 14
+  - The workflow is now configured to use Node 14 instead of Node 12
+  - `vsce` is now added as a `devDependency`, which will also result in a speedup due to Yarn caching
 
 ## v1.24.0 (2021-11-02)
 
