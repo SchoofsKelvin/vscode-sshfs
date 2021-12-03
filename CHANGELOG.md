@@ -3,6 +3,11 @@
 
 ## Unreleased
 
+### Changes
+- The default `newFileMode` is now `0o664` instead defaulting to the underlying library's `0o666` (#214)
+  - **This changes the permission for newly created files**, defaulting to `rw-rw-r--` instead of `rw-rw-rw-`
+  - While `0o664` is the default umask for non-root users and `0o644` for root, **we default to `0o664` regardless**
+
 ### Development changes
 - Fix/improve `map-error.js` utility (now also uses `formatId` from `webpack.plugin.js`)
 - Update build process

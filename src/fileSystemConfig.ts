@@ -108,7 +108,7 @@ export interface FileSystemConfig extends ConnectConfig {
   taskCommand?: string | string[];
   /** An object with environment variables to add to the SSH connection. Affects the whole connection thus all terminals */
   environment?: EnvironmentVariable[] | Record<string, string>;
-  /** The filemode to assign to created files */
+  /** The filemode to assign to new files created using VS Code, not the terminal. Similar to umask. Defaults to `rw-rw-r--` (regardless of server config, whether you are root, ...) */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */
   instantConnection?: boolean;

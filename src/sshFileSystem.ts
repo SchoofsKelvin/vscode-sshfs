@@ -126,7 +126,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; }): void | Promise<void> {
     return new Promise(async (resolve, reject) => {
-      let mode: number | string | undefined;
+      let mode: number | undefined;
       let fileExists = false;
       try {
         const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(uri.path, cb));
@@ -134,13 +134,15 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         fileExists = true;
       } catch (e) {
         if (e.message === 'No such file') {
-          mode = this.config.newFileMode;
+          mode = this.config.newFileMode as number;
+          if (typeof mode === 'string') mode = Number(mode);
+          if (typeof mode !== 'number') mode = 0o664;
+          if (Number.isNaN(mode)) throw new Error(`Invalid umask '${this.config.newFileMode}'`);
         } else {
           this.handleError(uri, e);
           vscode.window.showWarningMessage(`Couldn't read the permissions for '${uri.path}', permissions might be overwritten`);
         }
       }
-      mode = mode as number | undefined; // ssh2-streams supports an octal number as string, but ssh2's typings don't reflect this
       const stream = this.sftp.createWriteStream(uri.path, { mode, flags: 'w' });
       stream.on('error', e => this.handleError(uri, e, reject));
       stream.end(content, () => {
