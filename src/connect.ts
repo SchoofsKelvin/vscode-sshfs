@@ -261,6 +261,18 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
       }
+      // TODO: Temporary for #331 (and possibly problems with `publickey` going before `agent`)
+      const authsAllowed: string[] = [];
+      if (finalConfig.password) authsAllowed.push('password');
+      if (finalConfig.agent) authsAllowed.push('agent');
+      if (finalConfig.privateKey) authsAllowed.push('publickey');
+      authsAllowed.push('keyboard-interactive');
+      authsAllowed.push('none');
+      if (finalConfig.privateKey && finalConfig.localHostname && finalConfig.localUsername) authsAllowed.push('hostbased');
+      finalConfig.authHandler = (methodsLeft, partialSuccess) => {
+        logging.debug`authHandler(${methodsLeft}, ${partialSuccess}) => ${authsAllowed[0] || false}`;
+        return authsAllowed.shift() || false;
+      };
       // Unless the flag 'DF-GE' is specified, disable DiffieHellman groupex algorithms (issue #239)
       // Note: If the config already specifies a custom `algorithms.key`, ignore it (trust the user?)
       const [flagV, flagR] = getFlagBoolean('DF-GE', false, config.flags);
