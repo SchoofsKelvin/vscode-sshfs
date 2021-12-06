@@ -1,25 +1,25 @@
 
 # Changelog
 
-## Unreleased
+## v1.24.1 (2021-12-07)
 
 ### New features
-- The settings UI now has a table-like field to modify `newFileMode` (#214)
+- The settings UI now has a table-like field to modify `newFileMode` (b904fb9, #214)
 
 ### Changes
-- The default `newFileMode` is now `0o664` instead defaulting to the underlying library's `0o666` (#214)
+- The default `newFileMode` is now `0o664` instead defaulting to the underlying library's `0o666` (af76438, #214)
   - **This changes the permission for newly created files**, defaulting to `rw-rw-r--` instead of `rw-rw-rw-`
   - While `0o664` is the default umask for non-root users and `0o644` for root, **we default to `0o664` regardless**
 
 ### Development changes
-- Fix/improve `map-error.js` utility (now also uses `formatId` from `webpack.plugin.js`)
-- Update build process
+- Fix/improve `map-error.js` utility (now also uses `formatId` from `webpack.plugin.js`) (768bfda)
+- Update build process (fa3bc68)
   - Build workflow broke due to using `yarn dlx vsce` and an `vsce` major version update requiring Node 14
   - The workflow is now configured to use Node 14 instead of Node 12
   - `vsce` is now added as a `devDependency`, which will also result in a speedup due to Yarn caching
-- The `FieldNumber` component in the webview now doesn't always default to `22` as value
+- The `FieldNumber` component in the webview now doesn't always default to `22` as value (00b52d7)
   - This component is only used for the `port` field, which now passes `22` to `FieldNumber` by default
-- Extracted checkbox CSS from `FieldCheckbox` to something generic using CSS classes to allow reuse
+- Extracted checkbox CSS from `FieldCheckbox` to something generic using CSS classes to allow reuse (10cfa31)
   - Also added `getValueClassName(): string` to `FieldBase` to allow extra classes. Defaults to `"value"`
 
 ## v1.24.0 (2021-11-02)
