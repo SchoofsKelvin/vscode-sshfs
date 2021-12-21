@@ -1,4 +1,3 @@
-
 div.Field {
     padding: 20px 9px 3px 9px;
 }
@@ -50,6 +49,7 @@ div.FieldDropdown {
     color: var(--vscode-settings-dropdownForeground);
     border: 1px solid var(--vscode-settings-dropdownBorder);
     position: relative;
+    cursor: pointer;
 }
 
 div.FieldDropdown > ul.list {
@@ -66,7 +66,8 @@ div.FieldDropdown > ul.list {
     box-sizing: border-box;
 }
 
-div.FieldDropdown > .current, div.FieldDropdown ul.list > li {
+div.FieldDropdown > .current,
+div.FieldDropdown ul.list > li {
     height: 1em;
     padding: 5px;
     list-style: none;
@@ -104,6 +105,8 @@ div.FieldDropdownWithInput ul.list {
     top: 100%;
     left: 0;
 }
+
+div.FieldDropdown p.arrow,
 div.FieldDropdownWithInput p.arrow {
     z-index: 999;
     top: 0;
@@ -111,6 +114,7 @@ div.FieldDropdownWithInput p.arrow {
     padding: 5px;
     right: 0;
     margin: 0;
+    cursor: pointer;
 }
 
 div.FieldPath {
@@ -162,7 +166,7 @@ div.FieldCheckbox > .description {
     margin-left: calc(var(--checkbox-size) + 10px);
 }
 
-.checkbox > .checkbox-box > .checkbox { 
+.checkbox > .checkbox-box > .checkbox {
     float: left;
     height: var(--checkbox-size);
     width: var(--checkbox-size);
@@ -174,7 +178,7 @@ div.FieldCheckbox > .description {
 }
 
 .checkbox > .checkbox-box > .checkbox.checked::before {
-    content: '\2713';
+    content: "\2713";
     display: block;
     text-align: center;
 }
