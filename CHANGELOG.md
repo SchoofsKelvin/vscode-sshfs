@@ -13,6 +13,8 @@
 - Small improvements to Dropdown(WithInput) UI components
 - Delay and wait for loadConfigs() after logging version info
   - This solves a small issue/annoyance where logs regarding loading logs appear before the version logging
+- When `${workingDirectory}` is present in a terminal command, the extension doesn't auto-`cd` anymore
+  - Normally the extension runs `cd <workingDirectory>; <terminalCommand>` or similar
 
 ### Development changes
 - Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag

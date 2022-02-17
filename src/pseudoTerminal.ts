@@ -193,20 +193,25 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
                 workingDirectory = workingDirectory || actualConfig.root;
+                let cmd = joinCommands(commands, separator)!;
                 if (workingDirectory) {
-                    // TODO: Maybe replace with `connection.home`?
-                    if (workingDirectory.startsWith('~')) {
-                        // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
-                        // `"~"` would also fail but `~/""` works fine it seems
-                        workingDirectory = `~/"${workingDirectory.substr(2)}"`;
+                    if (cmd.includes('${workingDirectory}')) {
+                        cmd = cmd.replace(/\${workingDirectory}/g, workingDirectory);
                     } else {
-                        workingDirectory = `"${workingDirectory}"`;
+                        // TODO: Maybe replace with `connection.home`?
+                        if (workingDirectory.startsWith('~')) {
+                            // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
+                            // `"~"` would also fail but `~/""` works fine it seems
+                            workingDirectory = `~/"${workingDirectory.substr(2)}"`;
+                        } else {
+                            workingDirectory = `"${workingDirectory}"`;
+                        }
+                        cmd = joinCommands([`cd ${workingDirectory}`, ...commands], separator)!;
                     }
-                    commands.unshift(`cd ${workingDirectory}`);
+                } else {
+                    cmd = cmd.replace(/\${workingDirectory}/g, '');
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                let cmd = joinCommands(commands, separator)!;
-                cmd = cmd.replace(/\${workingDirectory}/g, workingDirectory || '');
                 Logging.debug(`Starting shell for ${connection.actualConfig.name}: ${cmd}`);
                 const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
