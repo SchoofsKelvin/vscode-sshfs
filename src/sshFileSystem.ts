@@ -3,6 +3,7 @@ import * as path from 'path';
 import type * as ssh2 from 'ssh2';
 import type * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
+import { getFlagBoolean } from './config';
 import type { FileSystemConfig } from './fileSystemConfig';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 
@@ -197,6 +198,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
         e = vscode.FileSystemError.Unavailable(uri);
       }
       if (e !== oldE) Logging.debug(`Error converted to: ${e}`);
+    }
+    // Display an error notification if the FS_ERROR_NOTIFICATION flag is enabled
+    const [flagCH] = getFlagBoolean('FS_NOTIFY_ERRORS', true, this.config.flags);
+    if (flagCH) {
+      vscode.window.showErrorMessage(`Error handling uri: ${uri}\n${e.message || e}`);
     }
     if (doThrow === true) throw e;
     if (doThrow) return doThrow(e);

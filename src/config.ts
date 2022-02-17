@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { ConfigLocation, FileSystemConfig, invalidConfigName, parseConnectionString } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise } from './utils';
+import * as semver from 'semver';
 
 // Logger scope with default warning/error options (which enables stacktraces) disabled
 const logging = Logging.scope(undefined, false);
@@ -385,6 +386,9 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Enables attempting to inject a file to be sourced by the remote shells (which adds the `code` alias)
   DEBUG_REMOTE_COMMANDS (boolean) (default=false)
     - Enables debug logging for the remote command terminal (thus useless if REMOTE_COMMANDS isn't true)
+  FS_NOTIFY_ERRORS (boolean) (default=false)
+    - Enables displaying error notifications when a file system operation fails and isn't automatically ignored
+    - Automatically enabled VS Code 1.56 and later (see issue #282)
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo<V extends FlagValue = FlagValue> = [value: V, origin: string];
@@ -400,6 +404,11 @@ function calculateFlags(): Record<string, FlagCombo> {
   // Electron v11 crashes for DiffieHellman GroupExchange, although it's fixed in 11.3.0
   if ((process.versions as { electron?: string }).electron?.match(/^11\.(0|1|2)\./)) {
     applyList(['+DF-GE'], 'Fix for issue #239')
+  }
+  // Starting with 1.56, FileSystemProvider errors aren't shown to the user and just silently fail
+  // https://github.com/SchoofsKelvin/vscode-sshfs/issues/282
+  if (semver.gte(vscode.version, '1.56.0')) {
+    applyList(['+FS_NOTIFY_ERRORS'], 'Fix for issue #282');
   }
   applyList(config.globalValue, 'Global Settings');
   applyList(config.workspaceValue, 'Workspace Settings');

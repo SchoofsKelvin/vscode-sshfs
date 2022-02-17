@@ -3,6 +3,9 @@
 
 ## Unreleased
 
+### New features
+- Add `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)
+
 ### Changes
 - Small improvements to Dropdown(WithInput) UI components
 
