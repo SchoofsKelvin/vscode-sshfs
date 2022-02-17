@@ -1725,6 +1725,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/semver@npm:^7.3.9":
+  version: 7.3.9
+  resolution: "@types/semver@npm:7.3.9"
+  checksum: 60bfcfdfa7f937be2c6f4b37ddb6714fb0f27b05fe4cbdfdd596a97d35ed95d13ee410efdd88e72a66449d0384220bf20055ab7d6b5df10de4990fbd20e5cbe0
+  languageName: node
+  linkType: hard
+
 "@types/source-list-map@npm:*":
   version: 0.1.2
   resolution: "@types/source-list-map@npm:0.1.2"
@@ -9149,12 +9156,14 @@ typescript@^4.4.3:
   dependencies:
     "@types/node": ^12.7.12
     "@types/request": ^2.48.1
+    "@types/semver": ^7.3.9
     "@types/ssh2": ^0.5.41
     "@types/vscode": ~1.49.0
     "@types/webpack": ^4.4.25
     "@types/winreg": ^1.2.30
     event-stream: ^4.0.1
     jsonc-parser: ^2.0.0
+    semver: ^7.3.5
     socks: ^2.2.0
     source-map: ^0.7.3
     source-map-support: ^0.5.19

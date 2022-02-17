@@ -6,6 +6,9 @@
 ### Changes
 - Small improvements to Dropdown(WithInput) UI components
 
+### Development changes
+- Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag
+
 ## v1.24.1 (2021-12-07)
 
 ### New features

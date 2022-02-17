@@ -410,6 +410,7 @@
     "devDependencies": {
         "@types/node": "^12.7.12",
         "@types/request": "^2.48.1",
+        "@types/semver": "^7.3.9",
         "@types/ssh2": "^0.5.41",
         "@types/vscode": "~1.49.0",
         "@types/webpack": "^4.4.25",
@@ -425,6 +426,7 @@
     "dependencies": {
         "event-stream": "^4.0.1",
         "jsonc-parser": "^2.0.0",
+        "semver": "^7.3.5",
         "socks": "^2.2.0",
         "ssh2": "^0.8.9",
         "ssh2-streams": "^0.4.10",
