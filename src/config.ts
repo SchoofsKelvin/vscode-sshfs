@@ -342,7 +342,6 @@ vscode.workspace.onDidChangeConfiguration(async (e) => {
   // if (!e.affectsConfiguration('sshfs.configs')) return;
   return loadConfigs();
 });
-loadConfigs();
 
 function parseFlagList(list: string[] | undefined, origin: string): Record<string, FlagCombo> {
   if (list === undefined) return {};

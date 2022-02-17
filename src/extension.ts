@@ -26,8 +26,9 @@ interface CommandHandler {
   handleTerminal?(terminal: SSHPseudoTerminal): void;
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   Logging.info`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`;
+  Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
 
   setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
@@ -45,6 +46,11 @@ export function activate(context: vscode.ExtensionContext) {
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way
   setAsAbsolutePath(context.asAbsolutePath.bind(context));
+
+  // Start loading the configs (asynchronously)
+  try { await loadConfigs() } catch (e) {
+    Logging.error`Could not load configs: ${e}`;
+  }
 
   const manager = new Manager(context);
 

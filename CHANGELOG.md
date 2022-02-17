@@ -8,6 +8,8 @@
 
 ### Changes
 - Small improvements to Dropdown(WithInput) UI components
+- Delay and wait for loadConfigs() after logging version info
+  - This solves a small issue/annoyance where logs regarding loading logs appear before the version logging
 
 ### Development changes
 - Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag
