@@ -205,7 +205,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     commands.unshift(`cd ${workingDirectory}`);
                 }
                 const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const cmd = joinCommands(commands, separator)!;
+                let cmd = joinCommands(commands, separator)!;
+                cmd = cmd.replace(/\${workingDirectory}/g, workingDirectory || '');
                 Logging.debug(`Starting shell for ${connection.actualConfig.name}: ${cmd}`);
                 const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');

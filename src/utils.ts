@@ -80,7 +80,7 @@ export function validatePort(port: string | number): number {
 
 const CLEAN_BASH_VALUE_REGEX = /^[\w-/\\]+$/;
 /** Based on way 1 in https://stackoverflow.com/a/20053121 */
-function escapeBashValue(value: string) {
+export function escapeBashValue(value: string) {
     if (CLEAN_BASH_VALUE_REGEX.test(value)) return value;
     return `'${value.replace(/'/g, `'\\''`)}'`;
 }

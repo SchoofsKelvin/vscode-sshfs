@@ -4,7 +4,10 @@
 ## Unreleased
 
 ### New features
-- Add `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)
+- Added `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)
+- Added a `${workingDirectory}` variable that gets replaced during terminal creation (#323)
+  - This applies to both the `Terminal Command` setting and `ssh-shell` task type
+  - See the issue (#323) for why this got added and how you can use it
 
 ### Changes
 - Small improvements to Dropdown(WithInput) UI components
