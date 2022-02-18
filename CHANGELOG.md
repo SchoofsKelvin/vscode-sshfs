@@ -21,6 +21,8 @@
 - Pin some dependencies and in-range upgrade recursively
   - More specifically, we now use `typescript@~version` instead of `typescript@^version`
   - All dependencies are upgraded within their (package.json-specified) ranges, to get latest patches
+- Update to Yarn 3.1.1 and TypeScript ~4.5.5
+  - Also ditched `@yarnpkg/plugin-version` which wasn't even really used in the first place
 
 ## v1.24.1 (2021-12-07)
 
