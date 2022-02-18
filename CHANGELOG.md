@@ -18,6 +18,9 @@
 
 ### Development changes
 - Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag
+- Pin some dependencies and in-range upgrade recursively
+  - More specifically, we now use `typescript@~version` instead of `typescript@^version`
+  - All dependencies are upgraded within their (package.json-specified) ranges, to get latest patches
 
 ## v1.24.1 (2021-12-07)
 
