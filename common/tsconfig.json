@@ -9,6 +9,8 @@
             "ES2019"
         ],
         "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
         "rootDir": "src"
     },
     "compileOnSave": true,

@@ -1,3 +1,4 @@
+import { FileSystemConfig, invalidConfigName } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { FieldCheckbox } from '../FieldTypes/checkbox';
 import { FieldDropdown } from '../FieldTypes/dropdown';
@@ -6,7 +7,6 @@ import { FieldNumber } from '../FieldTypes/number';
 import { FieldPath } from '../FieldTypes/path';
 import { FieldString } from '../FieldTypes/string';
 import { FieldUmask } from '../FieldTypes/umask';
-import { FileSystemConfig, invalidConfigName } from '../types/fileSystemConfig';
 import FieldConfigGroup from './configGroupField';
 import { PROXY_FIELD } from './proxyFields';
 

@@ -1,9 +1,9 @@
+import type { EnvironmentVariable, FileSystemConfig } from 'common/fileSystemConfig';
 import { posix as path } from 'path';
 import * as readline from 'readline';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
-import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { calculateShellConfig, ShellConfig, tryEcho } from './shellConfig';

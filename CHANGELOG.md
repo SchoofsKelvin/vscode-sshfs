@@ -23,6 +23,7 @@
   - All dependencies are upgraded within their (package.json-specified) ranges, to get latest patches
 - Update to Yarn 3.1.1 and TypeScript ~4.5.5
   - Also ditched `@yarnpkg/plugin-version` which wasn't even really used in the first place
+- Created a `common` module which now holds `fileSystemConfig.ts` and `webviewMessages.ts`
 
 ## v1.24.1 (2021-12-07)
 

@@ -1,12 +1,12 @@
 
+import { getLocations } from 'common/fileSystemConfig';
+import type { Message, Navigation } from 'common/webviewMessages';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
-import { getLocations } from './fileSystemConfig';
 import { DEBUG, Logging as _Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './utils';
-import type { Message, Navigation } from './webviewMessages';
 
 const Logging = _Logging.scope('WebView');
 

@@ -1,8 +1,8 @@
+import { ConfigLocation, FileSystemConfig, formatConfigLocation, groupByGroup, groupByLocation } from 'common/fileSystemConfig';
 import * as React from 'react';
 import ConfigList from './ConfigList';
 import { receivedData } from './data/actions';
 import { connect, pickProperties } from './redux';
-import { ConfigLocation, FileSystemConfig, formatConfigLocation, groupByGroup, groupByLocation } from './types/fileSystemConfig';
 import type { IStartScreenState } from './view';
 import { openNewConfig, openStartScreen } from './view/actions';
 import { API } from './vscode';

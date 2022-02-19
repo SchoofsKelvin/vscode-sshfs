@@ -1,13 +1,13 @@
 
+import type { FileSystemConfig } from 'common/fileSystemConfig';
+import type { Navigation } from 'common/webviewMessages';
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
 import { Connection, ConnectionManager } from './connection';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, joinCommands } from './utils';
-import type { Navigation } from './webviewMessages';
 
 function commandArgumentToName(arg?: string | FileSystemConfig | Connection): string {
   if (!arg) return 'undefined';

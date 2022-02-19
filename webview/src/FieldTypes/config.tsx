@@ -1,5 +1,5 @@
+import { FileSystemConfig, formatConfigLocation } from 'common/fileSystemConfig';
 import { connect } from '../redux';
-import { FileSystemConfig, formatConfigLocation } from '../types/fileSystemConfig';
 import type { Props as FieldBaseProps } from './base';
 import { FieldDropdown, Props as FieldDropdownProps } from './dropdown';
 

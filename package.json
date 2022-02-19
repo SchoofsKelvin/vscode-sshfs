@@ -402,7 +402,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "yarn workspaces foreach -vip -j 2 run build",
+        "vscode:prepublish": "yarn workspaces foreach -tvip -j 2 run build",
         "build": "webpack --mode production",
         "compile": "webpack --mode development",
         "watch": "webpack --mode development --watch"
@@ -424,19 +424,20 @@
         "webpack-cli": "^4.7.2"
     },
     "dependencies": {
+        "common": "workspace:*",
         "event-stream": "^4.0.1",
         "jsonc-parser": "^2.0.0",
         "semver": "^7.3.5",
         "socks": "^2.2.0",
         "ssh2": "^0.8.9",
         "ssh2-streams": "^0.4.10",
-        "webview": "workspace:*",
         "winreg": "^1.2.4"
     },
     "resolutions": {
         "ssh2-streams": "Timmmm/ssh2-streams#patch-1"
     },
     "workspaces": [
+        "./common",
         "./webview"
     ],
     "packageManager": "yarn@3.1.1"

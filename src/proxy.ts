@@ -1,8 +1,8 @@
 
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as dns from 'dns';
 import { request } from 'http';
 import { SocksClient } from 'socks';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import { toPromise, validatePort } from './utils';
 

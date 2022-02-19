@@ -1,9 +1,9 @@
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { FieldConfig } from '../FieldTypes/config';
 import { FieldDropdown } from '../FieldTypes/dropdown';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldString } from '../FieldTypes/string';
-import { FileSystemConfig } from '../types/fileSystemConfig';
 import type { FieldFactory, FSCChanged, FSCChangedMultiple } from './fields';
 
 function hostAndPort(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): React.ReactElement {

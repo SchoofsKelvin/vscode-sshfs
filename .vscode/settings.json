@@ -6,6 +6,7 @@
     "**/node_modules/": true,
     "dist/": true,
     "util/": true,
+    "common/out": true,
     "webview/build/": true,
     ".yarn/": true,
     ".yarnrc.yml": true,

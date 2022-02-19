@@ -6,15 +6,43 @@
         {
             "label": "Extension - Watch all",
             "group": "build",
+            "dependsOrder": "sequence",
             "dependsOn": [
-                "Extension - Watch",
-                "Extension WebView - Watch"
+                "Extension Common - Watch",
+                "Extension - Watch non-Common"
             ],
             "problemMatcher": [],
             "isBackground": true,
             "runOptions": {
                 "runOn": "folderOpen"
             }
+        },
+        {
+            "label": "Extension - Watch non-Common",
+            "group": "build",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Extension - Watch",
+                "Extension WebView - Watch"
+            ],
+            "problemMatcher": [],
+            "isBackground": true,
+        },
+        {
+            "type": "shell",
+            "label": "Extension Common - Watch",
+            "command": "yarn watch",
+            "options": {
+                "cwd": "./common"
+            },
+            "group": "build",
+            "problemMatcher": {
+                "base": "$tsc-watch",
+                "source": "tsc-watch",
+                "owner": "tsc-watch",
+                "applyTo": "allDocuments"
+            },
+            "isBackground": true
         },
         {
             "type": "npm",

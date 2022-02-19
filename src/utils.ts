@@ -1,5 +1,5 @@
-import type { EnvironmentVariable } from "./fileSystemConfig";
-import { DEBUG } from "./logging";
+import type { EnvironmentVariable } from 'common/fileSystemConfig';
+import { DEBUG } from './logging';
 
 function prepareStackTraceDefault(error: Error, stackTraces: NodeJS.CallSite[]): string {
     return stackTraces.reduce((s, c) => `${s}\n\tat ${c} (${c.getFunction()})`, `${error.name || "Error"}: ${error.message || ""}`);

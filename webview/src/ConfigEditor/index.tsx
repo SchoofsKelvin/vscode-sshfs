@@ -1,7 +1,7 @@
+import { FileSystemConfig, formatConfigLocation } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { FieldGroup } from '../FieldTypes/group';
 import { connect, pickProperties } from '../redux';
-import { FileSystemConfig, formatConfigLocation } from '../types/fileSystemConfig';
 import type { IConfigEditorState } from '../view';
 import { configEditorSetNewConfig, configEditorSetStatusMessage, openStartScreen } from '../view/actions';
 import { deleteConfig, saveConfig } from '../vscode';

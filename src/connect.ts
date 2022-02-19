@@ -1,3 +1,4 @@
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import { readFile } from 'fs';
 import { Socket } from 'net';
 import { userInfo } from 'os';
@@ -5,7 +6,6 @@ import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } 
 import { SFTPStream } from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean } from './config';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { Logging } from './logging';
 import type { PuttySession } from './putty';
 import { toPromise, validatePort } from './utils';

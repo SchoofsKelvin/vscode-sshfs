@@ -1,9 +1,9 @@
+import type { EnvironmentVariable, FileSystemConfig } from "common/fileSystemConfig";
 import * as path from 'path';
 import type { ClientChannel, PseudoTtyOptions } from "ssh2";
 import * as vscode from "vscode";
 import { getFlagBoolean } from './config';
 import type { Connection } from './connection';
-import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
 import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 

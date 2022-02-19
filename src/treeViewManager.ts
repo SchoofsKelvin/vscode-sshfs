@@ -1,8 +1,8 @@
 
+import { FileSystemConfig, getGroups } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
 import { getConfigs, UPDATE_LISTENERS } from './config';
 import type { Connection, ConnectionManager } from './connection';
-import { FileSystemConfig, getGroups } from './fileSystemConfig';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { formatItem } from './ui-utils';

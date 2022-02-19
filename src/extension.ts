@@ -1,8 +1,8 @@
 
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
 import { loadConfigs } from './config';
 import type { Connection } from './connection';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
 import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
