@@ -8,7 +8,7 @@ import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
 const [HEIGHT, WIDTH] = [480, 640];
-const PSEUDO_TTY_OPTIONS: PseudoTtyOptions = {
+const PSEUDO_TTY_OPTIONS: Partial<PseudoTtyOptions> = {
     height: HEIGHT, width: WIDTH, term: 'xterm-256color',
 };
 
@@ -154,8 +154,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             if (status === 'closed') return;
             if (channel) {
                 pseudo.status = 'closed';
-                channel.signal('INT');
-                channel.signal('SIGINT');
+                channel.signal!('INT');
+                channel.signal!('SIGINT');
                 channel.write('\x03');
                 channel.close();
                 pseudo.channel = undefined;
@@ -211,7 +211,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 } else {
                     cmd = cmd.replace(/\${workingDirectory}/g, '');
                 }
-                const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
+                const pseudoTtyOptions: Partial<PseudoTtyOptions> = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
                 Logging.debug(`Starting shell for ${connection.actualConfig.name}: ${cmd}`);
                 const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
@@ -236,8 +236,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     if (pseudo.status === 'opening') pseudo.status = 'open';
                     onDidOpen.fire();
                 });
-                channel.stdout.on('data', chunk => onDidWrite.fire(chunk.toString()));
-                channel.stderr.on('data', chunk => onDidWrite.fire(chunk.toString()));
+                channel.on('data', chunk => onDidWrite.fire(chunk.toString()));
+                channel.stderr!.on('data', chunk => onDidWrite.fire(chunk.toString()));
                 // TODO: ^ Keep track of stdout's color, switch to red, output, then switch back?
             } catch (e) {
                 Logging.error`Error starting SSH terminal:\n${e}`;
@@ -255,7 +255,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             terminal = term;
         },
         setDimensions(dims) {
-            pseudo.channel?.setWindow(dims.rows, dims.columns, HEIGHT, WIDTH);
+            pseudo.channel?.setWindow!(dims.rows, dims.columns, HEIGHT, WIDTH);
         },
         handleInput(data) {
             if (pseudo.status === 'wait-to-close') return pseudo.close();

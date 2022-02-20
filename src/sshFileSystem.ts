@@ -2,10 +2,10 @@
 import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as path from 'path';
 import type * as ssh2 from 'ssh2';
-import type * as ssh2s from 'ssh2-streams';
 import * as vscode from 'vscode';
 import { getFlagBoolean } from './config';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
+import { toPromise } from './utils';
 
 // This makes it report a single line of the stacktrace of where the e.g. logger.info() call happened
 // while also making it that if we're logging an error, only the first 4 lines of the stack (including the error message) are shown
@@ -36,14 +36,13 @@ function shouldIgnoreNotFound(target: string) {
 export class SSHFileSystem implements vscode.FileSystemProvider {
   protected onCloseEmitter = new vscode.EventEmitter<void>();
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-  public waitForContinue = false;
   public closed = false;
   public closing = false;
   public copy = undefined;
   public onClose = this.onCloseEmitter.event;
   public onDidChangeFile = this.onDidChangeFileEmitter.event;
   protected logging: Logger;
-  constructor(public readonly authority: string, protected sftp: ssh2.SFTPWrapper, public readonly config: FileSystemConfig) {
+  constructor(public readonly authority: string, protected sftp: ssh2.SFTP, public readonly config: FileSystemConfig) {
     this.logging = Logging.scope(`SSHFileSystem(${authority})`, false);
     this.sftp.on('end', () => (this.closed = true, this.onCloseEmitter.fire()));
     this.logging.info('SSHFileSystem created');
@@ -52,34 +51,15 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     this.closing = true;
     this.sftp.end();
   }
-  public continuePromise<T>(func: (cb: (err: Error | null | undefined, res?: T) => void) => boolean): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const exec = () => {
-        this.waitForContinue = false;
-        if (this.closed) return reject(new Error('Connection closed'));
-        try {
-          const canContinue = func((err, res) => err ? reject(err) : resolve(res!));
-          if (!canContinue) this.waitForContinue = true;
-        } catch (e) {
-          reject(e);
-        }
-      };
-      if (this.waitForContinue) {
-        this.sftp.once('continue', exec);
-      } else {
-        exec();
-      }
-    });
-  }
   /* FileSystemProvider */
   public watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
     // throw new Error('Method not implemented.');
     return new vscode.Disposable(() => { });
   }
   public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
-    const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(uri.path, cb))
+    const stat = await toPromise<ssh2.sftp.Stats>(cb => this.sftp.stat(uri.path, cb))
       .catch(e => this.handleError(uri, e, true) as never);
-    const { mtime, size } = stat;
+    const { mtime = 0, size = 0 } = stat;
     let type = vscode.FileType.Unknown;
     // tslint:disable no-bitwise */
     if (stat.isFile()) type = type | vscode.FileType.File;
@@ -92,14 +72,14 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     };
   }
   public async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-    const entries = await this.continuePromise<ssh2s.FileEntry[]>(cb => this.sftp.readdir(uri.path, cb))
+    const entries = await toPromise<ssh2.sftp.DirectoryEntry[]>(cb => this.sftp.readdir(uri.path, cb))
       .catch((e) => this.handleError(uri, e, true) as never);
     return Promise.all(entries.map(async (file) => {
       const furi = uri.with({ path: `${uri.path}${uri.path.endsWith('/') ? '' : '/'}${file.filename}` });
       // Mode in octal representation is 120XXX for links, e.g. 120777
       // Any link's mode & 170000 should equal 120000 (using the octal system, at least)
       // tslint:disable-next-line:no-bitwise
-      const link = (file.attrs.mode & 61440) === 40960 ? vscode.FileType.SymbolicLink : 0;
+      const link = (file.attrs.mode! & 61440) === 40960 ? vscode.FileType.SymbolicLink : 0;
       try {
         const type = (await this.stat(furi)).type;
         // tslint:disable-next-line:no-bitwise
@@ -112,7 +92,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     }));
   }
   public createDirectory(uri: vscode.Uri): void | Promise<void> {
-    return this.continuePromise<void>(cb => this.sftp.mkdir(uri.path, cb)).catch(e => this.handleError(uri, e, true));
+    return toPromise<void>(cb => this.sftp.mkdir(uri.path, cb)).catch(e => this.handleError(uri, e, true));
   }
   public readFile(uri: vscode.Uri): Uint8Array | Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
@@ -130,7 +110,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       let mode: number | undefined;
       let fileExists = false;
       try {
-        const stat = await this.continuePromise<ssh2s.Stats>(cb => this.sftp.stat(uri.path, cb));
+        const stat = await toPromise<ssh2.sftp.Stats>(cb => this.sftp.stat(uri.path, cb));
         mode = stat.mode;
         fileExists = true;
       } catch (e) {
@@ -157,18 +137,18 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     const fireEvent = () => this.onDidChangeFileEmitter.fire([{ uri, type: vscode.FileChangeType.Deleted }]);
     // tslint:disable no-bitwise */
     if (stats.type & (vscode.FileType.SymbolicLink | vscode.FileType.File)) {
-      return this.continuePromise(cb => this.sftp.unlink(uri.path, cb))
+      return toPromise(cb => this.sftp.unlink(uri.path, cb))
         .then(fireEvent).catch(e => this.handleError(uri, e, true));
     } else if ((stats.type & vscode.FileType.Directory) && options.recursive) {
-      return this.continuePromise(cb => this.sftp.rmdir(uri.path, cb))
+      return toPromise(cb => this.sftp.rmdir(uri.path, cb))
         .then(fireEvent).catch(e => this.handleError(uri, e, true));
     }
-    return this.continuePromise(cb => this.sftp.unlink(uri.path, cb))
+    return toPromise(cb => this.sftp.unlink(uri.path, cb))
       .then(fireEvent).catch(e => this.handleError(uri, e, true));
     // tslint:enable no-bitwise */
   }
   public rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean; }): void | Promise<void> {
-    return this.continuePromise<void>(cb => this.sftp.rename(oldUri.path, newUri.path, cb))
+    return toPromise<void>(cb => this.sftp.rename(oldUri.path, newUri.path, cb))
       .then(() => this.onDidChangeFileEmitter.fire([
         { uri: oldUri, type: vscode.FileChangeType.Deleted },
         { uri: newUri, type: vscode.FileChangeType.Created }

@@ -1,5 +1,5 @@
 import { posix as path } from 'path';
-import type { Client, ClientChannel, SFTPWrapper } from "ssh2";
+import type { Client, ClientChannel, SFTP } from "ssh2";
 import type { Connection } from './connection';
 import { Logger, Logging } from "./logging";
 import { toPromise } from "./utils";
@@ -24,12 +24,12 @@ type RemoteCommandInitializer = (connection: Connection) => void
     | string | string[] | undefined
     | Promise<void | string | string[] | undefined>;
 
-async function ensureCachedFile(connection: Connection, key: string, path: string, content: string, sftp?: SFTPWrapper):
+async function ensureCachedFile(connection: Connection, key: string, path: string, content: string, sftp?: SFTP):
     Promise<[written: boolean, path: string | null]> {
     const rc_files: Record<string, string> = connection.cache.rc_files ||= {};
     if (rc_files[key]) return [false, rc_files[key]];
     try {
-        sftp ||= await toPromise<SFTPWrapper>(cb => connection.client.sftp(cb));
+        sftp ||= await toPromise<SFTP>(cb => connection.client.sftp(cb));
         await toPromise(cb => sftp!.writeFile(path, content, { mode: 0o755 }, cb));
         return [true, rc_files[key] = path];
     } catch (e) {
@@ -40,7 +40,7 @@ async function ensureCachedFile(connection: Connection, key: string, path: strin
 
 async function rcInitializePATH(connection: Connection): Promise<string[] | string> {
     const dir = `/tmp/.Kelvin_sshfs.RcBin.${connection.actualConfig.username || Date.now()}`;
-    const sftp = await toPromise<SFTPWrapper>(cb => connection.client.sftp(cb));
+    const sftp = await toPromise<SFTP>(cb => connection.client.sftp(cb));
     await toPromise(cb => sftp!.mkdir(dir, { mode: 0o755 }, cb)).catch(() => { });
     const [, path] = await ensureCachedFile(connection, 'CmdCode', `${dir}/code`, SCRIPT_COMMAND_CODE, sftp);
     return path ? [
@@ -86,8 +86,8 @@ const KNOWN_SHELL_CONFIGS: Record<string, ShellConfig> = {}; {
 export async function tryCommand(ssh: Client, command: string): Promise<string | null> {
     const exec = await toPromise<ClientChannel>(cb => ssh.exec(command, cb));
     const output = ['', ''] as [string, string];
-    exec.stdout.on('data', (chunk: any) => output[0] += chunk);
-    exec.stderr.on('data', (chunk: any) => output[1] += chunk);
+    exec.on('data', (chunk: any) => output[0] += chunk);
+    exec.stderr!.on('data', (chunk: any) => output[1] += chunk);
     await toPromise(cb => {
         exec.once('error', cb);
         exec.once('close', cb);

@@ -2,17 +2,13 @@ import type { FileSystemConfig } from 'common/fileSystemConfig';
 import { readFile } from 'fs';
 import { Socket } from 'net';
 import { userInfo } from 'os';
-import { Client, ClientChannel, ConnectConfig, SFTPWrapper as SFTPWrapperReal } from 'ssh2';
-import { SFTPStream } from 'ssh2-streams';
+import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { SFTP } from 'ssh2/lib/protocol/SFTP';
 import * as vscode from 'vscode';
 import { getConfig, getFlagBoolean } from './config';
 import { Logging } from './logging';
 import type { PuttySession } from './putty';
 import { toPromise, validatePort } from './utils';
-
-// tslint:disable-next-line:variable-name
-const SFTPWrapper = require('ssh2/lib/SFTPWrapper') as (new (stream: SFTPStream) => SFTPWrapperReal);
-type SFTPWrapper = SFTPWrapperReal;
 
 const DEFAULT_CONFIG: ConnectConfig = {
   tryKeyboard: true,
@@ -203,7 +199,7 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
           logging.debug`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`;
           return reject(err);
         }
-        channel.once('close', () => ssh.destroy());
+        channel.once('close', () => ssh.end());
         resolve(channel);
       });
     });
@@ -266,10 +262,19 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       const [flagV, flagR] = getFlagBoolean('DF-GE', false, config.flags);
       if (flagV) {
         logging.info`Flag "DF-GE" enabled due to '${flagR}', disabling DiffieHellman kex groupex algorithms`;
-        let kex: string[] = require('ssh2-streams/lib/constants').ALGORITHMS.KEX;
-        kex = kex.filter(algo => !algo.includes('diffie-hellman-group-exchange'));
-        logging.debug`\tResulting algorithms.kex: ${kex}`;
-        finalConfig.algorithms = { ...finalConfig.algorithms, kex };
+        const removeKex = finalConfig.algorithms?.kex;
+        if (removeKex) logging.debug`\tAlready present algorithms.kex: ${removeKex}`;
+        finalConfig.algorithms = {
+          ...finalConfig.algorithms,
+          kex: {
+            ...finalConfig.algorithms?.kex,
+            remove: [
+              ...(Array.isArray(removeKex) ? removeKex : []),
+              'diffie-hellman-group-exchange',
+            ],
+          },
+        };
+        logging.debug`\tResulting algorithms.kex: ${finalConfig.algorithms.kex}`;
       }
       client.connect(finalConfig);
     } catch (e) {
@@ -305,11 +310,11 @@ function startSudo(shell: ClientChannel, config: FileSystemConfig, user: string 
       return cleanup(), reject(new Error(`Sudo error: ${data}`));
     }
     function cleanup() {
-      shell.stdout.removeListener('data', stdout);
-      shell.stderr.removeListener('data', stderr);
+      shell.removeListener('data', stdout);
+      shell.stderr!.removeListener('data', stderr);
     }
-    shell.stdout.on('data', stdout);
-    shell.stderr.on('data', stderr);
+    shell.on('data', stdout);
+    shell.stderr!.on('data', stderr);
     const uFlag = typeof user === 'string' ? `-u ${user} ` : '';
     shell.write(`sudo -S ${uFlag}bash -c "echo SUDO OK; cat | bash"\n`);
   });
@@ -333,7 +338,7 @@ function stripSudo(cmd: string) {
   return cmd;
 }
 
-export async function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTPWrapper> {
+export async function getSFTP(client: Client, config: FileSystemConfig): Promise<SFTP> {
   config = (await calculateActualConfig(config))!;
   if (!config) throw new Error('Couldn\'t calculate the config');
   const logging = Logging.scope(`getSFTP(${config.name})`);
@@ -343,7 +348,7 @@ export async function getSFTP(client: Client, config: FileSystemConfig): Promise
   }
   if (!config.sftpCommand) {
     logging.info`Creating SFTP session using standard sftp subsystem`;
-    return toPromise<SFTPWrapper>(cb => client.sftp(cb));
+    return toPromise<SFTP>(cb => client.sftp(cb));
   }
   let cmd = config.sftpCommand;
   logging.info`Creating SFTP session using specified command: ${cmd}`;
@@ -368,16 +373,17 @@ export async function getSFTP(client: Client, config: FileSystemConfig): Promise
   await new Promise<void>((ready, nvm) => {
     const handler = (data: string | Buffer) => {
       if (data.toString().trim() !== 'SFTP READY') return;
-      shell.stdout.removeListener('data', handler);
+      shell.removeListener('data', handler);
       ready();
     };
-    shell.stdout.on('data', handler);
+    shell.on('data', handler);
     shell.on('close', nvm);
   });
   // Start sftpCommand (e.g. /usr/lib/openssh/sftp-server) and wrap everything nicely
-  const sftps = new SFTPStream({ debug: config.debug });
-  shell.pipe(sftps).pipe(shell);
-  const sftp = new SFTPWrapper(sftps);
+  const sftp = new SFTP(client, shell, { debug: config.debug });
+  shell.on('data', data => sftp.push(data));
+  shell.on('close', data => data.end());
   await toPromise(cb => shell.write(`${cmd}\n`, cb));
+  sftp._init();
   return sftp;
 }

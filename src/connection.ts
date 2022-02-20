@@ -56,8 +56,8 @@ export class ConnectionManager {
         shell.write(`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`);
         return new Promise((resolvePath, rejectPath) => {
             setTimeout(() => rejectPath(new Error('Timeout fetching command path')), 10e3);
-            const rl = readline.createInterface(shell.stdout);
-            shell.stdout.once('error', rejectPath);
+            const rl = readline.createInterface(shell);
+            shell.once('error', rejectPath);
             shell.once('close', () => rejectPath());
             rl.on('line', async line => {
                 if (debugLogging) logging.debug('<< ' + line);
@@ -202,7 +202,7 @@ export class ConnectionManager {
         this.connections.splice(index, 1);
         clearInterval(connection.idleTimer);
         this.onConnectionRemovedEmitter.fire(connection);
-        connection.client.destroy();
+        connection.client.end();
     }
     // Without making createConnection return a Proxy, or making Connection a class with
     // getters and setters informing the manager that created it, we don't know if it updated.

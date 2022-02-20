@@ -3,6 +3,15 @@
 
 ## Unreleased
 
+### Major change
+- Updated from `ssh2@0.8.9` to `ssh@1.6.0`
+  - Part of this update forces me to ditch `ssh2-streams` which played a major role for SFTP
+  - The `ssh2` package has a built-in but unexposed alternative we can more or less use directly
+  - The `@types/ssh2` is semi-outdated and has lots of inaccuracies, along with missing internal things
+  - For this major update a `ssh2.ts` replacing `@types/ssh2` is added to the `common` module
+  - This does pull in a lot of new fixes/features added since `ssh2@1.0.0` though
+  - Some feature requests are now easier/possible to implement with these new features
+
 ### New features
 - Added `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)
 - Added a `${workingDirectory}` variable that gets replaced during terminal creation (#323)
