@@ -131,7 +131,6 @@ module.exports = (env, options) => {
     },
     plugins: truthyArray([
       new HtmlWebpackPlugin({ inject: true, template: 'public/index.html', publicPath }),
-      options.serve && new webpack.HotModuleReplacementPlugin(),
       options.serve && new ReactRefreshWebpackPlugin(),
       new webpack.DefinePlugin(options.env),
       new WebpackPlugin(),
