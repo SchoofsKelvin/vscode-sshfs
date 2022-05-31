@@ -34,6 +34,7 @@
   - Also ditched `@yarnpkg/plugin-version` which wasn't even really used in the first place
 - Created a `common` module which now holds `fileSystemConfig.ts` and `webviewMessages.ts`
 - Improve webview ESLint setup, namely update `@typescript-eslint/*` and remove unused plugins
+- Add prettier and its Yarn PnP SDK integration + VS Code settings
 
 ## v1.24.1 (2021-12-07)
 

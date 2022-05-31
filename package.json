@@ -414,6 +414,7 @@
         "@types/vscode": "~1.49.0",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
+        "prettier": "^2.6.2",
         "source-map": "^0.7.3",
         "source-map-support": "^0.5.19",
         "ts-loader": "^9.2.3",
