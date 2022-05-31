@@ -11,6 +11,12 @@
   - For this major update a `ssh2.ts` replacing `@types/ssh2` is added to the `common` module
   - This does pull in a lot of new fixes/features added since `ssh2@1.0.0` though
   - Some feature requests are now easier/possible to implement with these new features
+- Add initial support for Windows OpenSSH servers (fixes #338)
+  - This adds initial support for Command Prompt, and theoretically PowerShell (untested)
+  - The `REMOTE_COMMANDS` is not yet supported, as it uses the pty's `tty` for cross-terminal communication
+  - Future `REMOTE_COMMANDS` support for PowerShell (since it can interact with named pipes) is planned
+  - Future `REMOTE_COMMANDS` support for Command Prompt is currently not yet planned, but might be possible
+  - Mind that some (future) features won't work (maybe just for now, maybe forever) on Windows
 
 ### New features
 - Added `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)

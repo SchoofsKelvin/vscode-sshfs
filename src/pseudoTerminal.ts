@@ -170,15 +170,16 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         async open(dims) {
             onDidWrite.fire(`Connecting to ${actualConfig.label || actualConfig.name}...\r\n`);
             try {
-                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, actualConfig.flags);
+                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', shellConfig.isWindows, actualConfig.flags);
                 const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
                 let SHELL = '$SHELL';
+                if (shellConfig.isWindows) SHELL = shellConfig.shell;
                 // Add exports for environment variables if needed
                 const env = mergeEnvironment(connection.environment, options.environment);
                 commands.push(environmentToExportString(env, shellConfig.setEnv));
                 // Beta feature to add a "code <file>" command in terminals to open the file locally
-                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
+                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0] && shellConfig.setupRemoteCommands) {
                     const rcCmds = await shellConfig.setupRemoteCommands(connection);
                     if (rcCmds?.length) commands.push(joinCommands(rcCmds, separator)!);
                 }
@@ -198,12 +199,16 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     if (cmd.includes('${workingDirectory}')) {
                         cmd = cmd.replace(/\${workingDirectory}/g, workingDirectory);
                     } else {
-                        // TODO: Maybe replace with `connection.home`?
+                        // TODO: Maybe replace with `connection.home`? Especially with Windows not supporting ~
                         if (workingDirectory.startsWith('~')) {
+                            if (shellConfig.isWindows)
+                                throw new Error(`Working directory '${workingDirectory}' starts with ~ for a Windows shell`);
                             // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
                             // `"~"` would also fail but `~/""` works fine it seems
-                            workingDirectory = `~/"${workingDirectory.substr(2)}"`;
+                            workingDirectory = `~/"${workingDirectory.slice(2)}"`;
                         } else {
+                            if (shellConfig.isWindows && workingDirectory.match(/^\/[a-zA-Z]:/))
+                                workingDirectory = workingDirectory.slice(1);
                             workingDirectory = `"${workingDirectory}"`;
                         }
                         cmd = joinCommands([`cd ${workingDirectory}`, ...commands], separator)!;

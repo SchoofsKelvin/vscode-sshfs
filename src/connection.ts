@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { configMatches, getFlagBoolean, loadConfigs } from './config';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
-import { calculateShellConfig, ShellConfig, tryEcho } from './shellConfig';
+import { calculateShellConfig, ShellConfig, tryCommand, tryEcho } from './shellConfig';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
 
@@ -51,6 +51,7 @@ export class ConnectionManager {
     }
     protected async _createCommandTerminal(client: Client, shellConfig: ShellConfig, authority: string, debugLogging: boolean): Promise<string> {
         const logging = Logging.scope(`CmdTerm(${authority})`);
+        if (!shellConfig.embedSubstitutions) throw new Error(`Shell '${shellConfig.shell}' does not support embedding substitutions`);
         const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
         logging.debug(`TTY COMMAND: ${`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`}`);
         shell.write(`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`);
@@ -128,7 +129,15 @@ export class ConnectionManager {
         // Calculate shell config
         const shellConfig = await calculateShellConfig(client, logging);
         // Query home directory
-        let home = await tryEcho(client, shellConfig, '~').catch((e: Error) => e);
+        let home: string | Error | null;
+        if (shellConfig.isWindows) {
+            home = await tryCommand(client, "echo %USERPROFILE%").catch((e: Error) => e);
+            if (home === null) home = new Error(`No output for "echo %USERPROFILE%"`);
+            if (typeof home === 'string') home = home.trim();
+            if (home === "%USERPROFILE%") home = new Error(`Non-substituted output for "echo %USERPROFILE%"`);
+        } else {
+            home = await tryEcho(client, shellConfig, '~').catch((e: Error) => e);
+        }
         if (typeof home !== 'string') {
             const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
             logging.error('Could not detect home directory', LOGGING_NO_STACKTRACE);
@@ -153,8 +162,12 @@ export class ConnectionManager {
             const [flagRCDV, flagRCDR] = getFlagBoolean('DEBUG_REMOTE_COMMANDS', false, actualConfig.flags);
             const withDebugStr = flagRCDV ? ` with debug logging enabled by '${flagRCDR}'` : '';
             logging.info`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`;
-            const cmdPath = await this._createCommandTerminal(client, shellConfig, name, flagRCDV);
-            environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
+            if (shellConfig.isWindows) {
+                logging.error(`Windows detected, command terminal is not yet supported`, LOGGING_NO_STACKTRACE);
+            } else {
+                const cmdPath = await this._createCommandTerminal(client, shellConfig, name, flagRCDV);
+                environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
+            }
         }
         logging.debug`Environment: ${environment}`;
         // Set up the Connection object

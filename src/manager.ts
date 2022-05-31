@@ -156,7 +156,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           const connection = await this.connectionManager.createConnection(resolved.host);
           resolved = await replaceVariablesRecursive(resolved, value => replaceVariables(value, connection.actualConfig));
           let { command, workingDirectory } = resolved;
-          const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, connection.actualConfig.flags);
+          const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', connection.shellConfig.isWindows, connection.actualConfig.flags);
           const separator = useWinCmdSep ? ' && ' : '; ';
           let { taskCommand = '$COMMAND' } = connection.actualConfig;
           taskCommand = joinCommands(taskCommand, separator)!;

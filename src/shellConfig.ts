@@ -1,7 +1,7 @@
 import { posix as path } from 'path';
 import type { Client, ClientChannel, SFTP } from "ssh2";
 import type { Connection } from './connection';
-import { Logger, Logging } from "./logging";
+import { Logger, Logging, LOGGING_NO_STACKTRACE } from "./logging";
 import { toPromise } from "./utils";
 
 const SCRIPT_COMMAND_CODE = `#!/bin/sh
@@ -50,26 +50,32 @@ async function rcInitializePATH(connection: Connection): Promise<string[] | stri
 
 export interface ShellConfig {
     shell: string;
+    isWindows: boolean;
     setEnv(key: string, value: string): string;
-    setupRemoteCommands: RemoteCommandInitializer;
-    embedSubstitutions(command: TemplateStringsArray, ...substitutions: (string | number)[]): string;
+    setupRemoteCommands?: RemoteCommandInitializer;
+    embedSubstitutions?(command: TemplateStringsArray, ...substitutions: (string | number)[]): string;
 }
 const KNOWN_SHELL_CONFIGS: Record<string, ShellConfig> = {}; {
     const add = (shell: string,
         setEnv: (key: string, value: string) => string,
-        setupRemoteCommands: RemoteCommandInitializer,
-        embedSubstitution: (command: TemplateStringsArray, ...substitutions: (string | number)[]) => string) => {
-        KNOWN_SHELL_CONFIGS[shell] = { shell, setEnv, setupRemoteCommands, embedSubstitutions: embedSubstitution };
+        setupRemoteCommands?: RemoteCommandInitializer,
+        embedSubstitutions?: (command: TemplateStringsArray, ...substitutions: (string | number)[]) => string,
+        isWindows = false) => {
+        KNOWN_SHELL_CONFIGS[shell] = { shell, setEnv, setupRemoteCommands, embedSubstitutions, isWindows };
     }
     // Ways to set an environment variable
     const setEnvExport = (key: string, value: string) => `export ${key}=${value}`;
     const setEnvSetGX = (key: string, value: string) => `set -gx ${key} ${value}`;
     const setEnvSetEnv = (key: string, value: string) => `setenv ${key} ${value}`;
+    const setEnvPowerShell = (key: string, value: string) => `$env:${key}="${value}"`;
+    const setEnvSet = (key: string, value: string) => `set ${key}=${value}`;
     // Ways to embed a substitution
     const embedSubstitutionsBackticks = (command: TemplateStringsArray, ...substitutions: (string | number)[]): string =>
         '"' + substitutions.reduce((str, sub, i) => `${str}\`${sub}\`${command[i + 1]}`, command[0]) + '"';
-    const embedSubstitutionsFish = (command: TemplateStringsArray, ...substitutions: (string | number)[]) =>
+    const embedSubstitutionsFish = (command: TemplateStringsArray, ...substitutions: (string | number)[]): string =>
         substitutions.reduce((str, sub, i) => `${str}"(${sub})"${command[i + 1]}`, '"' + command[0]) + '"';
+    const embedSubstitutionsPowershell = (command: TemplateStringsArray, ...substitutions: (string | number)[]): string =>
+        substitutions.reduce((str, sub, i) => `${str}$(${sub})${command[i + 1]}`, '"' + command[0]) + '"';
     // Register the known shells
     add('sh', setEnvExport, rcInitializePATH, embedSubstitutionsBackticks);
     add('bash', setEnvExport, rcInitializePATH, embedSubstitutionsBackticks);
@@ -81,6 +87,8 @@ const KNOWN_SHELL_CONFIGS: Record<string, ShellConfig> = {}; {
     add('fish', setEnvSetGX, rcInitializePATH, embedSubstitutionsFish); // https://fishshell.com/docs/current/tutorial.html#autoloading-functions
     add('csh', setEnvSetEnv, rcInitializePATH, embedSubstitutionsBackticks);
     add('tcsh', setEnvSetEnv, rcInitializePATH, embedSubstitutionsBackticks);
+    add('powershell', setEnvPowerShell, undefined, embedSubstitutionsPowershell, true); // experimental
+    add('cmd.exe', setEnvSet, undefined, undefined, true); // experimental
 }
 
 export async function tryCommand(ssh: Client, command: string): Promise<string | null> {
@@ -103,9 +111,27 @@ export async function tryCommand(ssh: Client, command: string): Promise<string |
 }
 
 export async function tryEcho(ssh: Client, shellConfig: ShellConfig, variable: string): Promise<string | null> {
+    if (!shellConfig.embedSubstitutions) throw new Error(`Shell '${shellConfig.shell}' does not support embedding substitutions`);
     const uniq = Date.now() % 1e5;
     const output = await tryCommand(ssh, `echo ${shellConfig.embedSubstitutions`::${'echo ' + uniq}:echo_result:${`echo ${variable}`}:${'echo ' + uniq}::`}`);
     return output?.match(`::${uniq}:echo_result:(.*?):${uniq}::`)?.[1] || null;
+}
+
+async function getPowershellVersion(client: Client): Promise<string | null> {
+    const version = await tryCommand(client, 'echo $PSversionTable.PSVersion.ToString()').catch(e => {
+        console.error(e);
+        return null;
+    });
+    return !version?.includes('PSVersion') ? version : null;
+}
+
+async function getWindowsVersion(client: Client): Promise<string | null> {
+    const version = await tryCommand(client, 'systeminfo | findstr /BC:"OS Version"').catch(e => {
+        console.error(e);
+        return null;
+    });
+    const match = version?.trim().match(/^OS Version:[ \t]+(.*)$/);
+    return match?.[1] || null;
 }
 
 export async function calculateShellConfig(client: Client, logging?: Logger): Promise<ShellConfig> {
@@ -113,7 +139,17 @@ export async function calculateShellConfig(client: Client, logging?: Logger): Pr
         const shellStdout = await tryCommand(client, 'echo :::SHELL:$SHELL:SHELL:::');
         const shell = shellStdout?.match(/:::SHELL:([^$].*?):SHELL:::/)?.[1];
         if (!shell) {
-            if (shellStdout) logging?.error(`Could not get $SHELL from following output:\n${shellStdout}`);
+            const psVersion = await getPowershellVersion(client);
+            if (psVersion) {
+                logging?.debug(`Detected PowerShell version ${psVersion}`);
+                return { ...KNOWN_SHELL_CONFIGS['powershell'], shell: 'PowerShell' };
+            }
+            const windowsVersion = await getWindowsVersion(client);
+            if (windowsVersion) {
+                logging?.debug(`Detected Command Prompt for Windows ${windowsVersion}`);
+                return { ...KNOWN_SHELL_CONFIGS['cmd.exe'], shell: 'cmd.exe' };
+            }
+            if (shellStdout) logging?.error(`Could not get $SHELL from following output:\n${shellStdout}`, LOGGING_NO_STACKTRACE);
             throw new Error('Could not get $SHELL');
         }
         const known = KNOWN_SHELL_CONFIGS[path.basename(shell)];
