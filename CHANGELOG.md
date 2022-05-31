@@ -24,6 +24,8 @@
   - This solves a small issue/annoyance where logs regarding loading logs appear before the version logging
 - When `${workingDirectory}` is present in a terminal command, the extension doesn't auto-`cd` anymore
   - Normally the extension runs `cd <workingDirectory>; <terminalCommand>` or similar
+- Auto-silence FileNotFound erors for stat (#334)
+  - The extension will no longer show notification bubbles for failed `stat` operations due to non-existing files
 
 ### Development changes
 - Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag

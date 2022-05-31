@@ -58,7 +58,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
   }
   public async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
     const stat = await toPromise<ssh2.sftp.Stats>(cb => this.sftp.stat(uri.path, cb))
-      .catch(e => this.handleError(uri, e, true) as never);
+      .catch(e => this.handleError(uri, e, true, true) as never);
     const { mtime = 0, size = 0 } = stat;
     let type = vscode.FileType.Unknown;
     // tslint:disable no-bitwise */
@@ -156,12 +156,14 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       .catch(e => this.handleError(newUri, e, true));
   }
   // Helper function to handle/report errors with proper (and minimal) stacktraces and such
-  protected handleError(uri: vscode.Uri, e: Error & { code?: any }, doThrow: (boolean | ((error: any) => void)) = false): any {
-    if (e.code === 2 && shouldIgnoreNotFound(uri.path)) {
+  protected handleError(uri: vscode.Uri, e: Error & { code?: any }, doThrow: (boolean | ((error: any) => void)) = false, ignoreNotFound = false): any {
+    const ignore = e.code === 2 && [ignoreNotFound, shouldIgnoreNotFound(uri.path)];
+    if (ignore && ignore.includes(true)) {
       e = vscode.FileSystemError.FileNotFound(uri);
       // Whenever a workspace opens, VSCode (and extensions) (indirectly) stat a bunch of files
       // (.vscode/tasks.json etc, .git/, node_modules for NodeJS, pom.xml for Maven, ...)
-      this.logging.debug(`Ignored FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
+      const flags = `${ignore[0] ? 'F' : ''}${ignore[1] ? 'A' : ''}`;
+      this.logging.debug(`Ignored (${flags}) FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
       if (doThrow === true) throw e; else if (doThrow) return doThrow(e); else return;
     }
     Logging.error.withOptions(LOGGING_HANDLE_ERROR)`Error handling uri: ${uri}\n${e}`;
