@@ -1,17 +1,17 @@
 
 # Changelog
 
-## Unreleased
+## v1.25.0 (2022-06-01)
 
 ### Major change
-- Updated from `ssh2@0.8.9` to `ssh@1.6.0`
+- Updated from `ssh2@0.8.9` to `ssh@1.6.0` (2e14709)
   - Part of this update forces me to ditch `ssh2-streams` which played a major role for SFTP
   - The `ssh2` package has a built-in but unexposed alternative we can more or less use directly
   - The `@types/ssh2` is semi-outdated and has lots of inaccuracies, along with missing internal things
   - For this major update a `ssh2.ts` replacing `@types/ssh2` is added to the `common` module
   - This does pull in a lot of new fixes/features added since `ssh2@1.0.0` though
   - Some feature requests are now easier/possible to implement with these new features
-- Add initial support for Windows OpenSSH servers (fixes #338)
+- Add initial support for Windows OpenSSH servers (fixes #338) (9410ac2)
   - This adds initial support for Command Prompt, and theoretically PowerShell (untested)
   - The `REMOTE_COMMANDS` is not yet supported, as it uses the pty's `tty` for cross-terminal communication
   - Future `REMOTE_COMMANDS` support for PowerShell (since it can interact with named pipes) is planned
@@ -19,30 +19,30 @@
   - Mind that some (future) features won't work (maybe just for now, maybe forever) on Windows
 
 ### New features
-- Added `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (#282)
-- Added a `${workingDirectory}` variable that gets replaced during terminal creation (#323)
+- Added `FS_NOTIFY_ERRORS` flag to display notifications for FS errors (ddfafd5, #282)
+- Added a `${workingDirectory}` variable that gets replaced during terminal creation (ddfafd5, #323)
   - This applies to both the `Terminal Command` setting and `ssh-shell` task type
   - See the issue (#323) for why this got added and how you can use it
 
 ### Changes
-- Small improvements to Dropdown(WithInput) UI components
-- Delay and wait for loadConfigs() after logging version info
+- Small improvements to Dropdown(WithInput) UI components (9c83b07)
+- Delay and wait for loadConfigs() after logging version info (8c8b950)
   - This solves a small issue/annoyance where logs regarding loading logs appear before the version logging
-- When `${workingDirectory}` is present in a terminal command, the extension doesn't auto-`cd` anymore
+- When `${workingDirectory}` is present in a terminal command, the extension doesn't auto-`cd` anymore (749a611)
   - Normally the extension runs `cd <workingDirectory>; <terminalCommand>` or similar
-- Auto-silence FileNotFound erors for stat (#334)
+- Auto-silence FileNotFound erors for stat (dc20709, #334)
   - The extension will no longer show notification bubbles for failed `stat` operations due to non-existing files
 
 ### Development changes
-- Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag
-- Pin some dependencies and in-range upgrade recursively
+- Added `semver` as dependency in preparation of `FS_NOTIFY_ERRORS` flag (57b8ec6)
+- Pin some dependencies and in-range upgrade recursively (c7ac129)
   - More specifically, we now use `typescript@~version` instead of `typescript@^version`
   - All dependencies are upgraded within their (package.json-specified) ranges, to get latest patches
-- Update to Yarn 3.1.1 and TypeScript ~4.5.5
+- Update to Yarn 3.1.1 and TypeScript ~4.5.5 (83cf22a)
   - Also ditched `@yarnpkg/plugin-version` which wasn't even really used in the first place
-- Created a `common` module which now holds `fileSystemConfig.ts` and `webviewMessages.ts`
-- Improve webview ESLint setup, namely update `@typescript-eslint/*` and remove unused plugins
-- Add prettier and its Yarn PnP SDK integration + VS Code settings
+- Created a `common` module which now holds `fileSystemConfig.ts` and `webviewMessages.ts` (85f7a69)
+- Improve webview ESLint setup, namely update `@typescript-eslint/*` and remove unused plugins (2673c72)
+- Add prettier and its Yarn PnP SDK integration + VS Code settings (e95c16a)
 
 ## v1.24.1 (2021-12-07)
 
