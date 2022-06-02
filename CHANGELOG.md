@@ -8,6 +8,9 @@
   - Currently, this makes it that changing the global flags can immediately have an effect for some flags
   - Global flags are those defined in your User Settings or Workspace(Folder) Settings
   - Mind that if you override those flags by specifying them in your SSH FS config, it'll keep using them
+- Added the `DEBUG_FS` flag to allow enabling detailed conditional logging in `sshFileSystem` (#341)
+  - This flag will auto-update when it changes in global flags, unless it's overriden in your SSH FS config
+  - Mostly meant for internal debugging or helping with debugging specific user-reported issues
 
 ## v1.25.0 (2022-06-01)
 

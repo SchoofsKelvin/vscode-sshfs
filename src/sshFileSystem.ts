@@ -3,7 +3,7 @@ import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as path from 'path';
 import type * as ssh2 from 'ssh2';
 import * as vscode from 'vscode';
-import { getFlagBoolean } from './config';
+import { getFlag, getFlagBoolean, subscribeToGlobalFlags } from './config';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 import { toPromise } from './utils';
 
@@ -21,6 +21,8 @@ const IGNORE_NOT_FOUND: string[] = [
   '/node_modules',
   '/pom.xml',
   '/app/src/main/AndroidManifest.xml',
+  '/build.gradle',
+  '/.devcontainer/devcontainer.json',
 ];
 function shouldIgnoreNotFound(target: string) {
   if (IGNORE_NOT_FOUND.some(entry => entry === target || entry.endsWith('/') && target.startsWith(entry))) return true;
@@ -36,6 +38,7 @@ function shouldIgnoreNotFound(target: string) {
 export class SSHFileSystem implements vscode.FileSystemProvider {
   protected onCloseEmitter = new vscode.EventEmitter<void>();
   protected onDidChangeFileEmitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
+  protected debugFlags: string[];
   public closed = false;
   public closing = false;
   public copy = undefined;
@@ -46,6 +49,11 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     this.logging = Logging.scope(`SSHFileSystem(${authority})`, false);
     this.sftp.on('end', () => (this.closed = true, this.onCloseEmitter.fire()));
     this.logging.info('SSHFileSystem created');
+    const subscription = subscribeToGlobalFlags(() => {
+      this.debugFlags = `${getFlag('DEBUG_FS', this.config.flags)?.[0] || ''}`.toLowerCase().split(/,\s*|\s+/g);
+      if (this.debugFlags.includes('all')) this.debugFlags.push('ignoredmissing', 'full', 'missing', 'converted');
+    });
+    this.onClose(() => subscription.dispose());
   }
   public disconnect() {
     this.closing = true;
@@ -162,11 +170,17 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       e = vscode.FileSystemError.FileNotFound(uri);
       // Whenever a workspace opens, VSCode (and extensions) (indirectly) stat a bunch of files
       // (.vscode/tasks.json etc, .git/, node_modules for NodeJS, pom.xml for Maven, ...)
-      const flags = `${ignore[0] ? 'F' : ''}${ignore[1] ? 'A' : ''}`;
-      this.logging.debug(`Ignored (${flags}) FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
+      if (this.debugFlags.includes('ignoredmissing')) {
+        const flags = `${ignore[0] ? 'F' : ''}${ignore[1] ? 'A' : ''}`;
+        this.logging.debug(`Ignored (${flags}) FileNotFound error for: ${uri}`, LOGGING_NO_STACKTRACE);
+      }
       if (doThrow === true) throw e; else if (doThrow) return doThrow(e); else return;
     }
-    Logging.error.withOptions(LOGGING_HANDLE_ERROR)`Error handling uri: ${uri}\n${e}`;
+    else if (this.debugFlags.includes('full')) {
+      this.logging.debug.withOptions(LOGGING_HANDLE_ERROR)`Error in ${uri}: ${e}`;
+    } else if (this.debugFlags.includes('minimal')) {
+      this.logging.debug.withOptions({ ...LOGGING_NO_STACKTRACE, maxErrorStack: 0 })`Error in ${uri}: ${e.name}: ${e.message}`;
+    }
     // Convert SSH2Stream error codes into VS Code errors
     if (doThrow && typeof e.code === 'number') {
       const oldE = e;
@@ -179,7 +193,8 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
       } else if (e.code === 7) { // Connection lost
         e = vscode.FileSystemError.Unavailable(uri);
       }
-      if (e !== oldE) Logging.debug(`Error converted to: ${e}`);
+      if (e !== oldE && this.debugFlags.includes('converted'))
+        Logging.debug(`Error converted to: ${e}`);
     }
     // Display an error notification if the FS_ERROR_NOTIFICATION flag is enabled
     const [flagCH] = getFlagBoolean('FS_NOTIFY_ERRORS', true, this.config.flags);

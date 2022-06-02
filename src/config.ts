@@ -386,6 +386,14 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Enables attempting to inject a file to be sourced by the remote shells (which adds the `code` alias)
   DEBUG_REMOTE_COMMANDS (boolean) (default=false)
     - Enables debug logging for the remote command terminal (thus useless if REMOTE_COMMANDS isn't true)
+  DEBUG_FS (string) (default='')
+    - A comma-separated list of debug flags for logging errors in the sshFileSystem
+    - The presence of `ignoredmissing` will log `FileNotFound` that got ignored
+    - The presence of `minimal` will log all errors as single lines, but not `FileNotFound`
+    - The presence of `full` is the same as `minimal` but with full stacktraces
+    - The presence of `missing` will log `FileNotFound` errors in `minimal` and `full` (except `ignoredmissing` ones)
+    - The presence of `converted` will log the resulting converted errors (if required and successful)
+    - The presence of `all` enables all of the above (similar to `ignoredmissing,full,missing,converted,reads`)
   FS_NOTIFY_ERRORS (boolean) (default=false)
     - Enables displaying error notifications when a file system operation fails and isn't automatically ignored
     - Automatically enabled VS Code 1.56 and later (see issue #282)
