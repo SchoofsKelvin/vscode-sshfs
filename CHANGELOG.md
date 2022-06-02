@@ -1,5 +1,13 @@
 
-# Changelog
+# 
+
+## Unreleased
+
+### Changes
+- Internally we now have a `subscribeToGlobalFlags` to use up-to-date global flags
+  - Currently, this makes it that changing the global flags can immediately have an effect for some flags
+  - Global flags are those defined in your User Settings or Workspace(Folder) Settings
+  - Mind that if you override those flags by specifying them in your SSH FS config, it'll keep using them
 
 ## v1.25.0 (2022-06-01)
 

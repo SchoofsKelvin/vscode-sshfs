@@ -377,6 +377,7 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Enables debug logging in the ssh2 library (set at the start of each connection)
   WINDOWS_COMMAND_SEPARATOR (boolean) (default=false)
     - Makes it that commands are joined together using ` && ` instead of `; `
+    - Automatically enabled when the remote shell is detected to be PowerShell or Command Prompt (cmd.exe)
   CHECK_HOME (boolean) (default=true)
     - Determines whether we check if the home directory exists during `createFileSystem` in the Manager
     - If `tryGetHome` fails while creating the connection, throw an error if this flag is set, otherwise default to `/`
@@ -391,6 +392,14 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo<V extends FlagValue = FlagValue> = [value: V, origin: string];
+
+const globalFlagsSubscribers = new Set<() => void>();
+export function subscribeToGlobalFlags(listener: () => void): vscode.Disposable {
+  listener();
+  globalFlagsSubscribers.add(listener);
+  return new vscode.Disposable(() => globalFlagsSubscribers.delete(listener));
+}
+
 export const DEFAULT_FLAGS: string[] = [];
 let cachedFlags: Record<string, FlagCombo> = {};
 function calculateFlags(): Record<string, FlagCombo> {
