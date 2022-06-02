@@ -5,7 +5,7 @@ import { parse as parseJsonc, ParseError } from 'jsonc-parser';
 import * as semver from 'semver';
 import * as vscode from 'vscode';
 import { Logging } from './logging';
-import { toPromise } from './utils';
+import { catchingPromise, toPromise } from './utils';
 
 // Logger scope with default warning/error options (which enables stacktraces) disabled
 const logging = Logging.scope(undefined, false);
@@ -394,6 +394,10 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - The presence of `missing` will log `FileNotFound` errors in `minimal` and `full` (except `ignoredmissing` ones)
     - The presence of `converted` will log the resulting converted errors (if required and successful)
     - The presence of `all` enables all of the above (similar to `ignoredmissing,full,missing,converted,reads`)
+  DEBUG_FSR (string) (default='', global)
+    - A comma-separated list of method names to enable logging for in the FileSystemRouter
+    - The presence of `all` is equal to `stat,readDirectory,createDirectory,readFile,writeFile,delete,rename`
+    - The router logs handles `ssh://`, and will even log operations to non-existing configurations/connections
   FS_NOTIFY_ERRORS (boolean) (default=false)
     - Enables displaying error notifications when a file system operation fails and isn't automatically ignored
     - Automatically enabled VS Code 1.56 and later (see issue #282)
@@ -430,6 +434,9 @@ function calculateFlags(): Record<string, FlagCombo> {
   applyList(config.workspaceValue, 'Workspace Settings');
   applyList(config.workspaceFolderValue, 'WorkspaceFolder Settings');
   Logging.info`Calculated config flags: ${flags}`;
+  for (const listener of globalFlagsSubscribers) {
+    catchingPromise(listener).catch(e => Logging.error`onGlobalFlagsChanged listener errored: ${e}`);
+  }
   return cachedFlags = flags;
 }
 

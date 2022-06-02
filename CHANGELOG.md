@@ -11,6 +11,10 @@
 - Added the `DEBUG_FS` flag to allow enabling detailed conditional logging in `sshFileSystem` (#341)
   - This flag will auto-update when it changes in global flags, unless it's overriden in your SSH FS config
   - Mostly meant for internal debugging or helping with debugging specific user-reported issues
+- Added the `DEBUG_FSR` flag to allow enabing detailed conditional logging for the `FileSystemRouter`
+  - Similar to `DEBUG_FS` this is mostly meant for internal debugging or when useful for user-reported issues
+  - This flag will also auto-update when it changes in global flags.
+  - This is a singleton flag and thus unaffected by overriding it in your SSH FS configs
 
 ## v1.25.0 (2022-06-01)
 
