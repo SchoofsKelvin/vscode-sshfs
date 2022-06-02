@@ -15,6 +15,13 @@
   - Similar to `DEBUG_FS` this is mostly meant for internal debugging or when useful for user-reported issues
   - This flag will also auto-update when it changes in global flags.
   - This is a singleton flag and thus unaffected by overriding it in your SSH FS configs
+- Improved the above `DEBUG_FS` flag and refactored the already-existing `FS_NOTIFY_ERRORS` flag (#341)
+  - The `FS_NOTIFY_ERRORS` flag will auto-update when it changes in global flags, unless it's overriden in your SSH FS config
+  - The `FS_NOTIFY_ERRORS` flag is now a string representing a comma-separated list instead of just a boolean
+  - While disabled by default for older VS Code versions, starting from VS Code 1.56.0 the default is `write`
+  - The `write` flag will show a notification should an error happen for a "write" operation
+  - Write operations are: `createDirectory`, `writeFile`, `delete`, and `rename`
+  - Since `readDirectory`, `readFile` and `stat` are disabled by default, it should prevent extension detection spam (see #341)
 
 ## v1.25.0 (2022-06-01)
 

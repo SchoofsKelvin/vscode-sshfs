@@ -388,19 +388,23 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - Enables debug logging for the remote command terminal (thus useless if REMOTE_COMMANDS isn't true)
   DEBUG_FS (string) (default='')
     - A comma-separated list of debug flags for logging errors in the sshFileSystem
-    - The presence of `ignoredmissing` will log `FileNotFound` that got ignored
+    - The presence of `showignored` will log `FileNotFound` that got ignored
+    - The presence of `disableignored` will make the code ignore nothing (making `showignored` useless)
     - The presence of `minimal` will log all errors as single lines, but not `FileNotFound`
     - The presence of `full` is the same as `minimal` but with full stacktraces
-    - The presence of `missing` will log `FileNotFound` errors in `minimal` and `full` (except `ignoredmissing` ones)
     - The presence of `converted` will log the resulting converted errors (if required and successful)
-    - The presence of `all` enables all of the above (similar to `ignoredmissing,full,missing,converted,reads`)
+    - The presence of `all` enables all of the above except `disableignored` (similar to `showignored,full,converted`)
   DEBUG_FSR (string) (default='', global)
     - A comma-separated list of method names to enable logging for in the FileSystemRouter
     - The presence of `all` is equal to `stat,readDirectory,createDirectory,readFile,writeFile,delete,rename`
     - The router logs handles `ssh://`, and will even log operations to non-existing configurations/connections
-  FS_NOTIFY_ERRORS (boolean) (default=false)
-    - Enables displaying error notifications when a file system operation fails and isn't automatically ignored
-    - Automatically enabled VS Code 1.56 and later (see issue #282)
+  FS_NOTIFY_ERRORS (string) (default='')
+    - A comma-separated list of operations to display notifications for should they error
+    - Mind that `FileNotFound` errors for ignored paths are always ignored, except with `DEBUG_FS=showignored`
+    - The presence of `all` will show notification for every operation
+    - The presence of `write` is equal to `createDirectory,writeFile,delete,rename`
+    - Besides those provided by  `write`, there's also `readDirectory`, `readFile` and `stat`
+    - Automatically set to `write` for VS Code 1.56 and later (see issue #282)
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo<V extends FlagValue = FlagValue> = [value: V, origin: string];
