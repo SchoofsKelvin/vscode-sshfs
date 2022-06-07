@@ -3,10 +3,10 @@ import { posix as path } from 'path';
 import * as readline from 'readline';
 import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { configMatches, getFlagBoolean, loadConfigs } from './config';
+import { configMatches, getFlag, getFlagBoolean, loadConfigs } from './config';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
-import { calculateShellConfig, ShellConfig, tryCommand, tryEcho } from './shellConfig';
+import { calculateShellConfig, KNOWN_SHELL_CONFIGS, ShellConfig, tryCommand, tryEcho } from './shellConfig';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
 
@@ -127,7 +127,15 @@ export class ConnectionManager {
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
         logging.info`Remote version: ${(client as any)._remoteVer || 'N/A'}`;
         // Calculate shell config
-        const shellConfig = await calculateShellConfig(client, logging);
+        let shellConfig: ShellConfig;
+        const [flagSCV, flagSCR] = getFlag("SHELL_CONFIG", config.flags) || [];
+        if (flagSCV && typeof flagSCV === 'string') {
+            logging.info`Using forced shell config '${flagSCV}' set by ${flagSCR}`;
+            shellConfig = KNOWN_SHELL_CONFIGS[flagSCV];
+            if (!shellConfig) throw new Error(`The forced shell config '${flagSCV}' does not exist`);
+        } else {
+            shellConfig = await calculateShellConfig(client, logging);
+        }
         // Query home directory
         let home: string | Error | null;
         if (shellConfig.isWindows) {

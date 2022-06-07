@@ -22,6 +22,7 @@
   - The `write` flag will show a notification should an error happen for a "write" operation
   - Write operations are: `createDirectory`, `writeFile`, `delete`, and `rename`
   - Since `readDirectory`, `readFile` and `stat` are disabled by default, it should prevent extension detection spam (see #341)
+- Added the `SHELL_CONFIG` flag to force a specific remote shell configuration (#331)
 
 ## v1.25.0 (2022-06-01)
 

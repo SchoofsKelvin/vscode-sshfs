@@ -55,7 +55,7 @@ export interface ShellConfig {
     setupRemoteCommands?: RemoteCommandInitializer;
     embedSubstitutions?(command: TemplateStringsArray, ...substitutions: (string | number)[]): string;
 }
-const KNOWN_SHELL_CONFIGS: Record<string, ShellConfig> = {}; {
+export const KNOWN_SHELL_CONFIGS: Record<string, ShellConfig> = {}; {
     const add = (shell: string,
         setEnv: (key: string, value: string) => string,
         setupRemoteCommands?: RemoteCommandInitializer,
@@ -122,7 +122,7 @@ async function getPowershellVersion(client: Client): Promise<string | null> {
         console.error(e);
         return null;
     });
-    return !version?.includes('PSVersion') ? version : null;
+    return version?.match(/\d+\.\d+\.\d+\.\d+/)?.[0] || null;
 }
 
 async function getWindowsVersion(client: Client): Promise<string | null> {

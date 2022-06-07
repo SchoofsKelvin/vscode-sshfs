@@ -405,6 +405,9 @@ function parseFlagList(list: string[] | undefined, origin: string): Record<strin
     - The presence of `write` is equal to `createDirectory,writeFile,delete,rename`
     - Besides those provided by  `write`, there's also `readDirectory`, `readFile` and `stat`
     - Automatically set to `write` for VS Code 1.56 and later (see issue #282)
+  SHELL_CONFIG (string)
+    - Forces the use of a specific shell configuration. Check shellConfig.ts for possible values
+    - By default, when this flag is absent (or an empty or not a string), the extension will try to detect the correct type to use
 */
 export type FlagValue = string | boolean | null;
 export type FlagCombo<V extends FlagValue = FlagValue> = [value: V, origin: string];
