@@ -1,8 +1,8 @@
 import { posix as path } from 'path';
-import type { Client, ClientChannel, SFTP } from "ssh2";
+import type { Client, ClientChannel, SFTP } from 'ssh2';
 import type { Connection } from './connection';
-import { Logger, Logging, LOGGING_NO_STACKTRACE } from "./logging";
-import { toPromise } from "./utils";
+import { Logger, Logging, LOGGING_NO_STACKTRACE } from './logging';
+import { toPromise } from './utils';
 
 const SCRIPT_COMMAND_CODE = `#!/bin/sh
 if [ "$#" -ne 1 ] || [ $1 = "help" ] || [ $1 = "--help" ] || [ $1 = "-h" ] || [ $1 = "-?" ]; then

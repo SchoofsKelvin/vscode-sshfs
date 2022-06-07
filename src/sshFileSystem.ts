@@ -3,7 +3,7 @@ import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as path from 'path';
 import type * as ssh2 from 'ssh2';
 import * as vscode from 'vscode';
-import { FlagValue, getFlag, subscribeToGlobalFlags } from './config';
+import { FlagValue, getFlag, subscribeToGlobalFlags } from './flags';
 import { Logger, Logging, LOGGING_NO_STACKTRACE, LOGGING_SINGLE_LINE_STACKTRACE, withStacktraceOffset } from './logging';
 import { toPromise } from './utils';
 

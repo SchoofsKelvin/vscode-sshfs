@@ -24,6 +24,9 @@
   - Since `readDirectory`, `readFile` and `stat` are disabled by default, it should prevent extension detection spam (see #341)
 - Added the `SHELL_CONFIG` flag to force a specific remote shell configuration (#331)
 
+### Development changes
+- Move the whole flag system from config.ts to flags.ts
+
 ## v1.25.0 (2022-06-01)
 
 ### Major change

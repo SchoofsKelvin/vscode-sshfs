@@ -1,10 +1,10 @@
-import type { EnvironmentVariable, FileSystemConfig } from "common/fileSystemConfig";
+import type { EnvironmentVariable, FileSystemConfig } from 'common/fileSystemConfig';
 import * as path from 'path';
-import type { ClientChannel, PseudoTtyOptions } from "ssh2";
-import * as vscode from "vscode";
-import { getFlagBoolean } from './config';
+import type { ClientChannel, PseudoTtyOptions } from 'ssh2';
+import * as vscode from 'vscode';
+import { getFlagBoolean } from './flags';
 import type { Connection } from './connection';
-import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
+import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
 const [HEIGHT, WIDTH] = [480, 640];

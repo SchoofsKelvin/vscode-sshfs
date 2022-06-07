@@ -25,5 +25,6 @@
     "**/.pnp.*": true
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.quoteStyle": "single",
   "prettier.prettierPath": ".yarn/sdks/prettier/index.js"
 }

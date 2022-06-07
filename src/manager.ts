@@ -2,7 +2,8 @@
 import type { FileSystemConfig } from 'common/fileSystemConfig';
 import type { Navigation } from 'common/webviewMessages';
 import * as vscode from 'vscode';
-import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
+import { getConfig, loadConfigs, LOADING_CONFIGS } from './config';
+import { getFlagBoolean } from './flags';
 import { Connection, ConnectionManager } from './connection';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';

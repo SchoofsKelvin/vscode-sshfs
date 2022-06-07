@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getFlag, subscribeToGlobalFlags } from './config';
+import { getFlag, subscribeToGlobalFlags } from './flags';
 import { Logging } from './logging';
 import type { Manager } from './manager';
 

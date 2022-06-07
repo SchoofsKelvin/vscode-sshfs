@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { connect } from "../redux";
+import { connect } from '../redux';
 
 function nop(...args: any) {
     return;
