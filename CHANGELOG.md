@@ -23,6 +23,12 @@
   - Write operations are: `createDirectory`, `writeFile`, `delete`, and `rename`
   - Since `readDirectory`, `readFile` and `stat` are disabled by default, it should prevent extension detection spam (see #341)
 - Added the `SHELL_CONFIG` flag to force a specific remote shell configuration (#331)
+- Refactored how (and also from where) configuration files are loaded
+  - The extension is now better at splitting up where it loads configs from into layers (global, workspace, ...)
+  - When settings change, only the appropriate layer (e.g. a workspace folder) is reloaded, instead of reloading everything
+  - Loading config files from the VS Code settings in remote workspaces is now supported
+  - All layers, including (remote) workspace folders should fully support the `sshfs.configpaths` setting
+  - Although this can change, for workspace folders, paths specified in the global/workspace settings are also scanned
 
 ### Development changes
 - Move the whole flag system from config.ts to flags.ts

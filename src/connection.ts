@@ -41,8 +41,9 @@ export class ConnectionManager {
     /** Fired when a pending connection gets added/removed */
     public readonly onPendingChanged = this.onPendingChangedEmitter.event;
     public getActiveConnection(name: string, config?: FileSystemConfig): Connection | undefined {
-        const con = config && this.connections.find(con => configMatches(con.config, config));
-        return con || (config ? undefined : this.connections.find(con => con.config.name === name));
+        if (config) return this.connections.find(con => configMatches(con.config, config));
+        name = name.toLowerCase();
+        return this.connections.find(con => con.config.name === name);
     }
     public getActiveConnections(): Connection[] {
         return [...this.connections];

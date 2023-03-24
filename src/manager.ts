@@ -47,6 +47,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     });
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
+    await LOADING_CONFIGS; // Prevent race condition on startup, and wait for any current config reload to finish
     const existing = this.fileSystems.find(fs => fs.authority === name);
     if (existing) return existing;
     let con: Connection | undefined;
@@ -279,7 +280,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       return;
     }
     target = target.toLowerCase();
-    let configs = await loadConfigsRaw();
+    let configs = await loadConfigs();
     configs = configs.filter(c => c.name === target);
     if (configs.length === 0) {
       vscode.window.showErrorMessage(`Found no matching configs for '${target}'`);

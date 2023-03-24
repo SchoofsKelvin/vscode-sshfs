@@ -4,7 +4,7 @@ import type { Message, Navigation } from 'common/webviewMessages';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { deleteConfig, loadConfigsRaw, updateConfig } from './config';
+import { deleteConfig, loadConfigs, updateConfig } from './config';
 import { DEBUG, Logging as _Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { toPromise } from './utils';
 
@@ -89,7 +89,7 @@ async function handleMessage(message: Message): Promise<any> {
   }
   switch (message.type) {
     case 'requestData': {
-      const configs = await loadConfigsRaw();
+      const configs = await loadConfigs();
       const locations = getLocations(configs);
       return postMessage({
         configs, locations,

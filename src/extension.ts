@@ -1,7 +1,7 @@
 
 import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
-import { loadConfigs } from './config';
+import { loadConfigs, reloadWorkspaceFolderConfigs } from './config';
 import type { Connection } from './connection';
 import { FileSystemRouter } from './fileSystemRouter';
 import { Logging, setDebug } from './logging';
@@ -26,7 +26,10 @@ interface CommandHandler {
   handleTerminal?(terminal: SSHPseudoTerminal): void;
 }
 
-export async function activate(context: vscode.ExtensionContext) {
+/** `findConfigs` in config.ts ignores URIs for still-connecting connections */
+export let MANAGER: Manager | undefined;
+
+export function activate(context: vscode.ExtensionContext) {
   Logging.info`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`;
   Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
 
@@ -47,12 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // I really don't like having to pass context to *everything*, so let's do it this way
   setAsAbsolutePath(context.asAbsolutePath.bind(context));
 
-  // Start loading the configs (asynchronously)
-  try { await loadConfigs() } catch (e) {
-    Logging.error`Could not load configs: ${e}`;
-  }
-
-  const manager = new Manager(context);
+  const manager = MANAGER = new Manager(context);
 
   const subscribe = context.subscriptions.push.bind(context.subscriptions) as typeof context.subscriptions.push;
   const registerCommand = (command: string, callback: (...args: any[]) => any, thisArg?: any) =>
@@ -149,4 +147,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // sshfs.refresh()
   registerCommand('sshfs.refresh', () => connectionTreeProvider.refresh());
+
+  subscribe(manager.connectionManager.onConnectionAdded(async con => {
+    await reloadWorkspaceFolderConfigs(con.actualConfig.name);
+  }));
 }
