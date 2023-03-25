@@ -1,63 +1,63 @@
 
 # Changelog
 
-## Unreleased
+## v1.26.0 (2023-03-25)
 
 ### Changes
 
-- Internally we now have a `subscribeToGlobalFlags` to use up-to-date global flags
+- Internally we now have a `subscribeToGlobalFlags` to use up-to-date global flags (1fb7a52)
   - Currently, this makes it that changing the global flags can immediately have an effect for some flags
   - Global flags are those defined in your User Settings or Workspace(Folder) Settings
   - Mind that if you override those flags by specifying them in your SSH FS config, it'll keep using them
-- Added the `DEBUG_FS` flag to allow enabling detailed conditional logging in `sshFileSystem` (#341)
+- Added the `DEBUG_FS` flag to allow enabling detailed conditional logging in `sshFileSystem` (76a28be, #341)
   - This flag will auto-update when it changes in global flags, unless it's overriden in your SSH FS config
   - Mostly meant for internal debugging or helping with debugging specific user-reported issues
-- Added the `DEBUG_FSR` flag to allow enabing detailed conditional logging for the `FileSystemRouter`
+- Added the `DEBUG_FSR` flag to allow enabing detailed conditional logging for the `FileSystemRouter` (7d59992)
   - Similar to `DEBUG_FS` this is mostly meant for internal debugging or when useful for user-reported issues
   - This flag will also auto-update when it changes in global flags.
   - This is a singleton flag and thus unaffected by overriding it in your SSH FS configs
-- Improved the above `DEBUG_FS` flag and refactored the already-existing `FS_NOTIFY_ERRORS` flag (#341)
+- Improved the above `DEBUG_FS` flag and refactored the already-existing `FS_NOTIFY_ERRORS` flag (20cf037, #341)
   - The `FS_NOTIFY_ERRORS` flag will auto-update when it changes in global flags, unless it's overriden in your SSH FS config
   - The `FS_NOTIFY_ERRORS` flag is now a string representing a comma-separated list instead of just a boolean
   - While disabled by default for older VS Code versions, starting from VS Code 1.56.0 the default is `write`
   - The `write` flag will show a notification should an error happen for a "write" operation
   - Write operations are: `createDirectory`, `writeFile`, `delete`, and `rename`
   - Since `readDirectory`, `readFile` and `stat` are disabled by default, it should prevent extension detection spam (see #341)
-- Added the `SHELL_CONFIG` flag to force a specific remote shell configuration (#331)
-- Refactored how (and also from where) configuration files are loaded
+- Added the `SHELL_CONFIG` flag to force a specific remote shell configuration (5721f1c, #331)
+- Refactored how (and also from where) configuration files are loaded (831a247)
   - The extension is now better at splitting up where it loads configs from into layers (global, workspace, ...)
   - When settings change, only the appropriate layer (e.g. a workspace folder) is reloaded, instead of reloading everything
   - Loading config files from the VS Code settings in remote workspaces is now supported
   - All layers, including (remote) workspace folders should fully support the `sshfs.configpaths` setting
   - Although this can change, for workspace folders, paths specified in the global/workspace settings are also scanned
-- Add a new `extend` config option that allows a config to extend one or more other configs (#268)
+- Add a new `extend` config option that allows a config to extend one or more other configs (6eff0be, #268)
   - The extension will automatically detect and report missing or cyclic dependencies, skipping them
   - Note that if a config tries to extend a non-existing config, it will be skipped and an error will also be shown
-- Start screen of Settings UI will use the cached list of configs instead of reloading them
+- Start screen of Settings UI will use the cached list of configs instead of reloading them (5900185)
   - This should make navigating to the start screen (especially when navigating back and forth between configs) faster
   - The Refresh button is now renamed to Reload and will still reload the configs (from disk, remote workspaces, ...)
-- Add support for extending configs to the Settings UI (#268)
+- Add support for extending configs to the Settings UI (a5372a4, #268)
   - This adds a visual editor to the Settings UI for the `extend` config option
 
 ### Development changes
 
-- Move the whole flag system from config.ts to flags.ts
-- Updated Yarn to version 3.5.0
-- Upgrade a ton of dependencies
+- Move the whole flag system from config.ts to flags.ts (11b8f05)
+- Updated Yarn to version 3.5.0 (4d389f3)
+- Upgrade a ton of dependencies (8909d05)
   - Replace deprecated `vsce` with `@vscode/vsce@^2.18.0`
   - Upgrade TypeScript from ~4.5.5 to ~5.0.2
   - Upgrade Webpack from ^5.69.1 to ^5.76.3
   - Upgrade a bunch of plugins and other dependencies
-- Fix linter warnings in Markdown files and remove default webview/README.md
-- Fix build workflow to account for incompatibility from using a new `vsce` version
-- Updated the GitHub workflows (#372)
+- Fix linter warnings in Markdown files and remove default webview/README.md (4a62035)
+- Fix build workflow to account for incompatibility from using a new `vsce` version (6985ead)
+- Updated the GitHub workflows (eac8a06, #372)
   - Added `issue/**` to the `push` and `pull_request` triggers to automatically build on these branches
   - The build workflow upgraded from `ubuntu-18.04` to `ubuntu-22.04`
   - All actions are upgraded to a more recent version
   - Caching of Yarn dependencies is now handled by `actions/setup-node`
   - Migrated from `actions/create-release` and `actions/upload-release-asset` to `softprops/action-gh-release`
-- Fix Webpack only listening on IPv6 instead of all interfaces + update VS Code default styles
-- Added the `FieldList` and derivate `FieldConfigList` field types to the Settings UI
+- Fix Webpack only listening on IPv6 instead of all interfaces + update VS Code default styles (574d466)
+- Added the `FieldList` and derivate `FieldConfigList` field types to the Settings UI (796d1c2)
 
 ## v1.25.0 (2022-06-01)
 
