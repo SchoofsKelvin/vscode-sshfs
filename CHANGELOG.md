@@ -33,6 +33,9 @@
 - Add a new `extend` config option that allows a config to extend one or more other configs (#268)
   - The extension will automatically detect and report missing or cyclic dependencies, skipping them
   - Note that if a config tries to extend a non-existing config, it will be skipped and an error will also be shown
+- Start screen of Settings UI will use the cached list of configs instead of reloading them
+  - This should make navigating to the start screen (especially when navigating back and forth between configs) faster
+  - The Refresh button is now renamed to Reload and will still reload the configs (from disk, remote workspaces, ...)
 
 ### Development changes
 

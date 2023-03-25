@@ -4,6 +4,7 @@ import type { ConfigLocation, FileSystemConfig } from './fileSystemConfig';
 
 export interface RequestDataMessage {
   type: 'requestData';
+  reload?: boolean;
 }
 export interface ResponseDataMessage {
   type: 'responseData';

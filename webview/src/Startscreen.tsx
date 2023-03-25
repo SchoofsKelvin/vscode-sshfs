@@ -12,7 +12,7 @@ interface StateProps {
     groupBy: string;
 }
 interface DispatchProps {
-    refresh(): void;
+    refresh(reload?: boolean): void;
     changeGroupBy(current: string): void;
     add(): void;
 }
@@ -26,7 +26,7 @@ class Startscreen extends React.Component<StateProps & DispatchProps> {
         const nextGroupBy = this.props.groupBy === 'group' ? 'location' : 'group';
         return <div className="Homescreen">
             <h2>Configurations</h2>
-            <button onClick={this.props.refresh}>Refresh</button>
+            <button onClick={this.reload}>Reload</button>
             <button onClick={this.props.add}>Add</button>
             <button onClick={this.changeGroupBy}>Sort by {nextGroupBy}</button>
             {grouped.map(([loc, configs]) => this.createGroup(loc, configs))}
@@ -39,7 +39,8 @@ class Startscreen extends React.Component<StateProps & DispatchProps> {
             <ConfigList configs={configs} />
         </div>;
     }
-    public changeGroupBy = () => this.props.changeGroupBy(this.props.groupBy);
+    protected reload = () => this.props.refresh(true);
+    protected changeGroupBy = () => this.props.changeGroupBy(this.props.groupBy);
 }
 
 export default connect(Startscreen)<StateProps, DispatchProps>(
@@ -50,9 +51,9 @@ export default connect(Startscreen)<StateProps, DispatchProps>(
     dispatch => ({
         add: () => dispatch(openNewConfig()),
         changeGroupBy: (current: string) => dispatch(openStartScreen(current === 'group' ? 'location' : 'group')),
-        refresh: () => {
+        refresh: (reload?: boolean) => {
             dispatch(receivedData([], []));
-            API.postMessage({ type: 'requestData' });
+            API.postMessage({ type: 'requestData', reload });
         },
     }),
 );
