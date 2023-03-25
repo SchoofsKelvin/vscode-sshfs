@@ -5,7 +5,10 @@
     "tasks": [
         {
             "label": "Extension - Watch all",
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "dependsOrder": "sequence",
             "dependsOn": [
                 "Extension Common - Watch",
@@ -26,7 +29,7 @@
                 "Extension WebView - Watch"
             ],
             "problemMatcher": [],
-            "isBackground": true,
+            "isBackground": true
         },
         {
             "type": "shell",

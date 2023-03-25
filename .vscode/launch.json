@@ -10,20 +10,14 @@
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
-            "stopOnEntry": false,
             "sourceMaps": true,
             "outFiles": [
-                "${workspaceRoot}/out/src/**/*.js"
+                "${workspaceRoot}/dist/**/*.js",
+                "${workspaceRoot}/common/out/**/*.js"
             ],
             "env": {
                 "VSCODE_SSHFS_DEBUG": "TRUE"
             },
-            "windows": {
-                "env": {
-                    "VSCODE_SSHFS_DEBUG": "TRUE"
-                }
-            }
-            // "preLaunchTask": "npm:watch"
         }
     ]
 }

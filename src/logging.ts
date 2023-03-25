@@ -107,6 +107,8 @@ class Logger {
     const space = ' '.repeat(Math.max(0, 8 - type.length));
     const msg = `[${type}]${space}${prefix}${message}${suffix}`
     outputChannel.appendLine(msg);
+    // VS Code issue where console.debug logs twice in the Debug Console
+    if (type.toLowerCase() === 'debug') type = 'log';
     if (DEBUG) (console[type.toLowerCase()] || console.log).call(console, msg);
   }
   protected formatValue(value: any, options: LoggingOptions): string {
@@ -166,7 +168,7 @@ class Logger {
   protected printTemplate(type: string, template: TemplateStringsArray, args: any[], partialOptions?: Partial<LoggingOptions>) {
     const options: LoggingOptions = { ...this.defaultLoggingOptions, ...partialOptions };
     options.callStacktraceOffset = (options.callStacktraceOffset || 0) + 1;
-    this.print(type, template.reduce((acc, part, i) => acc + part + this.formatValue(args[i] || '', options), ''), partialOptions);
+    this.print(type, template.reduce((acc, part, i) => acc + part + (i < args.length ? this.formatValue(args[i], options) : ''), ''), partialOptions);
   }
   public scope(name?: string, generateStack: number | boolean = false) {
     const logger = new Logger(name, generateStack);
