@@ -17,7 +17,7 @@ export function setDebug(debug: boolean) {
   }
 }
 
-const outputChannel = vscode.window.createOutputChannel('SSH FS');
+export const OUTPUT_CHANNEL = vscode.window.createOutputChannel('SSH FS');
 
 export interface LoggingOptions {
   /**
@@ -106,7 +106,7 @@ class Logger {
     // There is no parent, we're responsible for actually logging the message
     const space = ' '.repeat(Math.max(0, 8 - type.length));
     const msg = `[${type}]${space}${prefix}${message}${suffix}`
-    outputChannel.appendLine(msg);
+    OUTPUT_CHANNEL.appendLine(msg);
     // VS Code issue where console.debug logs twice in the Debug Console
     if (type.toLowerCase() === 'debug') type = 'log';
     if (DEBUG) (console[type.toLowerCase()] || console.log).call(console, msg);

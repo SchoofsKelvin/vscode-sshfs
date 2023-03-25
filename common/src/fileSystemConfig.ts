@@ -89,6 +89,8 @@ export interface FileSystemConfig extends ConnectConfig {
   group?: string;
   /** Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings) */
   merge?: boolean;
+  /** Names of other configs to merge into this config. Errors if not found. Later entries have priority. Settings defined in this config itself have even higher priority */
+  extend?: string | string[];
   /** Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/` */
   root?: string;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */

@@ -30,6 +30,9 @@
   - Loading config files from the VS Code settings in remote workspaces is now supported
   - All layers, including (remote) workspace folders should fully support the `sshfs.configpaths` setting
   - Although this can change, for workspace folders, paths specified in the global/workspace settings are also scanned
+- Add a new `extend` config option that allows a config to extend one or more other configs (#268)
+  - The extension will automatically detect and report missing or cyclic dependencies, skipping them
+  - Note that if a config tries to extend a non-existing config, it will be skipped and an error will also be shown
 
 ### Development changes
 

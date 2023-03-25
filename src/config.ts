@@ -1,10 +1,10 @@
 
-import { ConfigLocation, FileSystemConfig, invalidConfigName, parseConnectionString } from 'common/fileSystemConfig';
+import { ConfigLocation, FileSystemConfig, invalidConfigName, isFileSystemConfig, parseConnectionString } from 'common/fileSystemConfig';
 import { ParseError, parse as parseJsonc, printParseErrorCode } from 'jsonc-parser';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { MANAGER } from './extension';
-import { Logging } from './logging';
+import { Logging, OUTPUT_CHANNEL } from './logging';
 import { catchingPromise } from './utils';
 
 const fs = vscode.workspace.fs;
@@ -230,6 +230,51 @@ function applyConfigLayers(): void {
       loadedConfigs.push(conf);
     }
   }
+  // Handle configs extending other configs
+  type BuildData = { source: FileSystemConfig; result?: FileSystemConfig; skipped?: boolean };
+  const buildData = new Map<string, BuildData>();
+  let building: BuildData[] = [];
+  loadedConfigs.forEach(c => buildData.set(c.name, { source: c }));
+  function getOrBuild(name: string): BuildData | undefined {
+    const data = buildData.get(name);
+    // Handle special cases (missing, built, skipped or looping)
+    if (!data || data.result || data.skipped || building.includes(data)) return data;
+    // Start building the resulting config
+    building.push(data);
+    const result = { ...data.source };
+    // Handle extending
+    let extend = result.extend;
+    if (typeof extend === 'string') extend = [extend];
+    for (const depName of extend || []) {
+      const depData = getOrBuild(depName);
+      if (!depData) {
+        logging.error`\tSkipping "${name}" because it extends unknown config "${depName}"`;
+        building.pop()!.skipped = true;
+        return data;
+      } else if (depData.skipped && !data.skipped) {
+        logging.error`\tSkipping "${name}" because it extends skipped config "${depName}"`;
+        building.pop()!.skipped = true;
+        return data;
+      } else if (data.skipped || building.includes(depData)) {
+        logging.error`\tSkipping "${name}" because it extends config "${depName}" which (indirectly) extends "${name}"`;
+        if (building.length) logging.debug`\t\tdetected cycle: ${building.map(b => b.source.name).join(' -> ')} -> ${depName}`;
+        building.splice(building.indexOf(depData)).forEach(d => d.skipped = true);
+        return data;
+      }
+      logging.debug`\tExtending "${name}" with "${depName}"`;
+      Object.assign(result, depData.result);
+    }
+    building.pop();
+    data.result = Object.assign(result, data.source);
+    return data;
+  }
+  loadedConfigs = loadedConfigs.map(c => getOrBuild(c.name)?.result).filter(isFileSystemConfig);
+  if (loadedConfigs.length < buildData.size) {
+    vscode.window.showErrorMessage(`Skipped some SSH FS configs due to incorrect "extend" options`, 'See logs').then(answer => {
+      if (answer === 'See logs') OUTPUT_CHANNEL.show(true);
+    });
+  }
+  // And we're done
   logging.info`Applied config layers resulting in ${loadedConfigs.length} configurations`;
   UPDATE_LISTENERS.forEach(listener => listener(loadedConfigs));
 }
