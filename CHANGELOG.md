@@ -45,6 +45,12 @@
   - Upgrade a bunch of plugins and other dependencies
 - Fix linter warnings in Markdown files and remove default webview/README.md
 - Fix build workflow to account for incompatibility from using a new `vsce` version
+- Updated the GitHub workflows (#372)
+  - Added `issue/**` to the `push` and `pull_request` triggers to automatically build on these branches
+  - The build workflow upgraded from `ubuntu-18.04` to `ubuntu-22.04`
+  - All actions are upgraded to a more recent version
+  - Caching of Yarn dependencies is now handled by `actions/setup-node`
+  - Migrated from `actions/create-release` and `actions/upload-release-asset` to `softprops/action-gh-release`
 
 ## v1.25.0 (2022-06-01)
 
