@@ -22,7 +22,7 @@ type WrappedState<T, S> = {
     [key in keyof S]: key extends keyof State<T> ? State<T>[key] : S[key];
 } & State<T>;
 
-export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props<T> & P, WrappedState<T, S>> {
+export abstract class FieldBase<T, P extends {} = {}, S extends {} = {}> extends React.Component<Props<T> & P, WrappedState<T, S>> {
     constructor(props: Props<T> & P) {
         super(props);
         this.state = {

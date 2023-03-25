@@ -33,6 +33,11 @@
 ### Development changes
 - Move the whole flag system from config.ts to flags.ts
 - Updated Yarn to version 3.5.0
+- Upgrade a ton of dependencies
+  - Replace deprecated `vsce` with `@vscode/vsce@^2.18.0`
+  - Upgrade TypeScript from ~4.5.5 to ~5.0.2
+  - Upgrade Webpack from ^5.69.1 to ^5.76.3
+  - Upgrade a bunch of plugins and other dependencies
 
 ## v1.25.0 (2022-06-01)
 
