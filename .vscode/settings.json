@@ -26,5 +26,10 @@
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.quoteStyle": "single",
-  "prettier.prettierPath": ".yarn/sdks/prettier/index.js"
+  "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
+  "markdownlint.config": {
+    "no-duplicate-header": {
+      "allow_different_nesting": true
+    }
+  }
 }
