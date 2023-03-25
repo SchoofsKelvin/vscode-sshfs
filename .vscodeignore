@@ -3,6 +3,7 @@
 
 !package.json
 !README.md
+!LICENSE.txt
 !dist/*.js
 !util
 !resources/config

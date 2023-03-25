@@ -46,7 +46,7 @@ jobs:
     - name: Install dependencies
       run: yarn --immutable
     - name: Build extension
-      run: yarn vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn
+      run: yarn vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn --no-dependencies
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.1
       with:

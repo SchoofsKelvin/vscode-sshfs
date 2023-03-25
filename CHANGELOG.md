@@ -44,6 +44,7 @@
   - Upgrade Webpack from ^5.69.1 to ^5.76.3
   - Upgrade a bunch of plugins and other dependencies
 - Fix linter warnings in Markdown files and remove default webview/README.md
+- Fix build workflow to account for incompatibility from using a new `vsce` version
 
 ## v1.25.0 (2022-06-01)
 
