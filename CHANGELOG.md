@@ -36,6 +36,8 @@
 - Start screen of Settings UI will use the cached list of configs instead of reloading them
   - This should make navigating to the start screen (especially when navigating back and forth between configs) faster
   - The Refresh button is now renamed to Reload and will still reload the configs (from disk, remote workspaces, ...)
+- Add support for extending configs to the Settings UI (#268)
+  - This adds a visual editor to the Settings UI for the `extend` config option
 
 ### Development changes
 
