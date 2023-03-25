@@ -117,6 +117,40 @@ div.FieldDropdownWithInput p.arrow {
     cursor: pointer;
 }
 
+div.FieldList > div.adder {
+    display: flex;
+}
+div.FieldList > div.adder > div.Field {
+    padding: 0;
+    flex-grow: 1;
+}
+div.FieldList button {
+    height: 1em;
+    padding: 5px;
+    margin: 9px 0 0 5px;
+    box-sizing: content-box;
+    border-radius: 0;
+}
+div.FieldList > li {
+    background: var(--vscode-settings-dropdownBackground);
+    color: var(--vscode-settings-dropdownForeground);
+    border: 1px solid var(--vscode-settings-dropdownBorder);
+    position: relative;
+    display: flex;
+    height: 1em;
+    padding: 5px;
+    margin: 5px 0;
+}
+div.FieldList > li > p {
+    margin: auto;
+    flex-grow: 1;
+}
+div.FieldList > li > button {
+    margin: -4px;
+    padding: 3px;
+    height: 100%;
+}
+
 div.FieldPath {
     position: relative;
     background: none;

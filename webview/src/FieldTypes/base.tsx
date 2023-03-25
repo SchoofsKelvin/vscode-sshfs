@@ -3,7 +3,7 @@ import { FieldGroup } from './group';
 import './index.css';
 
 export interface Props<T> {
-    label: string;
+    label?: string;
     description?: string;
     value: T;
     optional?: boolean;
@@ -59,8 +59,8 @@ export abstract class FieldBase<T, P extends {} = {}, S extends {} = {}> extends
         }
         return newValue!;
     }
-    public getLabel() {
-        return this.props.label;
+    public getLabel(): string {
+        return this.props.label || '';
     }
     protected getClassName(): string { return 'Field'; }
     protected getValueClassName(): string { return 'value'; }
@@ -69,7 +69,7 @@ export abstract class FieldBase<T, P extends {} = {}, S extends {} = {}> extends
         const { description, label, optional, preface, postface } = this.props;
         return <div className={this.getClassName()}>
             <FieldGroup.Consumer>{group => (group?.register(this), [])}</FieldGroup.Consumer>
-            <div className="label">{label}</div>{optional && <div className="optional">Optional</div>}
+            {label && <><div className="label">{label}</div>{optional && <div className="optional">Optional</div>}</>}
             {description && <div className="description">{description}</div>}
             {preface}
             {error && <div className="error">{error}</div>}
