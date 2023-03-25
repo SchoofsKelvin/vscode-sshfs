@@ -1,5 +1,5 @@
 
-# 
+# Changelog
 
 ## Unreleased
 
@@ -32,6 +32,7 @@
 
 ### Development changes
 - Move the whole flag system from config.ts to flags.ts
+- Updated Yarn to version 3.5.0
 
 ## v1.25.0 (2022-06-01)
 
