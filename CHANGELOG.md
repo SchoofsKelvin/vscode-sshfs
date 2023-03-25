@@ -51,6 +51,7 @@
   - All actions are upgraded to a more recent version
   - Caching of Yarn dependencies is now handled by `actions/setup-node`
   - Migrated from `actions/create-release` and `actions/upload-release-asset` to `softprops/action-gh-release`
+- Fix Webpack only listening on IPv6 instead of all interfaces + update VS Code default styles
 
 ## v1.25.0 (2022-06-01)
 
