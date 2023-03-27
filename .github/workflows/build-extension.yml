@@ -31,10 +31,6 @@ jobs:
       with:
         artifact_prefix: "vscode-sshfs"
         artifact_extension: "vsix"
-      env:
-        GITHUB_REF: ${{ github.ref }}
-        GITHUB_SHA: ${{ github.sha }}
-        
     - name: Use Node.js 18
       uses: actions/setup-node@v3
       with:
@@ -52,7 +48,7 @@ jobs:
         path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
     - name: Create release with artifact
-
+      if: ${{ success() && steps.utils.outputs.tag_version }}
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ steps.utils.outputs.tag_version }}
