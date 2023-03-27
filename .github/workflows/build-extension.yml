@@ -48,7 +48,7 @@ jobs:
         path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
     - name: Create release with artifact
-      if: ${{ success() }}
+      if: ${{ success() && steps.utils.outputs.tag_version }}
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ steps.utils.outputs.tag_version }}
