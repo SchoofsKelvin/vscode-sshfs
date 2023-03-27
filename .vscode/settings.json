@@ -1,28 +1,21 @@
 {
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
   "files.exclude": {
-    "*.vsix": true,
-    "**/*.lock": true,
-    "**/node_modules/": true,
-    "dist/": true,
-    "util/": true,
-    "common/out": true,
-    "webview/build/": true,
-    ".yarn/": true,
-    ".yarnrc.yml": true,
     ".pnp.*": true,
-    "LICENSE.txt": true,
-    "**/.*ignore": true,
-    "**/.gitattributes": true,
+    ".yarnrc.yml": true,
     "**/.eslintcache": true,
-    "**/webpack.config.js": true,
-    "webpack.plugin.js": true,
-    "**/tslint.json": true,
-    "**/tsconfig.json": true
+    "**/.git": false,
+    "**/.gitattributes": true,
+    "**/*.lock": true,
+    "tsconfig.json": true,
+    "tslint.json": true,
+    "webpack.config.js": true,
+    "webpack.plugin.js": true
   },
   "search.exclude": {
+    "**/.pnp.*": true,
     "**/.yarn": true,
-    "**/.pnp.*": true
+    "**/node_modules": false
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.quoteStyle": "single",

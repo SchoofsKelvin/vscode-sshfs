@@ -31,6 +31,18 @@ jobs:
       with:
         artifact_prefix: "vscode-sshfs"
         artifact_extension: "vsix"
+      env:
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_SHA: ${{ github.sha }}
+      run: |
+        version=$(echo "${GITHUB_REF#refs/tags/}")
+        if [ "$version" = "$GITHUB_REF" ]; then
+          echo "::set-output name=tag_version::false"
+          version=$(date "+%Y.%m.%d-%H.%M.%S")
+        else
+          echo "::set-output name=tag_version::$version"
+        fi
+        echo "::set-output name=artifact_name::${{ env.utils_artifact_prefix }}-${version}.${{ env.utils_artifact_extension }}"
     - name: Use Node.js 18
       uses: actions/setup-node@v3
       with:
