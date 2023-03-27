@@ -34,15 +34,7 @@ jobs:
       env:
         GITHUB_REF: ${{ github.ref }}
         GITHUB_SHA: ${{ github.sha }}
-      run: |
-        version=$(echo "${GITHUB_REF#refs/tags/}")
-        if [ "$version" = "$GITHUB_REF" ]; then
-          echo "::set-output name=tag_version::false"
-          version=$(date "+%Y.%m.%d-%H.%M.%S")
-        else
-          echo "::set-output name=tag_version::$version"
-        fi
-        echo "::set-output name=artifact_name::${{ env.utils_artifact_prefix }}-${version}.${{ env.utils_artifact_extension }}"
+        
     - name: Use Node.js 18
       uses: actions/setup-node@v3
       with:
@@ -60,7 +52,7 @@ jobs:
         path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
     - name: Create release with artifact
-      if: ${{ success() && steps.utils.outputs.tag_version }}
+
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ steps.utils.outputs.tag_version }}
