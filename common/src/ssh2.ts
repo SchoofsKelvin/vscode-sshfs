@@ -110,6 +110,8 @@ declare module 'ssh2' {
         key: string | Buffer | ParsedKey;
         /** Optional passphrase in case `key` is an encrypted key */
         passphrase?: string;
+        /** [PATCH:convertSha1#309] If true, make ssh-rsa keys use sha512/sha256 instead of sha1 if possible */
+        convertSha1?: boolean;
     }
     export interface AuthHandlerHostBased {
         type: 'hostbased';
@@ -125,6 +127,8 @@ declare module 'ssh2' {
         type: 'agent';
         username: string;
         agent: string | BaseAgent;
+        /** [PATCH:convertSha1#309] If true, make ssh-rsa keys use sha512/sha256 instead of sha1 if possible */
+        convertSha1?: boolean;
     }
     export interface AuthHandlerKeyboardInteractive {
         type: 'keyboard-interactive';

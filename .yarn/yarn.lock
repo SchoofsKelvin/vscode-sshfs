@@ -8799,7 +8799,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ssh2@npm:^1.11.0":
+"ssh2@npm:1.11.0":
   version: 1.11.0
   resolution: "ssh2@npm:1.11.0"
   dependencies:
@@ -8813,6 +8813,23 @@ __metadata:
     nan:
       optional: true
   checksum: e40cb9f171741a807c170dc555078aa8c49dc93dd36fc9c8be026fce1cfd31f0d37078d9b60a0f2cfb11d0e007ed5407376b72f8a0ef9f2cb89574632bbfb824
+  languageName: node
+  linkType: hard
+
+"ssh2@patch:ssh2@npm%3A1.11.0#./.yarn/patches/ssh2-npm-1.11.0-convertSha1.patch::locator=vscode-sshfs%40workspace%3A.":
+  version: 1.11.0
+  resolution: "ssh2@patch:ssh2@npm%3A1.11.0#./.yarn/patches/ssh2-npm-1.11.0-convertSha1.patch::version=1.11.0&hash=602c9b&locator=vscode-sshfs%40workspace%3A."
+  dependencies:
+    asn1: ^0.2.4
+    bcrypt-pbkdf: ^1.0.2
+    cpu-features: ~0.0.4
+    nan: ^2.16.0
+  dependenciesMeta:
+    cpu-features:
+      optional: true
+    nan:
+      optional: true
+  checksum: f33a0074637f195b261952cea4b8b02c15977375f59d985580c0c571ac6bac56cf523cd85ee99d1fdcdcce4e6547271c35b2450c0c14963f11ff88b0093d8b8e
   languageName: node
   linkType: hard
 

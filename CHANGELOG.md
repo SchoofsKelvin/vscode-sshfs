@@ -1,6 +1,17 @@
 
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- Apply a patch to ssh2 and make use of it to fix OpenSSH 8.8+ disabling `ssh-rsa` (SHA1) by default (#309)
+  - Patch file in `.yarn/patches` based on <https://github.com/Eugeny/ssh2/tree/rsa-sha> applied to `ssh2@1.11.0`
+  - The patch adds an option `convertSha1` to `publickey` and `agent` authentication methods on top of Eugeny's modifications
+    - When the option is present, `ssh-rsa` keys will be treated as `rsa-sha2-512` or `rsa-sha2-256`, if the server supports it
+  - Added a flag `OPENSSH-SHA1` (enabled by default) to pass this `convertSha1` flag when using `publickey` or `agent` auths
+  - Part of this change required creating a custom ssh2 `authHandler` (based on the built-in version) to pass the option if desired
+
 ## v1.26.0 (2023-03-25)
 
 ### Changes

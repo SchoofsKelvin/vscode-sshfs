@@ -2,12 +2,12 @@ import type { FileSystemConfig } from 'common/fileSystemConfig';
 import { readFile } from 'fs';
 import { Socket } from 'net';
 import { userInfo } from 'os';
-import { Client, ClientChannel, ConnectConfig } from 'ssh2';
+import { AuthHandlerFunction, AuthHandlerObject, Client, ClientChannel, ConnectConfig } from 'ssh2';
 import { SFTP } from 'ssh2/lib/protocol/SFTP';
 import * as vscode from 'vscode';
 import { getConfig } from './config';
 import { getFlagBoolean } from './flags';
-import { Logging } from './logging';
+import { Logger, Logging } from './logging';
 import type { PuttySession } from './putty';
 import { toPromise, validatePort } from './utils';
 
@@ -225,6 +225,34 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   });
 }
 
+function makeAuthHandler(config: FileSystemConfig, logging: Logger): AuthHandlerFunction {
+  const authsAllowed: (AuthHandlerObject | AuthHandlerObject['type'])[] = ['none'];
+  const [flagV, flagR] = getFlagBoolean('OPENSSH-SHA1', true, config.flags);
+  if (config.password) authsAllowed.push('password');
+  if (config.privateKey) {
+    if (flagV) {
+      logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}', including convertSha1 for publickey authentication`;
+      authsAllowed.push({ type: 'publickey', username: config.username!, key: config.privateKey, convertSha1: true });
+    } else {
+      authsAllowed.push('publickey');
+    }
+  }
+  if (config.agent) {
+    if (flagV) {
+      logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}', including convertSha1 for agent authentication`;
+      authsAllowed.push({ type: 'agent', username: config.username!, agent: config.agent, convertSha1: true });
+    } else {
+      authsAllowed.push('agent');
+    }
+  }
+  if (config.tryKeyboard) authsAllowed.push('keyboard-interactive');
+  if (config.privateKey && config.localHostname && config.localUsername) authsAllowed.push('hostbased');
+  if (flagV) {
+    logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}'`;
+  }
+  return () => authsAllowed.shift() || false;
+}
+
 export async function createSSH(config: FileSystemConfig, sock?: NodeJS.ReadableStream): Promise<Client | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
@@ -253,7 +281,8 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
       reject(error);
     });
     try {
-      const finalConfig: ConnectConfig = { ...config, sock, ...DEFAULT_CONFIG };
+      const finalConfig: FileSystemConfig = { ...config, sock, ...DEFAULT_CONFIG };
+      finalConfig.authHandler = makeAuthHandler(finalConfig, logging);
       if (config.debug || getFlagBoolean('DEBUG_SSH2', false, config.flags)[0]) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);
