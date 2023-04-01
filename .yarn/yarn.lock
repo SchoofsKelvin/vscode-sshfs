@@ -8799,7 +8799,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ssh2@npm:^1.6.0":
+"ssh2@npm:^1.11.0":
   version: 1.11.0
   resolution: "ssh2@npm:1.11.0"
   dependencies:
@@ -9549,7 +9549,7 @@ __metadata:
     socks: ^2.2.0
     source-map: ^0.7.3
     source-map-support: ^0.5.19
-    ssh2: ^1.6.0
+    ssh2: ^1.11.0
     ts-loader: ^9.4.2
     typescript: ~5.0.2
     webpack: ^5.76.3
