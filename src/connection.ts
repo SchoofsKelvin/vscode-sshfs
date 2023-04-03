@@ -1,13 +1,15 @@
+import type { EnvironmentVariable, FileSystemConfig } from 'common/fileSystemConfig';
 import { posix as path } from 'path';
 import * as readline from 'readline';
-import type { Client, ClientChannel, SFTPWrapper } from 'ssh2';
+import type { Client, ClientChannel } from 'ssh2';
 import * as vscode from 'vscode';
-import { configMatches, getFlagBoolean, loadConfigs } from './config';
-import type { EnvironmentVariable, FileSystemConfig } from './fileSystemConfig';
-import { Logging, LOGGING_NO_STACKTRACE } from './logging';
+import { configMatches, loadConfigs } from './config';
+import { getFlag, getFlagBoolean } from './flags';
+import { LOGGING_NO_STACKTRACE, Logging } from './logging';
 import type { Manager } from './manager';
 import { ActivePortForwarding, addForwarding, formatPortForwarding, parsePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
+import { KNOWN_SHELL_CONFIGS, ShellConfig, calculateShellConfig, tryCommand, tryEcho } from './shellConfig';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
 
@@ -16,41 +18,15 @@ export interface Connection {
     actualConfig: FileSystemConfig;
     client: Client;
     home: string;
+    shellConfig: ShellConfig;
     environment: EnvironmentVariable[];
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
+    cache: Record<string, any>;
     forwardings: ActivePortForwarding[];
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
 }
-
-async function tryGetHome(ssh: Client): Promise<string | null> {
-    const exec = await toPromise<ClientChannel>(cb => ssh.exec('echo Home: ~', cb));
-    let home = '';
-    exec.stdout.on('data', (chunk: any) => home += chunk);
-    await toPromise(cb => exec.on('close', cb));
-    if (!home) return null;
-    const mat = home.match(/^Home: (.*?)\r?\n?$/);
-    if (!mat) return null;
-    return mat[1];
-}
-
-const TMP_PROFILE_SCRIPT = `
-if type code > /dev/null 2> /dev/null; then
-    return 0;
-fi
-code() {
-    if [ ! -n "$KELVIN_SSHFS_CMD_PATH" ]; then
-        echo "Not running in a terminal spawned by SSH FS? Failed to sent!"
-    elif [ -c "$KELVIN_SSHFS_CMD_PATH" ]; then
-        echo "::sshfs:code:$(pwd):::$1" >> $KELVIN_SSHFS_CMD_PATH;
-        echo "Command sent to SSH FS extension";
-    else
-        echo "Missing command shell pty of SSH FS extension? Failed to sent!"
-    fi
-}
-echo "Injected 'code' alias";
-`;
 
 export class ConnectionManager {
     protected onConnectionAddedEmitter = new vscode.EventEmitter<Connection>();
@@ -69,8 +45,9 @@ export class ConnectionManager {
     public readonly onPendingChanged = this.onPendingChangedEmitter.event;
     public constructor(public readonly manager: Manager) { }
     public getActiveConnection(name: string, config?: FileSystemConfig): Connection | undefined {
-        const con = config && this.connections.find(con => configMatches(con.config, config));
-        return con || (config ? undefined : this.connections.find(con => con.config.name === name));
+        if (config) return this.connections.find(con => configMatches(con.config, config));
+        name = name.toLowerCase();
+        return this.connections.find(con => con.config.name === name);
     }
     public getActiveConnections(): Connection[] {
         return [...this.connections];
@@ -78,16 +55,19 @@ export class ConnectionManager {
     public getPendingConnections(): [string, FileSystemConfig | undefined][] {
         return Object.keys(this.pendingConnections).map(name => [name, this.pendingConnections[name][1]]);
     }
-    protected async _createCommandTerminal(client: Client, authority: string): Promise<string> {
+    protected async _createCommandTerminal(client: Client, shellConfig: ShellConfig, authority: string, debugLogging: boolean): Promise<string> {
         const logging = Logging.scope(`CmdTerm(${authority})`);
+        if (!shellConfig.embedSubstitutions) throw new Error(`Shell '${shellConfig.shell}' does not support embedding substitutions`);
         const shell = await toPromise<ClientChannel>(cb => client.shell({}, cb));
-        shell.write('echo ::sshfs:TTY:$(tty)\n');
+        logging.debug(`TTY COMMAND: ${`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`}`);
+        shell.write(`echo ${shellConfig.embedSubstitutions`::sshfs:${'echo TTY'}:${'tty'}`}\n`);
         return new Promise((resolvePath, rejectPath) => {
-            const rl = readline.createInterface(shell.stdout);
-            shell.stdout.once('error', rejectPath);
+            setTimeout(() => rejectPath(new Error('Timeout fetching command path')), 10e3);
+            const rl = readline.createInterface(shell);
+            shell.once('error', rejectPath);
             shell.once('close', () => rejectPath());
             rl.on('line', async line => {
-                // logging.debug('<< ' + line);
+                if (debugLogging) logging.debug('<< ' + line);
                 const [, prefix, cmd, args] = line.match(/(.*?)::sshfs:(\w+):(.*)$/) || [];
                 if (!cmd || prefix.endsWith('echo ')) return;
                 switch (cmd) {
@@ -98,12 +78,12 @@ export class ConnectionManager {
                     case 'code':
                         let [pwd, target] = args.split(':::');
                         if (!pwd || !target) {
-                            logging.error(`Malformed 'code' command args: ${args}`);
+                            logging.error`Malformed 'code' command args: ${args}`;
                             return;
                         }
                         pwd = pwd.trim();
                         target = target.trim();
-                        logging.info(`Received command to open '${target}' while in '${pwd}'`);
+                        logging.info`Received command to open '${target}' while in '${pwd}'`;
                         const absolutePath = target.startsWith('/') ? target : path.join(pwd, target);
                         const uri = vscode.Uri.parse(`ssh://${authority}/${absolutePath}`);
                         try {
@@ -115,6 +95,18 @@ export class ConnectionManager {
                             }
                         } catch (e) {
                             if (e instanceof vscode.FileSystemError) {
+                                if (e.code === 'FileNotFound') {
+                                    logging.warning(`File '${absolutePath}' not found, prompting to create empty file`);
+                                    const choice = await vscode.window.showWarningMessage(`File '${absolutePath}' not found, create it?`, { modal: true }, 'Yes');
+                                    if (choice !== 'Yes') return;
+                                    try { await vscode.workspace.fs.writeFile(uri, Buffer.of()); } catch (e) {
+                                        logging.error(e);
+                                        vscode.window.showErrorMessage(`Failed to create an empty file at '${absolutePath}'`);
+                                        return;
+                                    }
+                                    await vscode.window.showTextDocument(uri);
+                                    return;
+                                }
                                 vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.name.replace(/ \(FileSystemError\)/g, '')}`);
                             } else {
                                 vscode.window.showErrorMessage(`Error opening ${absolutePath}: ${e.message || e}`);
@@ -122,14 +114,14 @@ export class ConnectionManager {
                         }
                         return;
                     default:
-                        logging.error(`Unrecognized command ${cmd} with args: ${args}`);
+                        logging.error`Unrecognized command ${cmd} with args: ${args}`;
                 }
             });
         })
     }
     protected async _createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
         const logging = Logging.scope(`createConnection(${name},${config ? 'config' : 'undefined'})`);
-        logging.info(`Creating a new connection for '${name}'`);
+        logging.info`Creating a new connection for '${name}'`;
         const { createSSH, calculateActualConfig } = await import('./connect');
         // Query and calculate the actual config
         config = config || (await loadConfigs()).find(c => c.name === name);
@@ -139,11 +131,29 @@ export class ConnectionManager {
         // Start the actual SSH connection
         const client = await createSSH(actualConfig);
         if (!client) throw new Error(`Could not create SSH session for '${name}'`);
-        logging.info(`Remote version: ${(client as any)._remoteVer || 'N/A'}`);
+        logging.info`Remote version: ${(client as any)._remoteVer || 'N/A'}`;
+        // Calculate shell config
+        let shellConfig: ShellConfig;
+        const [flagSCV, flagSCR] = getFlag("SHELL_CONFIG", config.flags) || [];
+        if (flagSCV && typeof flagSCV === 'string') {
+            logging.info`Using forced shell config '${flagSCV}' set by ${flagSCR}`;
+            shellConfig = KNOWN_SHELL_CONFIGS[flagSCV];
+            if (!shellConfig) throw new Error(`The forced shell config '${flagSCV}' does not exist`);
+        } else {
+            shellConfig = await calculateShellConfig(client, logging);
+        }
         // Complains about ssh2 library connecting a 'drain' event for every channel
         client.setMaxListeners(0);
         // Query home directory
-        let home = await tryGetHome(client).catch((e: Error) => e);
+        let home: string | Error | null;
+        if (shellConfig.isWindows) {
+            home = await tryCommand(client, "echo %USERPROFILE%").catch((e: Error) => e);
+            if (home === null) home = new Error(`No output for "echo %USERPROFILE%"`);
+            if (typeof home === 'string') home = home.trim();
+            if (home === "%USERPROFILE%") home = new Error(`Non-substituted output for "echo %USERPROFILE%"`);
+        } else {
+            home = await tryEcho(client, shellConfig, '~').catch((e: Error) => e);
+        }
         if (typeof home !== 'string') {
             const [flagCH] = getFlagBoolean('CHECK_HOME', true, config.flags);
             logging.error('Could not detect home directory', LOGGING_NO_STACKTRACE);
@@ -159,29 +169,30 @@ export class ConnectionManager {
                 home = '';
             }
         }
+        logging.debug`Home path: ${home}`;
         // Calculate the environment
         const environment: EnvironmentVariable[] = mergeEnvironment([], config.environment);
         // Set up stuff for receiving remote commands
         const [flagRCV, flagRCR] = getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags);
         if (flagRCV) {
-            logging.info(`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal`);
-            const cmdPath = await this._createCommandTerminal(client, name);
-            environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
-            const sftp = await toPromise<SFTPWrapper>(cb => client.sftp(cb));
-            const tmpPath = `/tmp/.Kelvin_sshfs.${actualConfig.username || 'root'}`;
-            await toPromise(cb => sftp.writeFile(tmpPath, TMP_PROFILE_SCRIPT, { mode: 0o644 }, cb)).catch(e => {
-                const msg = `Could not write profile script to: ${tmpPath}`;
-                logging.error(msg, LOGGING_NO_STACKTRACE);
-                logging.error(e);
-                throw new Error(msg);
-            });
+            const [flagRCDV, flagRCDR] = getFlagBoolean('DEBUG_REMOTE_COMMANDS', false, actualConfig.flags);
+            const withDebugStr = flagRCDV ? ` with debug logging enabled by '${flagRCDR}'` : '';
+            logging.info`Flag REMOTE_COMMANDS provided in '${flagRCR}', setting up command terminal${withDebugStr}`;
+            if (shellConfig.isWindows) {
+                logging.error(`Windows detected, command terminal is not yet supported`, LOGGING_NO_STACKTRACE);
+            } else {
+                const cmdPath = await this._createCommandTerminal(client, shellConfig, name, flagRCDV);
+                environment.push({ key: 'KELVIN_SSHFS_CMD_PATH', value: cmdPath });
+            }
         }
+        logging.debug`Environment: ${environment}`;
         // Set up the Connection object
         let timeoutCounter = 0;
         const con: Connection = {
-            config, client, actualConfig, home, environment,
+            config, client, actualConfig, home, shellConfig, environment,
             terminals: [],
             filesystems: [],
+            cache: {},
             forwardings: [],
             pendingUserCount: 0,
             idleTimer: setInterval(() => { // Automatically close connection when idle for a while
@@ -197,8 +208,13 @@ export class ConnectionManager {
             }, 5e3),
         };
         // Setup auto-reconnecting (hacky but better than nothing)
-        (client.once as typeof client.on)('close', async hadError => {
-            if (!hadError) return; // No error, so was expected?
+        let hadError = false;
+        client.on('error', e => {
+            logging.error`Client encountered an error: ${e}`;
+            hadError = true;
+        });
+        (client.once as typeof client.on)('close', async () => {
+            if (!hadError) return;
             logging.warning('Connection closed due to an error');
             this.closeConnection(con, 'Connection closed due to an error');
             const choice = await vscode.window.showErrorMessage(`Connection to ${actualConfig.label || actualConfig.name} closed due to an error`, 'Ignore', 'Reconnect');
@@ -253,11 +269,11 @@ export class ConnectionManager {
         const index = this.connections.indexOf(connection);
         if (index === -1) return;
         reason = reason ? `'${reason}' as reason` : ' no reason given';
-        Logging.info(`Closing connection to '${connection.actualConfig.name}' with ${reason}`);
+        Logging.info`Closing connection to '${connection.actualConfig.name}' with ${reason}`;
         this.connections.splice(index, 1);
         clearInterval(connection.idleTimer);
         this.onConnectionRemovedEmitter.fire(connection);
-        connection.client.destroy();
+        connection.client.end();
         connection.forwardings.forEach(f => f[2]());
         connection.forwardings = [];
     }

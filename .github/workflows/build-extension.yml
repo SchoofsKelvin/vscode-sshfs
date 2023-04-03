@@ -6,71 +6,51 @@ on:
     tags: ['**']
     branches:
       - '*'
+      - 'issue/**'
       - 'feature/**'
       - 'release/**'
   pull_request:
     types: [opened, synchronize]
     branches:
       - '*'
+      - 'issue/**'
       - 'feature/**'
       - 'release/**'
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     name: Build and package
     timeout-minutes: 10 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Event Utilities
-      uses: SchoofsKelvin/event-utilities@v1
+      uses: SchoofsKelvin/event-utilities@v1.1.0
       id: utils
       with:
         artifact_prefix: "vscode-sshfs"
         artifact_extension: "vsix"
-    - name: Use Node.js 12.x
-      uses: actions/setup-node@v1
+    - name: Use Node.js 18
+      uses: actions/setup-node@v3
       with:
-        node-version: 12.x
-    - name: Get Yarn cache directory
-      id: yarn-cache
-      run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
-    - name: Yarn cache
-      uses: actions/cache@v2.1.4
-      with:
-        path: ${{ steps.yarn-cache.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
+        node-version: 18
+        cache: yarn
+        cache-dependency-path: .yarn/yarn.lock
     - name: Install dependencies
       run: yarn --immutable
     - name: Build extension
-      run: yarn dlx vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn
+      run: yarn vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn --no-dependencies
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v2.2.1
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ steps.utils.outputs.artifact_name }}
         path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
-    - name: Create release
-      id: create_release
+    - name: Create release with artifact
       if: ${{ success() && steps.utils.outputs.tag_version }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ steps.utils.outputs.tag_version }}
+        name: Release ${{ steps.utils.outputs.tag_version }}
         draft: true
-    - name: Upload release asset
-      id: upload_release_asset
-      if: ${{ success() && steps.utils.outputs.tag_version }}
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.utils.outputs.artifact_name }}
-        asset_name: ${{ steps.utils.outputs.artifact_name }}
-        asset_content_type: application/vsix
+        files: ${{ steps.utils.outputs.artifact_name }}

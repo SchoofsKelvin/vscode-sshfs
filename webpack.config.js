@@ -84,6 +84,9 @@ const config = {
     plugins: [
         new CopyPuttyExecutable(),
         new WebpackPlugin(),
+        new webpack.IgnorePlugin({
+            resourceRegExp: /\.node$/,
+        }),
     ],
     optimization: {
         splitChunks: {

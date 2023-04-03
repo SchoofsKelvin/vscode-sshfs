@@ -1,14 +1,15 @@
 
+import type { FileSystemConfig } from 'common/fileSystemConfig';
+import type { Navigation } from 'common/webviewMessages';
 import * as vscode from 'vscode';
-import { getConfig, getFlagBoolean, loadConfigsRaw } from './config';
+import { getConfig, loadConfigs, LOADING_CONFIGS } from './config';
 import { Connection, ConnectionManager } from './connection';
-import type { FileSystemConfig } from './fileSystemConfig';
+import { getFlagBoolean } from './flags';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { addForwarding, PortForwarding, promptPortForwarding } from './portForwarding';
 import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, joinCommands } from './utils';
-import type { Navigation } from './webviewMessages';
 
 function commandArgumentToName(arg?: string | FileSystemConfig | Connection): string {
   if (!arg) return 'undefined';
@@ -47,24 +48,27 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     });
   }
   public async createFileSystem(name: string, config?: FileSystemConfig): Promise<SSHFileSystem> {
-    const con = await this.connectionManager.createConnection(name, config);
-    let fs = con.filesystems.find(fs => fs.authority === name);
-    if (fs) return fs;
-    this.connectionManager.update(con, con => con.pendingUserCount++);
+    await LOADING_CONFIGS; // Prevent race condition on startup, and wait for any current config reload to finish
+    const existing = this.fileSystems.find(fs => fs.authority === name);
+    if (existing) return existing;
+    let con: Connection | undefined;
     return this.creatingFileSystems[name] ||= catchingPromise<SSHFileSystem>(async (resolve, reject) => {
+      config ||= getConfig(name);
+      if (!config) throw new Error(`Couldn't find a configuration with the name '${name}'`);
+      con = await this.connectionManager.createConnection(name, config);
       this.connectionManager.update(con, con => con.pendingUserCount++);
       const { getSFTP } = await import('./connect');
       const { SSHFileSystem } = await import('./sshFileSystem');
       // Create the actual SFTP session (using the connection's actualConfig, otherwise it'll reprompt for passwords etc)
       const sftp = await getSFTP(con.client, con.actualConfig);
       const fs = new SSHFileSystem(name, sftp, con.actualConfig);
-      Logging.info(`Created SSHFileSystem for ${name}, reading root directory...`);
+      Logging.info`Created SSHFileSystem for ${name}, reading root directory...`;
       this.connectionManager.update(con, con => con.filesystems.push(fs));
       this.fileSystems.push(fs);
       delete this.creatingFileSystems[name];
       fs.onClose(() => {
         this.fileSystems = this.fileSystems.filter(f => f !== fs);
-        this.connectionManager.update(con, con => con.filesystems = con.filesystems.filter(f => f !== fs));
+        this.connectionManager.update(con!, con => con.filesystems = con.filesystems.filter(f => f !== fs));
       });
       this.connectionManager.update(con, con => con.pendingUserCount--);
       // Sanity check that we can access the home directory
@@ -86,14 +90,13 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       }
       return resolve(fs);
     }).catch(e => {
-      this.connectionManager.update(con, con => con.pendingUserCount--);
+      if (con) this.connectionManager.update(con, con => con.pendingUserCount--);
       if (!e) {
         delete this.creatingFileSystems[name];
         this.commandDisconnect(name);
         throw e;
       }
-      Logging.error(`Error while connecting to SSH FS ${name}:\n${e.message}`);
-      Logging.error(e);
+      Logging.error`Error while connecting to SSH FS ${name}:\n${e}`;
       vscode.window.showErrorMessage(`Error while connecting to SSH FS ${name}:\n${e.message}`, 'Retry', 'Configure', 'Ignore').then((chosen) => {
         delete this.creatingFileSystems[name];
         if (chosen === 'Retry') {
@@ -110,7 +113,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async createTerminal(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<void> {
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
-    const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(name, config);
+    const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(config?.name || name, config);
     // Create pseudo terminal
     this.connectionManager.update(con, con => con.pendingUserCount++);
     const pty = await createTerminal({ connection: con, workingDirectory: uri?.path || con.actualConfig.root });
@@ -153,7 +156,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
           const connection = await this.connectionManager.createConnection(resolved.host);
           resolved = await replaceVariablesRecursive(resolved, value => replaceVariables(value, connection.actualConfig));
           let { command, workingDirectory } = resolved;
-          const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, connection.actualConfig.flags);
+          const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', connection.shellConfig.isWindows, connection.actualConfig.flags);
           const separator = useWinCmdSep ? ' && ' : '; ';
           let { taskCommand = '$COMMAND' } = connection.actualConfig;
           taskCommand = joinCommands(taskCommand, separator)!;
@@ -209,7 +212,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   }
   /* Commands (stuff for e.g. context menu for ssh-configs tree) */
   public async commandConnect(config: FileSystemConfig) {
-    Logging.info(`Command received to connect ${config.name}`);
+    Logging.info`Command received to connect ${config.name}`;
     const folders = vscode.workspace.workspaceFolders!;
     const folder = folders && folders.find(f => f.uri.scheme === 'ssh' && f.uri.authority === config.name);
     if (folder) return vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
@@ -225,7 +228,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     });
   }
   public commandDisconnect(target: string | Connection) {
-    Logging.info(`Command received to disconnect ${commandArgumentToName(target)}`);
+    Logging.info`Command received to disconnect ${commandArgumentToName(target)}`;
     let cons: Connection[];
     if (typeof target === 'object' && 'client' in target) {
       cons = [target];
@@ -252,11 +255,12 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     vscode.workspace.updateWorkspaceFolders(start, folders.length - start, ...left);
   }
   public async commandTerminal(target: FileSystemConfig | Connection, uri?: vscode.Uri) {
-    Logging.info(`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`);
+    Logging.info`Command received to open a terminal for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`;
     const config = 'client' in target ? target.actualConfig : target;
     try {
       await this.createTerminal(config.name, target, uri);
     } catch (e) {
+      Logging.error`Error while creating terminal:\n${e}`;
       const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
         `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
         { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
@@ -279,7 +283,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     }
   }
   public async commandConfigure(target: string | FileSystemConfig) {
-    Logging.info(`Command received to configure ${typeof target === 'string' ? target : target.name}`);
+    Logging.info`Command received to configure ${typeof target === 'string' ? target : target.name}`;
     if (typeof target === 'object') {
       if (!target._location && !target._locations.length) {
         vscode.window.showErrorMessage('Cannot configure a config-less connection!');
@@ -289,11 +293,11 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       return;
     }
     target = target.toLowerCase();
-    let configs = await loadConfigsRaw();
+    let configs = await loadConfigs();
     configs = configs.filter(c => c.name === target);
     if (configs.length === 0) {
       vscode.window.showErrorMessage(`Found no matching configs for '${target}'`);
-      return Logging.error(`Unexpectedly found no matching configs for '${target}' in commandConfigure?`);
+      return Logging.error`Unexpectedly found no matching configs for '${target}' in commandConfigure?`;
     }
     const config = configs.length === 1 ? configs[0] : configs;
     this.openSettings({ config, type: 'editconfig' });

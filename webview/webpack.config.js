@@ -131,7 +131,6 @@ module.exports = (env, options) => {
     },
     plugins: truthyArray([
       new HtmlWebpackPlugin({ inject: true, template: 'public/index.html', publicPath }),
-      options.serve && new webpack.HotModuleReplacementPlugin(),
       options.serve && new ReactRefreshWebpackPlugin(),
       new webpack.DefinePlugin(options.env),
       new WebpackPlugin(),
@@ -162,7 +161,7 @@ module.exports = (env, options) => {
     devServer: {
       hot: 'only',
       open: false,
-      host: 'localhost',
+      host: '0.0.0.0',
       port: 3000,
       allowedHosts: 'all',
       headers: {

@@ -1,0 +1,96 @@
+﻿diff --git a/lib/client.js b/lib/client.js
+index 80f372a832b71f5bfd18277af7111bdb72930125..9712c5c3f74bb08890dc458efaf8020b988918b0 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -388,8 +388,18 @@ class Client extends EventEmitter {
+         USERAUTH_PK_OK: (p) => {
+           if (curAuth.type === 'agent') {
+             const key = curAuth.agentCtx.currentKey();
++            let algo;
++            if (key.type === 'ssh-rsa' && curAuth.convertSha1) {
++              if (this._protocol._remoteHostKeyAlgorithms.includes('rsa-sha2-512')) {
++                debug && debug('Client: USERAUTH_PK_OK: ssh-rsa key with convertSha1 enabled, switching to sha512');
++                algo = 'sha512';
++              } else if (this._protocol._remoteHostKeyAlgorithms.includes('rsa-sha2-256')) {
++                debug && debug('Client: USERAUTH_PK_OK: ssh-rsa key with convertSha1 enabled, switching to sha256');
++                algo = 'sha256';
++              }
++            }
+             proto.authPK(curAuth.username, key, (buf, cb) => {
+-              curAuth.agentCtx.sign(key, buf, {}, (err, signed) => {
++              curAuth.agentCtx.sign(key, buf, { hash: algo }, (err, signed) => {
+                 if (err) {
+                   err.level = 'agent';
+                   this.emit('error', err);
+@@ -401,8 +411,18 @@ class Client extends EventEmitter {
+               });
+             });
+           } else if (curAuth.type === 'publickey') {
++            let algo;
++            if (curAuth.key.type === 'ssh-rsa' && curAuth.convertSha1) {
++              if (this._protocol._remoteHostKeyAlgorithms.includes('rsa-sha2-512')) {
++                debug && debug('Client: USERAUTH_PK_OK: ssh-rsa key with convertSha1 enabled, switching to sha512');
++                algo = 'sha512';
++              } else if (this._protocol._remoteHostKeyAlgorithms.includes('rsa-sha2-256')) {
++                debug && debug('Client: USERAUTH_PK_OK: ssh-rsa key with convertSha1 enabled, switching to sha256');
++                algo = 'sha256';
++              }
++            }
+             proto.authPK(curAuth.username, curAuth.key, (buf, cb) => {
+-              const signature = curAuth.key.sign(buf);
++              const signature = curAuth.key.sign(buf, algo);
+               if (signature instanceof Error) {
+                 signature.message =
+                   `Error signing data with key: ${signature.message}`;
+@@ -881,7 +901,7 @@ class Client extends EventEmitter {
+               return skipAuth('Skipping invalid key auth attempt');
+             if (!key.isPrivateKey())
+               return skipAuth('Skipping non-private key');
+-            nextAuth = { type, username, key };
++            nextAuth = { type, username, key, convertSha1: nextAuth.convertSha1 };
+             break;
+           }
+           case 'hostbased': {
+@@ -906,7 +926,7 @@ class Client extends EventEmitter {
+                 `Skipping invalid agent: ${nextAuth.agent}`
+               );
+             }
+-            nextAuth = { type, username, agentCtx: new AgentContext(agent) };
++            nextAuth = { type, username, agentCtx: new AgentContext(agent), convertSha1: nextAuth.convertSha1 };
+             break;
+           }
+           case 'keyboard-interactive': {
+diff --git a/lib/protocol/Protocol.js b/lib/protocol/Protocol.js
+index 94e12bc72b5c61094efd6862dfbce6ff852c5b26..e0cbb748bc80455bfa819cc20c672701c280409c 100644
+--- a/lib/protocol/Protocol.js
++++ b/lib/protocol/Protocol.js
+@@ -616,7 +616,15 @@ class Protocol {
+     if (pubKey instanceof Error)
+       throw new Error('Invalid key');
+ 
+-    const keyType = pubKey.type;
++    let keyType = pubKey.type;
++    if (keyType === 'ssh-rsa') {
++      for (const algo of ['rsa-sha2-512', 'rsa-sha2-256']) {
++        if (this._remoteHostKeyAlgorithms.includes(algo)) {
++         keyType = algo;
++         break;
++        }
++      }
++    }
+     pubKey = pubKey.getPublicSSH();
+ 
+     const userLen = Buffer.byteLength(username);
+diff --git a/lib/protocol/kex.js b/lib/protocol/kex.js
+index 49b28f54677809c32b2141c99eec36e0c6d99e38..4ee69bd3b3b5685665d69c05114a94c14cd4b076 100644
+--- a/lib/protocol/kex.js
++++ b/lib/protocol/kex.js
+@@ -196,6 +196,8 @@ function handleKexInit(self, payload) {
+ 
+   const local = self._offer;
+   const remote = init;
++  
++  self._remoteHostKeyAlgorithms = remote.serverHostKey;
+ 
+   let localKex = local.lists.kex.array;
+   if (self._compatFlags & COMPAT.BAD_DHGEX) {

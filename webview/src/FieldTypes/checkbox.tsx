@@ -7,6 +7,9 @@ export class FieldCheckbox extends FieldBase<boolean, Props> {
     protected getClassName() {
         return super.getClassName() + ' FieldCheckbox';
     }
+    protected getValueClassName() {
+        return super.getValueClassName() + ' checkbox-box';
+    }
     public renderInput() {
         const { description } = this.props;
         return <>

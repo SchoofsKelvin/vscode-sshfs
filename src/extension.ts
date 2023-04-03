@@ -1,8 +1,8 @@
 
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
-import { loadConfigs } from './config';
+import { loadConfigs, reloadWorkspaceFolderConfigs } from './config';
 import type { Connection } from './connection';
-import type { FileSystemConfig } from './fileSystemConfig';
 import { FileSystemRouter } from './fileSystemRouter';
 import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
@@ -28,8 +28,12 @@ interface CommandHandler {
   handleActivePortForwarding?(forwarding: ActivePortForwarding): void;
 }
 
+/** `findConfigs` in config.ts ignores URIs for still-connecting connections */
+export let MANAGER: Manager | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
-  Logging.info(`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`);
+  Logging.info`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`;
+  Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
 
   setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
@@ -41,14 +45,14 @@ export function activate(context: vscode.ExtensionContext) {
   if (!previousVersion) {
     Logging.info('No previous version detected. Fresh or pre-v1.21.0 installation?');
   } else if (previousVersion !== getVersion()) {
-    Logging.info(`Previously used version ${previousVersion}, first run after install.`);
+    Logging.info`Previously used version ${previousVersion}, first run after install.`;
   }
 
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way
   setAsAbsolutePath(context.asAbsolutePath.bind(context));
 
-  const manager = new Manager(context);
+  const manager = MANAGER = new Manager(context);
 
   const subscribe = context.subscriptions.push.bind(context.subscriptions) as typeof context.subscriptions.push;
   const registerCommand = (command: string, callback: (...args: any[]) => any, thisArg?: any) =>
@@ -164,4 +168,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.refresh()
   registerCommand('sshfs.refresh', () => connectionTreeProvider.refresh());
+
+  subscribe(manager.connectionManager.onConnectionAdded(async con => {
+    await reloadWorkspaceFolderConfigs(con.actualConfig.name);
+  }));
 }

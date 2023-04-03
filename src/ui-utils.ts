@@ -1,8 +1,8 @@
 
+import { FileSystemConfig, parseConnectionString } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { Connection, ConnectionManager } from './connection';
-import { FileSystemConfig, parseConnectionString } from './fileSystemConfig';
 import type { Manager } from './manager';
 import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';

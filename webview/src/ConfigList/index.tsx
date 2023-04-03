@@ -1,6 +1,6 @@
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { connect } from '../redux';
-import type { FileSystemConfig } from '../types/fileSystemConfig';
 import { openConfigEditor } from '../view/actions';
 import './index.css';
 

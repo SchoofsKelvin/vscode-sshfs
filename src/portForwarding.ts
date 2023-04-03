@@ -1,11 +1,11 @@
+import type { FileSystemConfig } from 'common/fileSystemConfig';
 import { getIP } from 'ip-matching';
 import * as net from 'net';
 import type { ClientChannel, TcpConnectionDetails, UnixConnectionDetails } from 'ssh2';
 import type { Duplex } from 'stream';
 import * as vscode from 'vscode';
 import type { Connection } from "./connection";
-import type { FileSystemConfig } from './fileSystemConfig';
-import { Logging, LOGGING_NO_STACKTRACE } from './logging';
+import { LOGGING_NO_STACKTRACE, Logging } from './logging';
 import type { Manager } from './manager';
 import { FormattedItem, promptQuickPick } from './ui-utils';
 import { toPromise } from './utils';

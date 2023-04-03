@@ -1,4 +1,4 @@
-import type { ConfigLocation, FileSystemConfig } from '../types/fileSystemConfig';
+import type { ConfigLocation, FileSystemConfig } from 'common/fileSystemConfig';
 
 export enum ActionType {
   // Startscreen

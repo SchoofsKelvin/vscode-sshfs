@@ -1,4 +1,3 @@
-
 div.Field {
     padding: 20px 9px 3px 9px;
 }
@@ -50,6 +49,7 @@ div.FieldDropdown {
     color: var(--vscode-settings-dropdownForeground);
     border: 1px solid var(--vscode-settings-dropdownBorder);
     position: relative;
+    cursor: pointer;
 }
 
 div.FieldDropdown > ul.list {
@@ -66,7 +66,8 @@ div.FieldDropdown > ul.list {
     box-sizing: border-box;
 }
 
-div.FieldDropdown > .current, div.FieldDropdown ul.list > li {
+div.FieldDropdown > .current,
+div.FieldDropdown ul.list > li {
     height: 1em;
     padding: 5px;
     list-style: none;
@@ -104,6 +105,8 @@ div.FieldDropdownWithInput ul.list {
     top: 100%;
     left: 0;
 }
+
+div.FieldDropdown p.arrow,
 div.FieldDropdownWithInput p.arrow {
     z-index: 999;
     top: 0;
@@ -111,6 +114,41 @@ div.FieldDropdownWithInput p.arrow {
     padding: 5px;
     right: 0;
     margin: 0;
+    cursor: pointer;
+}
+
+div.FieldList > div.adder {
+    display: flex;
+}
+div.FieldList > div.adder > div.Field {
+    padding: 0;
+    flex-grow: 1;
+}
+div.FieldList button {
+    height: 1em;
+    padding: 5px;
+    margin: 9px 0 0 5px;
+    box-sizing: content-box;
+    border-radius: 0;
+}
+div.FieldList > li {
+    background: var(--vscode-settings-dropdownBackground);
+    color: var(--vscode-settings-dropdownForeground);
+    border: 1px solid var(--vscode-settings-dropdownBorder);
+    position: relative;
+    display: flex;
+    height: 1em;
+    padding: 5px;
+    margin: 5px 0;
+}
+div.FieldList > li > p {
+    margin: auto;
+    flex-grow: 1;
+}
+div.FieldList > li > button {
+    margin: -4px;
+    padding: 3px;
+    height: 100%;
 }
 
 div.FieldPath {
@@ -146,18 +184,23 @@ div.FieldCheckbox > .description {
     display: none;
 }
 
-div.FieldCheckbox > div.value {
+.checkbox > .checkbox-box {
     --checkbox-size: 23px;
     max-width: none;
+    min-width: var(--checkbox-size);
     min-height: var(--checkbox-size);
 }
 
-div.FieldCheckbox > .value > .description {
+.checkbox > .checkbox-box.checkbox-small {
+    --checkbox-size: 18px;
+}
+
+.checkbox > .checkbox-box > .description {
     opacity: 0.75;
     margin-left: calc(var(--checkbox-size) + 10px);
 }
 
-div.FieldCheckbox > .value > .checkbox { 
+.checkbox > .checkbox-box > .checkbox {
     float: left;
     height: var(--checkbox-size);
     width: var(--checkbox-size);
@@ -168,9 +211,8 @@ div.FieldCheckbox > .value > .checkbox {
     border: 1px solid var(--vscode-settings-checkboxBorder);
 }
 
-div.FieldCheckbox > .value > .checkbox.checked::before {
-    content: '\2713';
-    width: var(--checkbox-size);
+.checkbox > .checkbox-box > .checkbox.checked::before {
+    content: "\2713";
     display: block;
     text-align: center;
 }

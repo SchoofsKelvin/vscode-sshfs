@@ -1,11 +1,13 @@
+import { FileSystemConfig, invalidConfigName } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { FieldCheckbox } from '../FieldTypes/checkbox';
 import { FieldDropdown } from '../FieldTypes/dropdown';
 import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
+import { FieldConfigList } from '../FieldTypes/list';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldPath } from '../FieldTypes/path';
 import { FieldString } from '../FieldTypes/string';
-import { FileSystemConfig, invalidConfigName } from '../types/fileSystemConfig';
+import { FieldUmask } from '../FieldTypes/umask';
 import FieldConfigGroup from './configGroupField';
 import { PROXY_FIELD } from './proxyFields';
 
@@ -26,14 +28,6 @@ export function name(config: FileSystemConfig, onChange: FSCChanged<'name'>): Re
   return <FieldString key="name" label="Name" value={config.name} onChange={callback} validator={invalidConfigName} description={description} />
 }
 
-export function merge(config: FileSystemConfig, onChange: FSCChanged<'merge'>): React.ReactElement {
-  const callback = (newValue: string) => onChange('merge', newValue === 'Yes' || undefined);
-  const description = 'Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings)';
-  const values = ['Yes', 'No'];
-  const value = config.merge ? 'Yes' : 'No';
-  return <FieldDropdown key="merge" label="Merge" {...{ value, values, description }} onChange={callback} />
-}
-
 export function label(config: FileSystemConfig, onChange: FSCChanged<'label'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('label', newValue);
   const description = 'Label to display in some UI places (e.g. popups)';
@@ -44,6 +38,21 @@ export function group(config: FileSystemConfig, onChange: FSCChanged<'group'>): 
   const callback = (newValue: string) => onChange('group', newValue);
   const description = 'Group for this config, to group configs together in some UI places. Allows subgroups, in the format "Group1.SubGroup1.Subgroup2"';
   return <FieldConfigGroup key="group" label="Group" value={config.group} {...{ description }} onChange={callback} optional />
+}
+
+export function merge(config: FileSystemConfig, onChange: FSCChanged<'merge'>): React.ReactElement {
+  const callback = (newValue: string) => onChange('merge', newValue === 'Yes' || undefined);
+  const description = 'Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings)';
+  const values = ['Yes', 'No'];
+  const value = config.merge ? 'Yes' : 'No';
+  return <FieldDropdown key="merge" label="Merge" {...{ value, values, description }} onChange={callback} />
+}
+
+export function extend(config: FileSystemConfig, onChange: FSCChanged<'extend'>): React.ReactElement {
+  const callback = (newValue?: string | string[]) => onChange('extend', newValue);
+  const description = 'Names of other existing configs to merge into this config. Earlier entries overridden by later entries overridden by this config itself';
+  const value = typeof config.extend === 'string' ? [config.extend] : config.extend;
+  return <FieldConfigList key="extend" label="Extend" {...{ value, description }} onChange={callback} optional freeText />
 }
 
 export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): React.ReactElement {
@@ -65,7 +74,7 @@ export function host(config: FileSystemConfig, onChange: FSCChanged<'host'>): Re
 export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): React.ReactElement {
   const callback = (value: number) => onChange('port', value);
   const description = 'Port number of the server. Supports environment variables, e.g. $PORT';
-  return <FieldNumber key="port" label="Port" value={config.port} onChange={callback} optional description={description} />
+  return <FieldNumber key="port" label="Port" value={config.port || 22} onChange={callback} optional description={description} />
 }
 
 export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): React.ReactElement {
@@ -121,6 +130,13 @@ export function agentForward(config: FileSystemConfig, onChange: FSCChanged<'age
   return <FieldCheckbox key="agentForward" label="Forward agent" value={!!config.agentForward} onChange={callback} description={description} postface={postface} />;
 }
 
+export function newFileMode(config: FileSystemConfig, onChange: FSCChanged<'newFileMode'>): React.ReactElement {
+  const callback = (newValue?: number) => onChange('newFileMode', Number.isInteger(newValue) ? `0o${newValue!.toString(8)}` : undefined);
+  const description = 'The filemode to assign to new files created using VS Code, not the terminal. Similar to umask. Defaults to `rw-rw-r--` (regardless of server config, whether you are root, ...)';
+  const value = Number.isInteger(Number(config.newFileMode)) ? Number(config.newFileMode) : 0o664;
+  return <FieldUmask key="newFileMode" label="New file mode" value={value} onChange={callback} description={description} optional />;
+}
+
 export function sftpCommand(config: FileSystemConfig, onChange: FSCChanged<'sftpCommand'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('sftpCommand', newValue);
   const description = 'A command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem)';
@@ -155,7 +171,7 @@ export function taskCommand(config: FileSystemConfig, onChange: FSCChanged<'task
 
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
-  name, merge, label, group, putty, host, port,
+  name, label, group, merge, extend, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
-  agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
+  newFileMode, agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
   PROXY_FIELD];

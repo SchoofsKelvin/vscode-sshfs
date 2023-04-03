@@ -2,8 +2,8 @@ import * as React from 'react';
 import { FieldGroup } from './group';
 import './index.css';
 
-interface Props<T> {
-    label: string;
+export interface Props<T> {
+    label?: string;
     description?: string;
     value: T;
     optional?: boolean;
@@ -22,7 +22,7 @@ type WrappedState<T, S> = {
     [key in keyof S]: key extends keyof State<T> ? State<T>[key] : S[key];
 } & State<T>;
 
-export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props<T> & P, WrappedState<T, S>> {
+export abstract class FieldBase<T, P extends {} = {}, S extends {} = {}> extends React.Component<Props<T> & P, WrappedState<T, S>> {
     constructor(props: Props<T> & P) {
         super(props);
         this.state = {
@@ -59,22 +59,21 @@ export abstract class FieldBase<T, P = {}, S = {}> extends React.Component<Props
         }
         return newValue!;
     }
-    public getLabel() {
-        return this.props.label;
+    public getLabel(): string {
+        return this.props.label || '';
     }
-    protected getClassName(): string {
-        return 'Field';
-    }
+    protected getClassName(): string { return 'Field'; }
+    protected getValueClassName(): string { return 'value'; }
     public render() {
         const error = this.getError();
         const { description, label, optional, preface, postface } = this.props;
         return <div className={this.getClassName()}>
             <FieldGroup.Consumer>{group => (group?.register(this), [])}</FieldGroup.Consumer>
-            <div className="label">{label}</div>{optional && <div className="optional">Optional</div>}
+            {label && <><div className="label">{label}</div>{optional && <div className="optional">Optional</div>}</>}
             {description && <div className="description">{description}</div>}
             {preface}
             {error && <div className="error">{error}</div>}
-            <div className="value">
+            <div className={this.getValueClassName()}>
                 {this.renderInput()}
             </div>
             {postface}

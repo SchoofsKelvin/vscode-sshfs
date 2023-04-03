@@ -23,7 +23,7 @@ export class FieldDropdownWithInput extends FieldBase<string | undefined, Props,
     public renderInput() {
         const { newValue, open } = this.state;
         return <div className="FieldDropdown FieldDropdownWithInput" ref={this.mainDivRef}>
-            <p className="arrow">▼</p>
+            <p className="arrow" onClick={this.toggle}>▼</p>
             <input className="current" value={newValue || ''} onChange={this.onChangeEvent} onClick={this.toggle} />
             {open && this.generateDropdown()}
         </div>;

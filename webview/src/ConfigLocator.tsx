@@ -1,7 +1,7 @@
+import { FileSystemConfig, formatConfigLocation } from 'common/fileSystemConfig';
 import * as React from 'react';
 import ConfigList from './ConfigList';
 import { connect, pickProperties } from './redux';
-import { FileSystemConfig, formatConfigLocation } from './types/fileSystemConfig';
 import type { IConfigLocatorState } from './view';
 
 function displayName(config: FileSystemConfig) {

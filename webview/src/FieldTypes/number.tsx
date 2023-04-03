@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { FieldBase } from './base';
 
-export class FieldNumber extends FieldBase<number | undefined> {
+export class FieldNumber extends FieldBase<number> {
     public renderInput() {
-        return <input value={this.state.newValue || 22} onChange={this.onChangeEvent} type="number" />;
+        return <input value={this.state.newValue} onChange={this.onChangeEvent} type="number" />;
     }
     public getError() {
         const { newValue } = this.state;

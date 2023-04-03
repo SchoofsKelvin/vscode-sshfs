@@ -1,9 +1,9 @@
+import { ConfigLocation, formatConfigLocation, invalidConfigName } from 'common/fileSystemConfig';
 import * as React from 'react';
 import { FieldDropdown } from './FieldTypes/dropdown';
 import { FieldGroup } from './FieldTypes/group';
 import { FieldString } from './FieldTypes/string';
 import { connect, pickProperties, State } from './redux';
-import { ConfigLocation, formatConfigLocation, invalidConfigName } from './types/fileSystemConfig';
 import type { INewConfigState } from './view';
 import { newConfigSetLocation, newConfigSetName, openConfigEditor, openStartScreen } from './view/actions';
 import { createConfig } from './vscode';

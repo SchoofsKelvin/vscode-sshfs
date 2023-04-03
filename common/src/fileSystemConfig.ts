@@ -1,4 +1,5 @@
 import type { ConnectConfig } from 'ssh2';
+import './ssh2';
 
 export interface ProxyConfig {
   type: 'socks4' | 'socks5' | 'http';
@@ -88,6 +89,8 @@ export interface FileSystemConfig extends ConnectConfig {
   group?: string;
   /** Whether to merge this "lower" config (e.g. from workspace settings) into higher configs (e.g. from global settings) */
   merge?: boolean;
+  /** Names of other existing configs to merge into this config. Earlier entries overridden by later entries overridden by this config itself */
+  extend?: string | string[];
   /** Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/` */
   root?: string;
   /** A name of a PuTTY session, or `true` to find the PuTTY session from the host address  */
@@ -108,18 +111,24 @@ export interface FileSystemConfig extends ConnectConfig {
   taskCommand?: string | string[];
   /** An object with environment variables to add to the SSH connection. Affects the whole connection thus all terminals */
   environment?: EnvironmentVariable[] | Record<string, string>;
-  /** The filemode to assign to created files */
+  /** The filemode to assign to new files created using VS Code, not the terminal. Similar to umask. Defaults to `rw-rw-r--` (regardless of server config, whether you are root, ...) */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */
   instantConnection?: boolean;
   /** List of special flags to enable/disable certain fixes/features. Flags are usually used for issues or beta testing. Flags can disappear/change anytime! */
   flags?: string[];
+  /** List of port forwardings to (attempt to) establish when the connection gets created */
+  forwardings?: string[];
   /** Internal property saying where this config comes from. Undefined if this config is merged or something */
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */
   _locations: ConfigLocation[];
   /** Internal property keeping track of whether this config is an actually calculated one, and if so, which config it originates from (normally itself) */
   _calculated?: FileSystemConfig;
+}
+
+export function isFileSystemConfig(config: any): config is FileSystemConfig {
+  return typeof config === 'object' && typeof config.name === 'string' && Array.isArray(config._locations);
 }
 
 export function invalidConfigName(name: string) {

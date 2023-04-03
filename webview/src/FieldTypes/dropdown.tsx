@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { FieldBase } from './base';
 
-interface Props<T> {
+export interface Props<T> {
     values: T[];
     displayName?(item: T): string;
     displayStyle?(item: T): React.CSSProperties;
@@ -25,7 +25,7 @@ export class FieldDropdown<T> extends FieldBase<T, Props<T>, State> {
         const { displayName } = this.props;
         const display = newValue ? (displayName ? displayName(newValue) : `${newValue}`) : '';
         return <div className="FieldDropdown" ref={this.mainDivRef}>
-            <p style={{ float: 'right', margin: 5 }}>▼</p>
+            <p className="arrow" onClick={this.toggle}>▼</p>
             <div className="current" onClick={this.toggle}>{display}</div>
             {open && this.generateDropdown()}
         </div>;

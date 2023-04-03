@@ -1,23 +1,22 @@
+import type { EnvironmentVariable, FileSystemConfig } from 'common/fileSystemConfig';
 import * as path from 'path';
-import type { ClientChannel, PseudoTtyOptions } from "ssh2";
-import type { Readable } from "stream";
-import * as vscode from "vscode";
-import { getFlagBoolean } from './config';
+import type { ClientChannel, PseudoTtyOptions } from 'ssh2';
+import * as vscode from 'vscode';
 import type { Connection } from './connection';
-import type { EnvironmentVariable, FileSystemConfig } from "./fileSystemConfig";
-import { Logging, LOGGING_NO_STACKTRACE } from "./logging";
+import { getFlagBoolean } from './flags';
+import { LOGGING_NO_STACKTRACE, Logging } from './logging';
 import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
 const [HEIGHT, WIDTH] = [480, 640];
-const PSEUDO_TTY_OPTIONS: PseudoTtyOptions = {
-    height: HEIGHT, width: WIDTH,
+const PSEUDO_TTY_OPTIONS: Partial<PseudoTtyOptions> = {
+    height: HEIGHT, width: WIDTH, term: 'xterm-256color',
 };
 
 export interface SSHPseudoTerminal extends vscode.Pseudoterminal {
     onDidClose: vscode.Event<number>; // Redeclaring that it isn't undefined
     onDidOpen: vscode.Event<void>;
     handleInput(data: string): void; // We don't support/need read-only terminals for now
-    status: 'opening' | 'open' | 'closed';
+    status: 'opening' | 'open' | 'closed' | 'wait-to-close';
     connection: Connection;
     /** Could be undefined if it only gets created during psy.open() instead of beforehand */
     channel?: ClientChannel;
@@ -138,7 +137,7 @@ export async function replaceVariablesRecursive<T>(object: T, handler: (value: s
 
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
     const { connection } = options;
-    const { actualConfig, client } = connection;
+    const { actualConfig, client, shellConfig } = connection;
     const onDidWrite = new vscode.EventEmitter<string>();
     const onDidClose = new vscode.EventEmitter<number>();
     const onDidOpen = new vscode.EventEmitter<void>();
@@ -151,34 +150,38 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         onDidClose: onDidClose.event,
         onDidOpen: onDidOpen.event,
         close() {
-            const { channel } = pseudo;
-            if (!channel) return;
-            pseudo.status = 'closed';
-            channel.signal('INT');
-            channel.signal('SIGINT');
-            channel.write('\x03');
-            channel.close();
-            pseudo.channel = undefined;
+            const { channel, status } = pseudo;
+            if (status === 'closed') return;
+            if (channel) {
+                pseudo.status = 'closed';
+                channel.signal!('INT');
+                channel.signal!('SIGINT');
+                channel.write('\x03');
+                channel.close();
+                pseudo.channel = undefined;
+            }
+            if (status === 'wait-to-close') {
+                pseudo.terminal?.dispose();
+                pseudo.terminal = undefined;
+                pseudo.status = 'closed';
+                onDidClose.fire(0);
+            }
         },
         async open(dims) {
             onDidWrite.fire(`Connecting to ${actualConfig.label || actualConfig.name}...\r\n`);
             try {
-                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', false, actualConfig.flags);
+                const [useWinCmdSep] = getFlagBoolean('WINDOWS_COMMAND_SEPARATOR', shellConfig.isWindows, actualConfig.flags);
                 const separator = useWinCmdSep ? ' && ' : '; ';
                 let commands: string[] = [];
                 let SHELL = '$SHELL';
+                if (shellConfig.isWindows) SHELL = shellConfig.shell;
                 // Add exports for environment variables if needed
                 const env = mergeEnvironment(connection.environment, options.environment);
-                commands.push(environmentToExportString(env));
+                commands.push(environmentToExportString(env, shellConfig.setEnv));
                 // Beta feature to add a "code <file>" command in terminals to open the file locally
-                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0]) {
-                    const tmpPath = `/tmp/.Kelvin_sshfs.${actualConfig.username || 'root'}`;
-                    // For bash
-                    commands.push(`export ORIG_PROMPT_COMMAND="$PROMPT_COMMAND"`);
-                    commands.push(`export PROMPT_COMMAND='source ${tmpPath} PC; $ORIG_PROMPT_COMMAND'`);
-                    // For sh
-                    commands.push(`export OLD_ENV="$ENV"`); // not actually used (yet?)
-                    commands.push(`export ENV=${tmpPath}`);
+                if (getFlagBoolean('REMOTE_COMMANDS', false, actualConfig.flags)[0] && shellConfig.setupRemoteCommands) {
+                    const rcCmds = await shellConfig.setupRemoteCommands(connection);
+                    if (rcCmds?.length) commands.push(joinCommands(rcCmds, separator)!);
                 }
                 // Push the actual command or (default) shell command with replaced variables
                 if (options.command) {
@@ -191,34 +194,63 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 // There isn't a proper way of setting the working directory, but this should work in most cases
                 let { workingDirectory } = options;
                 workingDirectory = workingDirectory || actualConfig.root;
+                let cmd = joinCommands(commands, separator)!;
                 if (workingDirectory) {
-                    // TODO: Maybe replace with `connection.home`?
-                    if (workingDirectory.startsWith('~')) {
-                        // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
-                        // `"~"` would also fail but `~/""` works fine it seems
-                        workingDirectory = `~/"${workingDirectory.substr(2)}"`;
+                    if (cmd.includes('${workingDirectory}')) {
+                        cmd = cmd.replace(/\${workingDirectory}/g, workingDirectory);
                     } else {
-                        workingDirectory = `"${workingDirectory}"`;
+                        // TODO: Maybe replace with `connection.home`? Especially with Windows not supporting ~
+                        if (workingDirectory.startsWith('~')) {
+                            if (shellConfig.isWindows)
+                                throw new Error(`Working directory '${workingDirectory}' starts with ~ for a Windows shell`);
+                            // So `cd "~/a/b/..." apparently doesn't work, but `~/"a/b/..."` does
+                            // `"~"` would also fail but `~/""` works fine it seems
+                            workingDirectory = `~/"${workingDirectory.slice(2)}"`;
+                        } else {
+                            if (shellConfig.isWindows && workingDirectory.match(/^\/[a-zA-Z]:/))
+                                workingDirectory = workingDirectory.slice(1);
+                            workingDirectory = `"${workingDirectory}"`;
+                        }
+                        cmd = joinCommands([`cd ${workingDirectory}`, ...commands], separator)!;
                     }
-                    commands.unshift(`cd ${workingDirectory}`);
+                } else {
+                    cmd = cmd.replace(/\${workingDirectory}/g, '');
                 }
-                const pseudoTtyOptions: PseudoTtyOptions = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
-                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(joinCommands(commands, separator)!, { pty: pseudoTtyOptions }, cb));
+                const pseudoTtyOptions: Partial<PseudoTtyOptions> = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
+                Logging.debug(`Starting shell for ${connection.actualConfig.name}: ${cmd}`);
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
-                channel.on('exit', onDidClose.fire);
-                channel.on('close', () => onDidClose.fire(0));
-                (channel as Readable).on('data', chunk => onDidWrite.fire(chunk.toString()));
-                // TODO: Keep track of stdout's color, switch to red, output, then switch back?
-                channel.stderr.on('data', chunk => onDidWrite.fire(chunk.toString()));
-                // Inform others (e.g. createTaskTerminal) that the terminal is ready to be used
-                pseudo.status = 'open';
-                onDidOpen.fire();
+                const startTime = Date.now();
+                channel.once('exit', (code, signal, _, description) => {
+                    Logging.debug`Terminal session closed: ${{ code, signal, description, status: pseudo.status }}`;
+                    if (code && (Date.now() < startTime + 1000) && !options.command) {
+                        // Terminal failed within a second, let's keep it open for the user to see the error (if this isn't a task)
+                        onDidWrite.fire(`Got error code ${code}${signal ? ` with signal ${signal}` : ''}\r\n`);
+                        if (description) onDidWrite.fire(`Extra info: ${description}\r\n`);
+                        onDidWrite.fire('Press a key to close the terminal\r\n');
+                        onDidWrite.fire('Possible more stdout/stderr below:\r\n');
+                        pseudo.status = 'wait-to-close';
+                    } else {
+                        onDidClose.fire(code || 0);
+                        pseudo.status = 'closed';
+                    }
+                });
+                channel.once('readable', () => {
+                    // Inform others (e.g. createTaskTerminal) that the terminal is ready to be used
+                    if (pseudo.status === 'opening') pseudo.status = 'open';
+                    onDidOpen.fire();
+                });
+                channel.on('data', chunk => onDidWrite.fire(chunk.toString()));
+                channel.stderr!.on('data', chunk => onDidWrite.fire(chunk.toString()));
+                // TODO: ^ Keep track of stdout's color, switch to red, output, then switch back?
             } catch (e) {
+                Logging.error`Error starting SSH terminal:\n${e}`;
                 onDidWrite.fire(`Error starting SSH terminal:\r\n${e}\r\n`);
                 onDidClose.fire(1);
                 pseudo.status = 'closed';
                 pseudo.channel?.destroy();
+                pseudo.channel = undefined;
             }
         },
         get terminal(): vscode.Terminal | undefined {
@@ -228,9 +260,10 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
             terminal = term;
         },
         setDimensions(dims) {
-            pseudo.channel?.setWindow(dims.rows, dims.columns, HEIGHT, WIDTH);
+            pseudo.channel?.setWindow!(dims.rows, dims.columns, HEIGHT, WIDTH);
         },
         handleInput(data) {
+            if (pseudo.status === 'wait-to-close') return pseudo.close();
             pseudo.channel?.write(data);
         },
     };

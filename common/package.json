@@ -1,0 +1,25 @@
+{
+  "name": "common",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./*": "./out/*"
+  },
+  "typesVersions": {
+    ">=0": {
+      "*": [
+        "out/*"
+      ]
+    }
+  },
+  "scripts": {
+    "watch": "tsc -w",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^12.7.12",
+    "@types/ssh2": "^0.5.41",
+    "typescript": "~5.0.2"
+  },
+  "packageManager": "yarn@3.1.1"
+}
