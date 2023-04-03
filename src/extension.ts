@@ -8,12 +8,7 @@ import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
-import { pickComplex, PickComplexOptions, pickConnection, setAsAbsolutePath, setupWhenClauseContexts } from './ui-utils';
-
-function getVersion(): string | undefined {
-  const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
-  return ext?.packageJSON?.version;
-}
+import { PickComplexOptions, pickComplex, pickConnection, setAsAbsolutePath, setupWhenClauseContexts } from './ui-utils';
 
 interface CommandHandler {
   /** If set, a string/undefined prompts using the given options.
@@ -30,21 +25,33 @@ interface CommandHandler {
 export let MANAGER: Manager | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  Logging.info`Extension activated, version ${getVersion()}, mode ${context.extensionMode}`;
+  const extension = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
+  const version = extension?.packageJSON?.version;
+
+  Logging.info`Extension activated, version ${version}, mode ${context.extensionMode}`;
   Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
 
   setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
-  // Likely that we'll have a breaking change in the future that requires users to check
-  // their configs, or at least reconfigure already existing workspaces with new URIs.
-  // See https://github.com/SchoofsKelvin/vscode-sshfs/issues/198#issuecomment-785926352
-  const previousVersion = context.globalState.get<string>('lastVersion');
-  context.globalState.update('lastVersion', getVersion());
-  if (!previousVersion) {
-    Logging.info('No previous version detected. Fresh or pre-v1.21.0 installation?');
-  } else if (previousVersion !== getVersion()) {
-    Logging.info`Previously used version ${previousVersion}, first run after install.`;
+  const versionHistory = context.globalState.get<[string, number, number][]>('versionHistory', []);
+  const lastVersion = versionHistory[versionHistory.length - 1];
+  if (!lastVersion) {
+    const classicLastVersion = context.globalState.get<string>('lastVersion');
+    if (classicLastVersion) {
+      Logging.debug`Previously used ${classicLastVersion}, switching over to new version history`;
+      versionHistory.push([classicLastVersion, Date.now(), Date.now()]);
+    } else {
+      Logging.debug`No previous version detected. Fresh or pre-v1.21.0 installation?`;
+    }
+    versionHistory.push([version, Date.now(), Date.now()]);
+  } else if (lastVersion[0] !== version) {
+    Logging.debug`Previously used ${lastVersion[0]}, currently first launch since switching to ${version}`;
+    versionHistory.push([version, Date.now(), Date.now()]);
+  } else {
+    lastVersion[2] = Date.now();
   }
+  Logging.info`Version history: ${versionHistory.map(v => v.join(':')).join(' > ')}`;
+  context.globalState.update('versionHistory', versionHistory);
 
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way

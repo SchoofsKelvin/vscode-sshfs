@@ -11,6 +11,7 @@
     - When the option is present, `ssh-rsa` keys will be treated as `rsa-sha2-512` or `rsa-sha2-256`, if the server supports it
   - Added a flag `OPENSSH-SHA1` (enabled by default) to pass this `convertSha1` flag when using `publickey` or `agent` auths
   - Part of this change required creating a custom ssh2 `authHandler` (based on the built-in version) to pass the option if desired
+- Changed the `lastVersion` extension version tracking to a new `versionHistory` system to better track bug origins
 
 ## v1.26.0 (2023-03-25)
 
