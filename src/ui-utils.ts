@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { getConfigs } from './config';
 import type { Connection, ConnectionManager } from './connection';
 import type { Manager } from './manager';
-import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
+import { ActivePortForwarding, getPortForwardingIcon, isActivePortForwarding } from './portForwarding';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { toPromise } from './utils';
@@ -77,10 +77,10 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             iconPath: asAbsolutePath?.('resources/icon.svg'),
         }
     } else if (isActivePortForwarding(item)) { // ActivePortForwarding
-        let label = iconInLabel ? '$(ports-forward-icon) ' : '';
+        let label = '';
         const [forw] = item;
         if (forw.type === 'local' || forw.type === 'remote') {
-            if (forw.localPort || forw.localAddress) {
+            if (forw.localPort != undefined || forw.localAddress) {
                 label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '*'}:${forw.localPort}` || '?';
             } else {
                 label += 'SOCKSv5';
@@ -93,12 +93,14 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             label += ' <unrecognized type>';
         }
         const connLabel = item[1].actualConfig.label || item[1].actualConfig.name;
-        const detail = `${capitalize(forw.type)} port forwarding ${forw.type === 'remote' ? 'from' : 'to'} ${connLabel}`
+        const detail = `${capitalize(forw.type)} port forwarding ${forw.type === 'remote' ? 'from' : 'to'} ${connLabel}`;
+        const icon = getPortForwardingIcon(forw);
+        if (iconInLabel) label = `$(${icon}) ${label}`;
         return {
             item, label, contextValue: 'forwarding',
             detail, tooltip: detail,
             collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-            iconPath: new vscode.ThemeIcon('ports-forward-icon'),
+            iconPath: new vscode.ThemeIcon(icon),
         };
     }
     // FileSystemConfig

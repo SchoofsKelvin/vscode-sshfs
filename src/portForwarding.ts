@@ -40,6 +40,8 @@ function tryParseInt(input?: string): number | undefined {
 // https://regexr.com/61quq
 const PORT_FORWARD_REGEX = /^(?<type>\w+)\s*?(?:(?:\s+(?:(?<localAddress>[^\s:]+|[\da-zA-Z:]+|\[[\da-zA-Z:]+\]):))?(?<localPort>\d+)|(?<localPath>[/\\][/\\.\w?\-]+))(?:\s+(?:(?<remoteAddress>[^\s:]+|[\da-zA-Z:]+|\[[\da-zA-Z:]+\]):)?(?<remotePort>\d+)|\s+(?<remotePath>[/\\][/\\.\w?\-]+))?$/i;
 const PORT_FORWARD_TYPES = ['remote', 'local', 'dynamic'];
+export function parsePortForwarding(input: string, mode: 'throw'): PortForwarding;
+export function parsePortForwarding(input: string, mode: 'report' | 'ignore'): PortForwarding | undefined;
 export function parsePortForwarding(input: string, mode: 'report' | 'throw' | 'ignore'): PortForwarding | undefined {
     try {
         const match = input.match(PORT_FORWARD_REGEX);
@@ -50,10 +52,14 @@ export function parsePortForwarding(input: string, mode: 'report' | 'throw' | 'i
         if (type.length === 1) type = PORT_FORWARD_TYPES.find(t => t[0] === type);
         if (!type || !PORT_FORWARD_TYPES.includes(type))
             throw new Error(`Could not recognize PortForwarding type '${match.groups!.type}'`);
-        const {
+        let {
             localPath, localAddress = localPath, localPort,
             remotePath, remoteAddress = remotePath, remotePort,
         } = match.groups as Partial<Record<string, string>>;
+        if (localAddress?.[0] === '[' && localAddress.endsWith(']'))
+            localAddress = localAddress.substring(1, localAddress.length - 1);
+        if (remoteAddress?.[0] === '[' && remoteAddress.endsWith(']'))
+            remoteAddress = remoteAddress.substring(1, remoteAddress.length - 1);
         let pf: PortForwarding;
         if (type === 'remote' && !remoteAddress && !remotePort) {
             pf = { type, remoteAddress: localAddress, remotePort: tryParseInt(localPort) };
@@ -76,6 +82,13 @@ export function parsePortForwarding(input: string, mode: 'report' | 'throw' | 'i
     }
 }
 
+export function getPortForwardingIcon(forwarding: PortForwarding): string {
+    if (forwarding.type === 'dynamic') return 'globe';
+    if (forwarding.type === 'local') return 'arrow-small-left';
+    if (!forwarding.localAddress && forwarding.localPort === undefined) return 'globe';
+    return 'arrow-small-right';
+}
+
 const SINGLE_WORD_PATH_REGEX = /^[/\\.\w?]+$/;
 const formatAddrPortPath = (addr?: string, port?: number): string => {
     if (port === undefined) {
@@ -93,7 +106,7 @@ export function formatPortForwarding(forwarding: PortForwarding): string {
     if (forwarding.type === 'local' || forwarding.type === 'remote') {
         const local = (forwarding.localPort !== undefined || forwarding.localAddress)
             ? formatAddrPortPath(forwarding.localAddress, forwarding.localPort) : 'SOCKSv5';
-        return `${local} ← ${formatAddrPortPath(forwarding.remoteAddress, forwarding.remotePort)}`;
+        return `${local} ${forwarding.type === 'local' ? ' → ' : ' ← '} ${formatAddrPortPath(forwarding.remoteAddress, forwarding.remotePort)}`;
     } else if (forwarding.type === 'dynamic') {
         return `${formatAddrPortPath(forwarding.address, forwarding.port)} → SOCKSv5`;
     }
@@ -390,11 +403,12 @@ function validatePipe(str: string): string | undefined {
     if (str.match(PIPE_REGEX)) return undefined;
     return 'Windows pipe path should start with \\\\?\\pipe\\ or \\\\.\\pipe\\';
 }
-function validatePort(str: string): string | undefined {
+function validatePort(str: string, allowRandom: boolean): string | undefined {
     try {
         const port = parseInt(str);
+        if (!allowRandom && port === 0) return undefined;
         if (port >= 0 && port < 2 ** 16) return undefined;
-        return 'Port has to be in the range 0-65535';
+        return `Port has to be in the range ${allowRandom ? 0 : 1}-65535`;
     } catch (e) {
         return 'Invalid port';
     }
@@ -411,9 +425,10 @@ async function promptAddressOrPath(location: 'local' | 'remote', allowWildcard: 
     if (!type) return undefined;
     if (type === A) {
         const placeHolder = allowWildcard ? 'IPv4 / IPv6 / domain / *' : 'IPv4 / IPv6 / domain';
-        const validateInput = allowWildcard ? (input: string) => input === '*' ? undefined : validateHost(input) : validateHost;
+        let validateInput = allowWildcard ? (input: string) => input === '*' ? undefined : validateHost(input) : validateHost;
         const addr = await vscode.window.showInputBox({ prompt: 'Address to use', validateInput, placeHolder });
-        const port = await vscode.window.showInputBox({ prompt: 'Port to use', validateInput: validatePort, placeHolder: '0-65535' });
+        validateInput = (input: string) => validatePort(input, allowWildcard);
+        const port = await vscode.window.showInputBox({ prompt: 'Port to use', validateInput, placeHolder: `${allowWildcard ? 0 : 1}-65535` });
         return port === undefined ? undefined : [parseInt(port), addr];
     } else if (location === 'local' && process.platform === 'win32') {
         const pipe = await vscode.window.showInputBox({ prompt: 'Pipe to use', validateInput: validatePipe, placeHolder: '\\\\?\\pipe\\...' });
@@ -424,32 +439,62 @@ async function promptAddressOrPath(location: 'local' | 'remote', allowWildcard: 
     }
 }
 
+async function promptFullLocalRemoteForwarding(type: 'local' | 'remote'): Promise<PortForwarding | undefined> {
+    const local = await promptAddressOrPath('local', type === 'local');
+    const remote = local && await promptAddressOrPath('remote', type === 'remote');
+    if (!remote) return undefined;
+    const [localPort, localAddress] = local;
+    const [remotePort, remoteAddress] = remote;
+    return { type, localPort, localAddress, remotePort, remoteAddress };
+}
+
+async function promptRemoteProxyForwarding(): Promise<PortForwarding | undefined> {
+    const remote = await promptAddressOrPath('remote', true);
+    if (!remote) return undefined;
+    const [remotePort, remoteAddress] = remote;
+    return { type: 'remote', remotePort, remoteAddress };
+}
+
+async function promptDynamicForwarding(): Promise<PortForwarding | undefined> {
+    const local = await promptAddressOrPath('local', true);
+    if (!local) return undefined;
+    const [port, address] = local;
+    return { type: 'dynamic', port: port!, address };
+}
+
 export async function promptPortForwarding(config: FileSystemConfig): Promise<PortForwarding | undefined> {
     const picker = vscode.window.createQuickPick<FormattedItem>();
     picker.title = `Port forwarding to ${config.label || config.name}`;
     picker.ignoreFocusOut = true;
+    picker.matchOnDetail = true;
+    picker.matchOnDescription = true;
     const ITEMS: FormattedItem[] = [
         { item: 'local', label: '→ Local forward' },
         { item: 'remote', label: '← Remote forward' },
-        { item: 'remoteProxy', label: '$(globe) Remote proxy (client SOCKSv5 ← server)' },
+        { item: 'remoteProxy', label: '$(globe) Remote proxy (client SOCKSv5 ← server)', description: '(omit local address/port)' },
         { item: 'dynamic', label: '$(globe) Dynamic forward (client → server SOCKSv5)' },
         { item: 'examples', label: '$(list-unordered) Show examples' },
     ];
-    const formatPF = (forward: PortForwarding, description?: string): FormattedItem => ({
-        item: forward, alwaysShow: true, description,
-        label: formatPortForwarding(forward),
+    const formatPF = (forward: PortForwarding, description?: string, alwaysShow?: boolean): FormattedItem => ({
+        item: forward, alwaysShow, description,
+        label: `$(${getPortForwardingIcon(forward)}) ${formatPortForwarding(forward)}`,
         detail: formatPortForwardingConfig(forward),
     });
+    let examples = false;
     const updateItems = () => {
         let items: FormattedItem[] = [];
         let suggested: FormattedItem[] = [];
-        if (picker.value === 'examples') {
+        if (picker.value === 'examples' || picker.value.startsWith('examples ')) {
+            examples = true;
+            picker.value = picker.value.slice(9);
+        }
+        if (examples) {
             suggested = [{ item: 'return', label: '$(quick-input-back) Return', alwaysShow: true }];
             items = [
-                formatPF({ type: 'local', localPort: 0, remoteAddress: 'localhost', remotePort: 8080 }, 'Port 0 will pick a free'),
+                formatPF({ type: 'local', localPort: 0, remoteAddress: 'localhost', remotePort: 8080 }, 'Port 0 will pick a free port'),
                 formatPF({ type: 'local', localPort: 8080, remoteAddress: 'localhost', remotePort: 8080 }, 'No address or "*" binds to all interfaces'),
                 formatPF({ type: 'local', localAddress: '\\\\?\\pipe\\windows\\named\\pipe', remoteAddress: '/tmp/unix/socket' }, 'Supports Unix sockets'),
-                formatPF({ type: 'remote', remotePort: 8080 }, 'No address or "*" binds to all interfaces'),
+                formatPF({ type: 'remote', localPort: 8080, remotePort: 8080 }, 'No address or "*" binds to all interfaces'),
                 formatPF({ type: 'remote', localAddress: 'example.com', localPort: 80, remoteAddress: '0::1', remotePort: 8080 }, 'Supports hostnames and IPv6'),
                 formatPF({ type: 'remote', remoteAddress: 'localhost', remotePort: 1234 }, 'Bind remotely to proxy through client'),
                 formatPF({ type: 'dynamic', address: 'localhost', port: 1234 }, 'Bind locally to proxy through server'),
@@ -468,8 +513,8 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
                 items = [...ITEMS];
             }
             try {
-                const forward = parsePortForwarding(picker.value, 'throw')!;
-                suggested.push(formatPF(forward));
+                const forward = parsePortForwarding(picker.value, 'throw');
+                suggested.unshift(formatPF(forward, undefined, true));
                 detail = `Current syntax: ${detail}`;
             } catch (e) {
                 const label = (e.message as string).replace(/from '.*'$/, '');
@@ -481,38 +526,37 @@ export async function promptPortForwarding(config: FileSystemConfig): Promise<Po
         }
         // If you set items first, onDidAccept will be triggered (even though it shouldn't)
         picker.selectedItems = picker.activeItems = suggested;
-        picker.items = items.length ? [...items, ...suggested] : suggested;
+        picker.items = items.length ? [...suggested, ...items] : suggested;
     };
     updateItems();
     picker.onDidChangeValue(updateItems);
-    return new Promise((resolve) => {
+    return new Promise<PortForwarding | undefined>((resolve) => {
         picker.onDidAccept(() => {
             if (!picker.selectedItems.length) return;
             const [{ item }] = picker.selectedItems;
             if (!item) return;
             if (item === 'examples') {
-                picker.value = 'examples';
-            } else if (item === 'return') {
+                examples = true;
                 picker.value = '';
-            } else if (item === 'local') {
-                picker.value = 'Local ';
-            } else if (item === 'remote' || item === 'remoteProxy') {
-                picker.value = 'Remote ';
+            } else if (item === 'return') {
+                examples = false;
+                picker.value = '';
+            } else if (item === 'local' || item === 'remote') {
+                return resolve(promptFullLocalRemoteForwarding(item));
+            } else if (item === 'remoteProxy') {
+                return resolve(promptRemoteProxyForwarding());
             } else if (item === 'dynamic') {
-                picker.value = 'Dynamic ';
+                return resolve(promptDynamicForwarding());
+            } else if (examples) {
+                // Looking at examples, don't actually accept but copy the value
+                examples = false;
+                picker.value = formatPortForwardingConfig(item);
             } else {
-                if (picker.value === 'examples') {
-                    // Looking at examples, don't actually accept but copy the value
-                    picker.value = formatPortForwardingConfig(item);
-                } else {
-                    resolve(item);
-                    picker.hide();
-                    return;
-                }
+                return resolve(item);
             }
             updateItems();
         });
         picker.onDidHide(() => resolve(undefined));
         picker.show();
-    });
+    }).finally(() => picker.dispose());
 }

@@ -326,17 +326,21 @@
                     "group": "remote_11_ssh_sshfs@2"
                 },
                 {
-                    "command": "sshfs.settings",
+                    "command": "sshfs.forwardPort",
                     "group": "remote_11_ssh_sshfs@3"
                 },
                 {
+                    "command": "sshfs.settings",
+                    "group": "remote_11_ssh_sshfs@4"
+                },
+                {
                     "command": "sshfs.disconnect",
-                    "group": "remote_11_ssh_sshfs@4",
+                    "group": "remote_11_ssh_sshfs@5",
                     "when": "sshfs.openConnections > 0"
                 },
                 {
                     "command": "sshfs.disconnectAll",
-                    "group": "remote_11_ssh_sshfs@5",
+                    "group": "remote_11_ssh_sshfs@6",
                     "when": "sshfs.openConnections > 0"
                 }
             ]
