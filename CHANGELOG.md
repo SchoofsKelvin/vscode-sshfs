@@ -1,18 +1,18 @@
 
 # Changelog
 
-## Unreleased
+## v1.26.1 (2023-04-16)
 
 ### Changes
 
-- Apply a patch to ssh2 and make use of it to fix OpenSSH 8.8+ disabling `ssh-rsa` (SHA1) by default (#309)
+- Apply a patch to ssh2 and make use of it to fix OpenSSH 8.8+ disabling `ssh-rsa` (SHA1) by default (#309) (8f62809)
   - Patch file in `.yarn/patches` based on <https://github.com/Eugeny/ssh2/tree/rsa-sha> applied to `ssh2@1.11.0`
   - The patch adds an option `convertSha1` to `publickey` and `agent` authentication methods on top of Eugeny's modifications
     - When the option is present, `ssh-rsa` keys will be treated as `rsa-sha2-512` or `rsa-sha2-256`, if the server supports it
   - Added a flag `OPENSSH-SHA1` (enabled by default) to pass this `convertSha1` flag when using `publickey` or `agent` auths
   - Part of this change required creating a custom ssh2 `authHandler` (based on the built-in version) to pass the option if desired
-- Changed the `lastVersion` extension version tracking to a new `versionHistory` system to better track bug origins
-- Fix error notifications appearing for missing Python config file (#379)
+- Changed the `lastVersion` extension version tracking to a new `versionHistory` system to better track bug origins (5314e21)
+- Fix error notifications appearing for missing Python config file (d878b78, #379)
   - The `FS_NOTIFY_ERRORS` flag was supposed to default to `'write'` for VS Code 1.56+ but defaulted to `true` (i.e. `'all'`) instead
   - Added `/pyproject.toml` to the ignore list (added as a `configBasedExtensionTips` in `product.json` in VS Code 1.77)
 
