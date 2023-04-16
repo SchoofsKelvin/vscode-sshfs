@@ -38,13 +38,13 @@ import { catchingPromise } from './utils';
     - A comma-separated list of method names to enable logging for in the FileSystemRouter
     - The presence of `all` is equal to `stat,readDirectory,createDirectory,readFile,writeFile,delete,rename`
     - The router logs handles `ssh://`, and will even log operations to non-existing configurations/connections
-  FS_NOTIFY_ERRORS (string) (default='')
+  FS_NOTIFY_ERRORS (string)
     - A comma-separated list of operations to display notifications for should they error
     - Mind that `FileNotFound` errors for ignored paths are always ignored, except with `DEBUG_FS=showignored`
     - The presence of `all` will show notification for every operation
     - The presence of `write` is equal to `createDirectory,writeFile,delete,rename`
     - Besides those provided by  `write`, there's also `readDirectory`, `readFile` and `stat`
-    - Automatically set to `write` for VS Code 1.56 and later (see issue #282)
+    - Automatically set to `write` for VS Code 1.56 and later (see issue #282), otherwise ''
   SHELL_CONFIG (string)
     - Forces the use of a specific shell configuration. Check shellConfig.ts for possible values
     - By default, when this flag is absent (or an empty or not a string), the extension will try to detect the correct type to use
@@ -104,7 +104,7 @@ function calculateFlags(): Record<string, FlagCombo> {
   // Starting with 1.56, FileSystemProvider errors aren't shown to the user and just silently fail
   // https://github.com/SchoofsKelvin/vscode-sshfs/issues/282
   if (semver.gte(vscode.version, '1.56.0')) {
-    applyList(['+FS_NOTIFY_ERRORS'], 'Fix for issue #282');
+    applyList(['FS_NOTIFY_ERRORS=write'], 'Fix for issue #282');
   }
   applyList(config.globalValue, 'Global Settings');
   applyList(config.workspaceValue, 'Workspace Settings');

@@ -23,6 +23,7 @@ const IGNORE_NOT_FOUND: string[] = [
   '/app/src/main/AndroidManifest.xml',
   '/build.gradle',
   '/.devcontainer/devcontainer.json',
+  '/pyproject.toml',
 ];
 function shouldIgnoreNotFound(target: string) {
   if (IGNORE_NOT_FOUND.some(entry => entry === target || entry.endsWith('/') && target.startsWith(entry))) return true;

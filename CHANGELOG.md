@@ -12,6 +12,9 @@
   - Added a flag `OPENSSH-SHA1` (enabled by default) to pass this `convertSha1` flag when using `publickey` or `agent` auths
   - Part of this change required creating a custom ssh2 `authHandler` (based on the built-in version) to pass the option if desired
 - Changed the `lastVersion` extension version tracking to a new `versionHistory` system to better track bug origins
+- Fix error notifications appearing for missing Python config file (#379)
+  - The `FS_NOTIFY_ERRORS` flag was supposed to default to `'write'` for VS Code 1.56+ but defaulted to `true` (i.e. `'all'`) instead
+  - Added `/pyproject.toml` to the ignore list (added as a `configBasedExtensionTips` in `product.json` in VS Code 1.77)
 
 ## v1.26.0 (2023-03-25)
 
