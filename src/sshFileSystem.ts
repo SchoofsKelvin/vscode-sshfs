@@ -174,7 +174,7 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     return toPromise<void>(cb => this.sftp.rename(oldUri.path, newUri.path, cb))
       .then(() => this.onDidChangeFileEmitter.fire([
         { uri: oldUri, type: vscode.FileChangeType.Deleted },
-        { uri: newUri, type: vscode.FileChangeType.Created }
+        { uri: newUri, type: vscode.FileChangeType.Changed }
       ]))
       .catch(e => this.handleError('rename', newUri, e, true));
   }
