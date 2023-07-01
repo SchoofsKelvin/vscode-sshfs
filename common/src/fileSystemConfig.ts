@@ -81,7 +81,7 @@ export function groupByGroup(configs: FileSystemConfig[]): [string, FileSystemCo
 }
 
 export interface FileSystemConfig extends ConnectConfig {
-  /** Name of the config. Can only exists of lowercase alphanumeric characters, slashes and any of these: _.+-@ */
+  /** Name of the config. Can not exists of : \\" */
   name: string;
   /** Optional label to display in some UI places (e.g. popups) */
   label?: string;
