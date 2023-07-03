@@ -30,7 +30,7 @@ class NewConfig extends React.Component<StateProps & DispatchProps> {
                 <h2>Create new configuration</h2>
                 <FieldString
                     label="Name"
-                    description="Name of the config. Without characters: backslash, ditto"
+                    description="Name of the config. Without characters: backslash, slash, ditto"
                     value={name}
                     validator={invalidConfigName}
                     onChange={setName}
