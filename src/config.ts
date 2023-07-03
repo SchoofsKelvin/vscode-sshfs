@@ -455,8 +455,7 @@ export async function deleteConfig(config: FileSystemConfig) {
  * If this results in no (valid) configuration, `undefined` is returned.
  */
 export function getConfig(input: string): FileSystemConfig | undefined {
-  const lower = input.toLowerCase();
-  const loaded = getConfigs().find(c => c.name.toLowerCase() === lower);
+  const loaded = getConfigs().find(c => c.name === input);
   if (loaded) return loaded;
   if (!input.includes('@')) return undefined;
   const parseString = parseConnectionString(input);
