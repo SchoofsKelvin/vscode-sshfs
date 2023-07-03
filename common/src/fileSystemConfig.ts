@@ -81,7 +81,7 @@ export function groupByGroup(configs: FileSystemConfig[]): [string, FileSystemCo
 }
 
 export interface FileSystemConfig extends ConnectConfig {
-  /** Name of the config. Can not exists of : \\" */
+  /** Name of the config. Can not exists of : \\/" */
   name: string;
   /** Optional label to display in some UI places (e.g. popups) */
   label?: string;
@@ -131,7 +131,7 @@ export function isFileSystemConfig(config: any): config is FileSystemConfig {
 
 export function invalidConfigName(name: string) {
   if (!name) return 'Missing a name for this SSH FS';
-  if (name.match(/[\\"]+/)) return `A SSH FS name can not exists of : \\"`;
+  if (name.match(/[\\/"]+/)) return `A SSH FS name can not exists of : \\"`;
   return null;
 }
 
