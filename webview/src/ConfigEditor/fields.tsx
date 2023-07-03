@@ -24,7 +24,7 @@ function pathValidator(value?: string): string | null {
 
 export function name(config: FileSystemConfig, onChange: FSCChanged<'name'>): React.ReactElement {
   const callback = (value: string) => onChange('name', value);
-  const description = 'Name of the config. Can not exists of : \\"';
+  const description = 'Name of the config. Can not exists of : \\/"';
   return <FieldString key="name" label="Name" value={config.name} onChange={callback} validator={invalidConfigName} description={description} />
 }
 
