@@ -423,7 +423,7 @@ export async function updateConfig(config: FileSystemConfig, oldName = config.na
   }
   await alterConfigs(_location, (configs) => {
     logging.debug`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`;
-    const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === oldName.toLowerCase() : false);
+    const index = configs.findIndex(c => c.name ? c.name === oldName : false);
     if (index === -1) {
       logging.debug`\tAdding the new config to the existing configs`;
       configs.push(config);
@@ -442,7 +442,7 @@ export async function deleteConfig(config: FileSystemConfig) {
   logging.info`Deleting config ${name} in ${_location}`;
   await alterConfigs(_location, (configs) => {
     logging.debug`\tConfig location '${_location}' has following configs: ${configs.map(c => c.name).join(', ')}`;
-    const index = configs.findIndex(c => c.name ? c.name.toLowerCase() === name.toLowerCase() : false);
+    const index = configs.findIndex(c => c.name ? c.name === name : false);
     if (index === -1) throw new Error(`Config '${name}' not found in ${_location}`);
     logging.debug`\tDeleting config '${configs[index].name}' at index ${index}`;
     configs.splice(index, 1);
@@ -462,7 +462,7 @@ export function getConfig(input: string): FileSystemConfig | undefined {
   if (typeof parseString === 'string') return undefined;
   const [parsed] = parseString;
   // If we're using the instant connection string, the host name might be a config name
-  const existing = getConfigs().find(c => c.name.toLowerCase() === parsed.host!.toLowerCase());
+  const existing = getConfigs().find(c => c.name === parsed.host!);
   if (existing) {
     Logging.info`getConfig('${input}') led to '${parsed.name}' which matches config '${existing.name}'`;
     // Take the existing config, but (more or less) override it with the values present in `parsed`
