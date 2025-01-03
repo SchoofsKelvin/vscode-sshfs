@@ -429,6 +429,7 @@
     "dependencies": {
         "common": "workspace:*",
         "event-stream": "^4.0.1",
+        "iconv-lite": "^0.6.3",
         "jsonc-parser": "^3.2.0",
         "semver": "^7.3.5",
         "socks": "^2.2.0",

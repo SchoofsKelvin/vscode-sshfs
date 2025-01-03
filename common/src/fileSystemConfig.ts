@@ -117,6 +117,8 @@ export interface FileSystemConfig extends ConnectConfig {
   instantConnection?: boolean;
   /** List of special flags to enable/disable certain fixes/features. Flags are usually used for issues or beta testing. Flags can disappear/change anytime! */
   flags?: string[];
+  /** Specifies the character encoding used for the SSH terminal. If undefined or an unsupported by iconv-lite, UTF-8 will be used */
+  encoding?: string;
   /** Internal property saying where this config comes from. Undefined if this config is merged or something */
   _location?: ConfigLocation;
   /** Internal property keeping track of where this config comes from (including merges) */

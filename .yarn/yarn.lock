@@ -5703,7 +5703,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"iconv-lite@npm:^0.6.2":
+"iconv-lite@npm:^0.6.2, iconv-lite@npm:^0.6.3":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
   dependencies:
@@ -9560,6 +9560,7 @@ __metadata:
     "@vscode/vsce": ^2.18.0
     common: "workspace:*"
     event-stream: ^4.0.1
+    iconv-lite: ^0.6.3
     jsonc-parser: ^3.2.0
     prettier: ^2.6.2
     semver: ^7.3.5
