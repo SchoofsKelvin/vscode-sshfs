@@ -171,7 +171,7 @@ export function taskCommand(config: FileSystemConfig, onChange: FSCChanged<'task
 
 export function encoding(config: FileSystemConfig, onChange: FSCChanged<'encoding'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('encoding', newValue);
-  const description = (<>Text encoding used for terminal input/output. For a list of supported encodings, see <a href="https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings" target="_blank" rel="noreferrer">iconv-lite wiki</a>.</>);
+  const description = (<>Text encoding used for terminal input/output. For a list of supported encodings, see <a href="https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings" target="_blank" rel="noreferrer">iconv-lite wiki</a></>);
   const values = ['utf8', 'iso-8859-1', 'Shift_JIS', 'EUC-JP', 'EUC-KR'];
   return <FieldDropdownWithInput key="encoding" label="Encoding" {...{ value: config.encoding, values, description }} onChange={callback} optional />
 }
