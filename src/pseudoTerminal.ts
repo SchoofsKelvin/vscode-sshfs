@@ -146,22 +146,19 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
 
     // Encodes user input (originally UTF-8 in JS string) into the remote encoding, if configured.
     // Returns a Buffer if encoding is valid, otherwise returns the original string.
-    function encodeTerminalInput(data: string) : Buffer | string {
-        const encoding = actualConfig.encoding;
-        if (!encoding || !iconv.encodingExists(encoding)) {
-            return data;
-        }
-        return iconv.encode(data, encoding);
-    }
-
+    let encodeTerminalInput: (data: string) => Buffer | string;
+    
     // Decodes data received from the remote side (as Buffer) into a string using the configured encoding.
     // If encoding is not set or invalid, defaults to data.toString() (UTF-8).
-    function decodeTerminalOutput(data: Buffer) : string {
-        const encoding = actualConfig.encoding;
-        if (!encoding || !iconv.encodingExists(encoding)) {
-            return data.toString();
-        }
-        return iconv.decode(data, encoding);
+    let decodeTerminalOutput: (data: Buffer) => string;
+
+    const encoding = actualConfig.encoding;
+    if (encoding && iconv.encodingExists(encoding)) {
+        encodeTerminalInput  = (data: string) => iconv.encode(data, encoding);
+        decodeTerminalOutput = (data: Buffer) => iconv.decode(data, encoding);
+    } else {
+        encodeTerminalInput  = (data: string) => data; 
+        decodeTerminalOutput = (data: Buffer) => data.toString();
     }
 
     // Won't actually open the remote terminal until pseudo.open(dims) is called
