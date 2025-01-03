@@ -4,7 +4,7 @@ import './index.css';
 
 export interface Props<T> {
     label?: string;
-    description?: string;
+    description?: React.ReactNode;
     value: T;
     optional?: boolean;
     group?: FieldGroup;
