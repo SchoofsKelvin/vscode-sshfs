@@ -1,5 +1,6 @@
 
 declare module 'ssh2' {
+    import { EventEmitter } from 'events';
     import * as net from 'net';
     import { BaseAgent } from 'ssh2/lib/agent';
     import { ParsedKey, parseKey } from 'ssh2/lib/protocol/keyParser';
@@ -9,11 +10,11 @@ declare module 'ssh2' {
 
     // Export all the agent stuff. The exported members in it are also directly exported in the main module
     export * from 'ssh2/lib/agent';
+    // Export all the other SFTP types as a type-only namespace (e.g. Stats, Attributes, ...)
+    export { sftp };
     // Export type SFTP type so the user doesn't have to import `ssh2/lib/protocol/SFTP` to use it as a type.
     // The class/value itself is not exported here, since code-wise it also isn't present in the main module!
     export type { SFTP };
-    // Export all the other SFTP types as a type-only namespace (e.g. Stats, Attributes, ...)
-    export { sftp };
 
     /** Used in {@link HandshakeNegotiation} */
     export interface HandshakeNegotiationAlgorithms {
@@ -254,7 +255,7 @@ declare module 'ssh2' {
     export type ErrorCallback = (error: Error | undefined) => void;
     export type ClientChannelCallback = (error: Error | undefined, channel: ClientChannel) => void;
 
-    export class Client extends NodeJS.EventEmitter {
+    export class Client extends EventEmitter {
 
         constructor();
 
@@ -663,7 +664,7 @@ declare module 'ssh2' {
     }
 
     export type ConnectionListener = (client: Connection, info: ConnectionInfo) => void;
-    export class Server extends NodeJS.EventEmitter {
+    export class Server extends EventEmitter {
 
         constructor(config: ServerConfig, connectionListener?: ConnectionListener);
 
@@ -721,6 +722,7 @@ declare module 'ssh2' {
 }
 
 declare module 'ssh2/lib/protocol/SFTP' {
+    import { EventEmitter } from 'events';
     import { Channel, Client, ErrorCallback } from 'ssh2';
     import * as stream from 'stream';
 
@@ -864,7 +866,7 @@ declare module 'ssh2/lib/protocol/SFTP' {
     }
 
     /** Can be a drop-in replacement as {@link Channel} */
-    export class SFTP extends NodeJS.EventEmitter {
+    export class SFTP extends EventEmitter {
 
         /**
          * Creates an SFTP object for the given Client/Channel with the given options.

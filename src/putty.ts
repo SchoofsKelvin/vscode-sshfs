@@ -5,7 +5,7 @@ import { toPromise } from './utils';
 
 const winreg = new Winreg({
   hive: Winreg.HKCU,
-  key: `\\Software\\SimonTatham\\PuTTY\\Sessions\\`,
+  key: `\\Software\\SimonTatham\\PuTTY\\Sessions`,
 });
 
 export type NumberAsBoolean = 0 | 1;
@@ -53,7 +53,7 @@ export async function getSessions() {
   const values = await toPromise<Winreg.Registry[]>(cb => winreg.keys(cb));
   const sessions: PuttySession[] = [];
   await Promise.all(values.map(regSession => (async () => {
-    const name = decodeURIComponent(regSession.key.substr(winreg.key.length));
+    const name = decodeURIComponent(regSession.key.slice(winreg.key.length + 1));
     const props = await toPromise<Winreg.RegistryItem[]>(cb => regSession.values(cb));
     const properties: { [key: string]: string | number } = {};
     props.forEach(prop => properties[prop.name.toLowerCase()] = valueFromItem(prop));
