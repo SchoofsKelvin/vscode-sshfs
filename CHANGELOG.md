@@ -3,6 +3,10 @@
 
 ## Unreleased
 
+### Major change
+
+- Update from patched ssh2@^1.11.0 to ssh@^1.16.0
+
 ### Development changes
 
 - Update Yarn from 3.5.0 to 4.6.0

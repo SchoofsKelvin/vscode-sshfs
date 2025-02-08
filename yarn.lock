@@ -3018,7 +3018,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"asn1@npm:^0.2.4":
+"asn1@npm:^0.2.6":
   version: 0.2.6
   resolution: "asn1@npm:0.2.6"
   dependencies:
@@ -3322,6 +3322,13 @@ __metadata:
     base64-js: "npm:^1.3.1"
     ieee754: "npm:^1.1.13"
   checksum: 10c0/27cac81cff434ed2876058d72e7c4789d11ff1120ef32c9de48f59eab58179b66710c488987d295ae89a228f835fc66d088652dffeb8e3ba8659f80eb091d55e
+  languageName: node
+  linkType: hard
+
+"buildcheck@npm:~0.0.6":
+  version: 0.0.6
+  resolution: "buildcheck@npm:0.0.6"
+  checksum: 10c0/8cbdb89f41bc484b8325f4828db4135b206a0dffb641eb6cdb2b7022483c45dd0e5aac6d820c9a67bdd2caab3a02c76d7ceec7bd9ec494b5a2270d2806b01a76
   languageName: node
   linkType: hard
 
@@ -3783,10 +3790,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cpu-features@npm:@favware/skip-dependency@1.1.3":
-  version: 1.1.3
-  resolution: "@favware/skip-dependency@npm:1.1.3"
-  checksum: 10c0/e47fe957629ebb323da2755b55cfcaa4efb280dea45b88b78fe6f62f3d6e65b9a3eb57836228e415fc943c2e15a6c3ca8b5e02abacd8972b02bdcb400c6298f7
+"cpu-features@npm:~0.0.10":
+  version: 0.0.10
+  resolution: "cpu-features@npm:0.0.10"
+  dependencies:
+    buildcheck: "npm:~0.0.6"
+    nan: "npm:^2.19.0"
+    node-gyp: "npm:latest"
+  checksum: 10c0/0c4a12904657b22477ffbcfd2b4b2bdd45b174f283616b18d9e1ade495083f9f6098493feb09f4ae2d0b36b240f9ecd32cfb4afe210cf0d0f8f0cc257bd58e54
   languageName: node
   linkType: hard
 
@@ -6866,12 +6877,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nan@npm:^2.16.0":
-  version: 2.17.0
-  resolution: "nan@npm:2.17.0"
+"nan@npm:^2.19.0, nan@npm:^2.20.0":
+  version: 2.22.0
+  resolution: "nan@npm:2.22.0"
   dependencies:
     node-gyp: "npm:latest"
-  checksum: 10c0/4a231a62dba025f4c4fa814c1e6ffeb450c5cd0852b780f19fe4ea22b86ba0f1f394406dfd628c67fb7f0987e982fa230da1fbd3632258f927b8defd7046c1ad
+  checksum: 10c0/d5d31aefdb218deba308d44867c5f432b4d3aabeb57c70a2b236d62652e9fee7044e5d5afd380d9fef022fe7ebb2f2d6c85ca3cbcac5031aaca3592c844526bb
   languageName: node
   linkType: hard
 
@@ -8813,37 +8824,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ssh2@npm:1.11.0":
-  version: 1.11.0
-  resolution: "ssh2@npm:1.11.0"
+"ssh2@npm:^1.16.0":
+  version: 1.16.0
+  resolution: "ssh2@npm:1.16.0"
   dependencies:
-    asn1: "npm:^0.2.4"
+    asn1: "npm:^0.2.6"
     bcrypt-pbkdf: "npm:^1.0.2"
-    cpu-features: "npm:~0.0.4"
-    nan: "npm:^2.16.0"
+    cpu-features: "npm:~0.0.10"
+    nan: "npm:^2.20.0"
   dependenciesMeta:
     cpu-features:
       optional: true
     nan:
       optional: true
-  checksum: 10c0/f51a18287c827ee44420653ea192d60caf9962c7c43c021b63c2edb1fd133449e1f0d9f256c2da42b9141cb8644beb250998163088f84af9ef29330702c47bc3
-  languageName: node
-  linkType: hard
-
-"ssh2@patch:ssh2@npm%3A1.11.0#./.yarn/patches/ssh2-npm-1.11.0-convertSha1.patch::locator=vscode-sshfs%40workspace%3A.":
-  version: 1.11.0
-  resolution: "ssh2@patch:ssh2@npm%3A1.11.0#./.yarn/patches/ssh2-npm-1.11.0-convertSha1.patch::version=1.11.0&hash=602c9b&locator=vscode-sshfs%40workspace%3A."
-  dependencies:
-    asn1: "npm:^0.2.4"
-    bcrypt-pbkdf: "npm:^1.0.2"
-    cpu-features: "npm:~0.0.4"
-    nan: "npm:^2.16.0"
-  dependenciesMeta:
-    cpu-features:
-      optional: true
-    nan:
-      optional: true
-  checksum: 10c0/d16e1e6b7448f39d9a41d6732aed7e1f3596efcf6312db5ad6731a4c33bc352e93dbb42c1219dc824abb5fb3bf2829d558c8d9c338303d78123dc07cb8268dd3
+  checksum: 10c0/d336a85d87501c64ba230b6c1a2901a9b0e376fe7f7a1640a7f8dbdafe674b2e1a5dc6236ffd1329969dc0cf03cd57759b28743075e61229a984065ee1d56bed
   languageName: node
   linkType: hard
 
@@ -9580,7 +9574,7 @@ __metadata:
     socks: "npm:^2.2.0"
     source-map: "npm:^0.7.3"
     source-map-support: "npm:^0.5.19"
-    ssh2: "npm:^1.11.0"
+    ssh2: "npm:^1.16.0"
     ts-loader: "npm:^9.4.2"
     typescript: "npm:~5.7.3"
     webpack: "npm:^5.76.3"
