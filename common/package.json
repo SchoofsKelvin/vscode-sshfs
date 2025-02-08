@@ -17,7 +17,7 @@
     "build": "tsc"
   },
   "devDependencies": {
-    "@types/node": "^12.7.12",
+    "@types/node": "^20.12.1",
     "@types/ssh2": "^0.5.41",
     "typescript": "~5.7.3"
   }

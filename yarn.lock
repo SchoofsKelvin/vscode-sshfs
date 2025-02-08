@@ -2092,10 +2092,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^12.7.12":
-  version: 12.20.55
-  resolution: "@types/node@npm:12.20.55"
-  checksum: 10c0/3b190bb0410047d489c49bbaab592d2e6630de6a50f00ba3d7d513d59401d279972a8f5a598b5bb8ddc1702f8a2f4ec57a65d93852f9c329639738e7053637d1
+"@types/node@npm:^20.12.1":
+  version: 20.17.17
+  resolution: "@types/node@npm:20.17.17"
+  dependencies:
+    undici-types: "npm:~6.19.2"
+  checksum: 10c0/6aebc8053b96f1b6d82c3a3fe5fc20d9f7eeb507d79d967221bbecaa2b26665fa1c9efe460be2a2f4aaae4e98f37797df7d5a4189f2b6edf8abf9f82f7fd8b1f
   languageName: node
   linkType: hard
 
@@ -3807,7 +3809,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "common@workspace:common"
   dependencies:
-    "@types/node": "npm:^12.7.12"
+    "@types/node": "npm:^20.12.1"
     "@types/ssh2": "npm:^0.5.41"
     typescript: "npm:~5.7.3"
   languageName: unknown
@@ -10141,6 +10143,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"undici-types@npm:~6.19.2":
+  version: 6.19.8
+  resolution: "undici-types@npm:6.19.8"
+  checksum: 10c0/078afa5990fba110f6824823ace86073b4638f1d5112ee26e790155f481f2a868cc3e0615505b6f4282bdf74a3d8caad715fd809e870c2bb0704e3ea6082f344
+  languageName: node
+  linkType: hard
+
 "undici-types@npm:~6.20.0":
   version: 6.20.0
   resolution: "undici-types@npm:6.20.0"
@@ -10299,7 +10308,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vscode-sshfs@workspace:."
   dependencies:
-    "@types/node": "npm:^12.7.12"
+    "@types/node": "npm:^20.12.1"
     "@types/request": "npm:^2.48.1"
     "@types/semver": "npm:^7.3.9"
     "@types/vscode": "npm:~1.49.0"

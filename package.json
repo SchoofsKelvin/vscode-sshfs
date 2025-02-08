@@ -5,7 +5,7 @@
     "publisher": "Kelvin",
     "version": "1.26.1",
     "engines": {
-        "vscode": "^1.75.0"
+        "vscode": "^1.90.0"
     },
     "categories": [
         "Other"
@@ -398,7 +398,7 @@
         "watch": "webpack --mode development --watch"
     },
     "devDependencies": {
-        "@types/node": "^12.7.12",
+        "@types/node": "^20.12.1",
         "@types/request": "^2.48.1",
         "@types/semver": "^7.3.9",
         "@types/vscode": "~1.49.0",
