@@ -20,21 +20,21 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     name: Build and package
     timeout-minutes: 10 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Event Utilities
       uses: SchoofsKelvin/event-utilities@v1.1.0
       id: utils
       with:
         artifact_prefix: "vscode-sshfs"
         artifact_extension: "vsix"
-    - name: Use Node.js 18
-      uses: actions/setup-node@v3
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 20
         cache: yarn
         cache-dependency-path: yarn.lock
     - name: Install dependencies
@@ -42,14 +42,14 @@ jobs:
     - name: Build extension
       run: yarn vsce package -o ${{ steps.utils.outputs.artifact_name }} --yarn --no-dependencies
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.utils.outputs.artifact_name }}
         path: ${{ steps.utils.outputs.artifact_name }}
         if-no-files-found: error
     - name: Create release with artifact
       if: ${{ success() && steps.utils.outputs.tag_version }}
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         name: Release ${{ steps.utils.outputs.tag_version }}
         draft: true

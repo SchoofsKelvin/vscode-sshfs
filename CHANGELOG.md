@@ -18,6 +18,8 @@
   - React dependencies are unchanged, `@types/react-*` need to remain unchanged to prevent compilation errors
   - A security fix in winreg@1.2.5 required a code change otherwise no PuTTY sessions would be found
 - Update engine requirements to NodeJS 20 and VS Code 1.90.1
+- Update GitHub workflows as they were failing due to still using outdated versions of certain actions
+  - Also updated the runner and NodeJS version used
 
 ## v1.26.1 (2023-04-16)
 
