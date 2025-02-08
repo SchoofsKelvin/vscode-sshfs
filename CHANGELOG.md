@@ -9,6 +9,7 @@
   - The workspace tools plugin is now built-in, local version removed
   - We're now forced to move `yarn.lock` back to the root of the repository
 - Update TypeScript from ~5.0.2 to ~5.7.3
+- Update engine requirement to vscode@^1.75.0
 
 ## v1.26.1 (2023-04-16)
 

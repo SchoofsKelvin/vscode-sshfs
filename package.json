@@ -5,27 +5,14 @@
     "publisher": "Kelvin",
     "version": "1.26.1",
     "engines": {
-        "vscode": "^1.49.0"
+        "vscode": "^1.75.0"
     },
     "categories": [
         "Other"
     ],
     "activationEvents": [
         "onFileSystem:ssh",
-        "onFileSystemAccess:ssh",
-        "onView:sshfs-configs",
-        "onView:sshfs-connections",
-        "onCommand:sshfs.new",
-        "onCommand:sshfs.add",
-        "onCommand:sshfs.disconnect",
-        "onCommand:sshfs.disconnectAll",
-        "onCommand:sshfs.terminal",
-        "onCommand:sshfs.focusTerminal",
-        "onCommand:sshfs.closeTerminal",
-        "onCommand:sshfs.configure",
-        "onCommand:sshfs.reload",
-        "onCommand:sshfs.settings",
-        "onCommand:sshfs.refresh"
+        "onFileSystemAccess:ssh"
     ],
     "main": "./dist/extension.js",
     "homepage": "https://github.com/SchoofsKelvin/vscode-sshfs",
