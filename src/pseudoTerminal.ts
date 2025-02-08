@@ -2,9 +2,8 @@ import type { EnvironmentVariable, FileSystemConfig } from 'common/fileSystemCon
 import * as path from 'path';
 import type { ClientChannel, PseudoTtyOptions } from 'ssh2';
 import * as vscode from 'vscode';
-import * as iconv from 'iconv-lite';
-import { getFlagBoolean } from './flags';
 import type { Connection } from './connection';
+import { getFlagBoolean } from './flags';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import { environmentToExportString, joinCommands, mergeEnvironment, toPromise } from './utils';
 
@@ -136,6 +135,16 @@ export async function replaceVariablesRecursive<T>(object: T, handler: (value: s
     return object;
 }
 
+async function getEncodingHandlers(encoding?: string): Promise<[encode: (data: string) => Buffer, decode: (data: Buffer) => string]> {
+    if (encoding) {
+        const iconv = await import('iconv-lite');
+        if (!iconv.encodingExists(encoding))
+            throw new Error(`Unknown character encoding '${encoding}'`);
+        return [data => iconv.encode(data, encoding), data => iconv.decode(data, encoding)];
+    }
+    return [data => Buffer.from(data, 'utf-8'), data => data.toString('utf-8')];
+}
+
 export async function createTerminal(options: TerminalOptions): Promise<SSHPseudoTerminal> {
     const { connection } = options;
     const { actualConfig, client, shellConfig } = connection;
@@ -144,22 +153,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
     const onDidOpen = new vscode.EventEmitter<void>();
     let terminal: vscode.Terminal | undefined;
 
-    // Encodes user input (originally UTF-8 in JS string) into the remote encoding, if configured.
-    // Returns a Buffer if encoding is valid, otherwise returns the original string.
-    let encodeTerminalInput: (data: string) => Buffer | string;
-    
-    // Decodes data received from the remote side (as Buffer) into a string using the configured encoding.
-    // If encoding is not set or invalid, defaults to data.toString() (UTF-8).
-    let decodeTerminalOutput: (data: Buffer) => string;
-
-    const encoding = actualConfig.encoding;
-    if (encoding && iconv.encodingExists(encoding)) {
-        encodeTerminalInput  = (data: string) => iconv.encode(data, encoding);
-        decodeTerminalOutput = (data: Buffer) => iconv.decode(data, encoding);
-    } else {
-        encodeTerminalInput  = (data: string) => data; 
-        decodeTerminalOutput = (data: Buffer) => data.toString();
-    }
+    const [encodeInput, decodeOutput] = await getEncodingHandlers(actualConfig.encoding);
 
     // Won't actually open the remote terminal until pseudo.open(dims) is called
     const pseudo: SSHPseudoTerminal = {
@@ -260,8 +254,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                     if (pseudo.status === 'opening') pseudo.status = 'open';
                     onDidOpen.fire();
                 });
-                channel.on('data', chunk => onDidWrite.fire(decodeTerminalOutput(chunk)));
-                channel.stderr!.on('data', chunk => onDidWrite.fire(decodeTerminalOutput(chunk)));
+                channel.on('data', chunk => onDidWrite.fire(decodeOutput(chunk)));
+                channel.stderr!.on('data', chunk => onDidWrite.fire(decodeOutput(chunk)));
                 // TODO: ^ Keep track of stdout's color, switch to red, output, then switch back?
             } catch (e) {
                 Logging.error`Error starting SSH terminal:\n${e}`;
@@ -283,7 +277,7 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
         },
         handleInput(data) {
             if (pseudo.status === 'wait-to-close') return pseudo.close();
-            pseudo.channel?.write(encodeTerminalInput(data));
+            pseudo.channel?.write(encodeInput(data));
         },
     };
     return pseudo;
