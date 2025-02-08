@@ -1,6 +1,14 @@
 
 # Changelog
 
+## Unreleased
+
+### Development changes
+
+- Update Yarn from 3.5.0 to 4.6.0
+  - The workspace tools plugin is now built-in, local version removed
+  - We're now forced to move `yarn.lock` back to the root of the repository
+
 ## v1.26.1 (2023-04-16)
 
 ### Changes

@@ -405,7 +405,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "yarn workspaces foreach -tvip -j 2 run build",
+        "vscode:prepublish": "yarn workspaces foreach -A -tvip -j 2 run build",
         "build": "webpack --mode production",
         "compile": "webpack --mode development",
         "watch": "webpack --mode development --watch"
@@ -443,5 +443,5 @@
         "./common",
         "./webview"
     ],
-    "packageManager": "yarn@3.5.0"
+    "packageManager": "yarn@4.6.0"
 }

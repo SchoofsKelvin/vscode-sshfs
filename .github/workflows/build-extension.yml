@@ -36,7 +36,7 @@ jobs:
       with:
         node-version: 18
         cache: yarn
-        cache-dependency-path: .yarn/yarn.lock
+        cache-dependency-path: yarn.lock
     - name: Install dependencies
       run: yarn --immutable
     - name: Build extension
