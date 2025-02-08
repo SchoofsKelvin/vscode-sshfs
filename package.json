@@ -422,7 +422,7 @@
         "source-map": "^0.7.3",
         "source-map-support": "^0.5.19",
         "ts-loader": "^9.4.2",
-        "typescript": "~5.0.2",
+        "typescript": "~5.7.3",
         "webpack": "^5.76.3",
         "webpack-cli": "^5.0.1"
     },
