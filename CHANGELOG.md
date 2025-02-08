@@ -14,6 +14,9 @@
   - We're now forced to move `yarn.lock` back to the root of the repository
 - Update TypeScript from ~5.0.2 to ~5.7.3
 - Update engine requirement to vscode@^1.75.0
+- Upgrade a ton of dependencies
+  - React dependencies are unchanged, `@types/react-*` need to remain unchanged to prevent compilation errors
+  - A security fix in winreg@1.2.5 required a code change otherwise no PuTTY sessions would be found
 
 ## v1.26.1 (2023-04-16)
 
