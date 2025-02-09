@@ -10317,6 +10317,7 @@ __metadata:
     "@vscode/vsce": "npm:^2.18.0"
     common: "workspace:*"
     event-stream: "npm:^4.0.1"
+    iconv-lite: "npm:^0.6.3"
     jsonc-parser: "npm:^3.2.0"
     prettier: "npm:^2.6.2"
     semver: "npm:^7.3.5"

@@ -169,9 +169,16 @@ export function taskCommand(config: FileSystemConfig, onChange: FSCChanged<'task
   return <FieldDropdownWithInput key="taskCommand" label="Task command" {...{ value, values, description }} onChange={callback} optional />
 }
 
+export function encoding(config: FileSystemConfig, onChange: FSCChanged<'encoding'>): React.ReactElement {
+  const callback = (newValue?: string) => onChange('encoding', newValue);
+  const description = (<>Text encoding used for terminal input/output. For a list of supported encodings, see <a href="https://github.com/ashtuchkin/iconv-lite/wiki/Supported-Encodings" target="_blank" rel="noreferrer">iconv-lite wiki</a></>);
+  const values = ['utf8', 'iso-8859-1', 'Shift_JIS', 'EUC-JP', 'EUC-KR'];
+  return <FieldDropdownWithInput key="encoding" label="Encoding" {...{ value: config.encoding, values, description }} onChange={callback} optional />
+}
+
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
   name, label, group, merge, extend, putty, host, port,
   root, agent, username, password, privateKeyPath, passphrase,
-  newFileMode, agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand,
+  newFileMode, agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand, encoding,
   PROXY_FIELD];

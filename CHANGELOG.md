@@ -3,6 +3,10 @@
 
 ## Unreleased
 
+### Changes
+
+- Added an `Encoding` terminal character encoding option to SSH FS configs (#431 by [@minoru-nagasawa](https://github.com/minoru-nagasawa))
+
 ### Major change
 
 - Update from patched ssh2@^1.11.0 to ssh@^1.16.0
