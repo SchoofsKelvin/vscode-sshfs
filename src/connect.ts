@@ -265,7 +265,7 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${config.name}'`)));
     client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
       logging.debug`Received keyboard-interactive request with prompts ${prompts}`;
-      Promise.all<string>(prompts.map(prompt =>
+      Promise.all<string | undefined>(prompts.map(prompt =>
         vscode.window.showInputBox({
           password: true, // prompt.echo was false for me while testing password prompting
           ignoreFocusOut: true,

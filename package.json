@@ -401,7 +401,7 @@
         "@types/node": "^20.12.1",
         "@types/request": "^2.48.1",
         "@types/semver": "^7.3.9",
-        "@types/vscode": "~1.49.0",
+        "@types/vscode": "^1.90.0",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
         "@vscode/vsce": "^2.18.0",

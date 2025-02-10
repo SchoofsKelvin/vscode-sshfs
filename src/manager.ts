@@ -88,7 +88,7 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
         }
         Logging.error(e);
         const answer = await vscode.window.showWarningMessage(message, 'Stop', 'Ignore');
-        if (answer === 'Okay') return reject(new Error('User stopped filesystem creation after unaccessible home directory error'));
+        if (answer === 'Stop') return reject(new Error('User stopped filesystem creation after unaccessible home directory error'));
       }
       return resolve(fs);
     }).catch((e) => {

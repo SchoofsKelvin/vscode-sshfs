@@ -11,6 +11,7 @@ export interface FormattedItem extends vscode.QuickPickItem, vscode.TreeItem {
     item: any;
     label: string;
     description?: string;
+    iconPath?: vscode.IconPath;
 }
 
 export function formatAddress(config: FileSystemConfig): string {
@@ -37,8 +38,8 @@ export function setupWhenClauseContexts(connectionManager: ConnectionManager): P
     return refresh();
 }
 
-export let asAbsolutePath: vscode.ExtensionContext['asAbsolutePath'] | undefined;
-export const setAsAbsolutePath = (value: typeof asAbsolutePath) => asAbsolutePath = value;
+export let getExtensionUri: ((resource: string) => vscode.Uri) | undefined;
+export const setGetExtensionUri = (value: typeof getExtensionUri) => getExtensionUri = value;
 
 /** Converts the supported types to something basically ready-to-use as vscode.QuickPickItem and vscode.TreeItem */
 export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false): FormattedItem {
@@ -70,7 +71,7 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
         return {
             item, description, contextValue: 'filesystem',
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
-            iconPath: asAbsolutePath?.('resources/icon.svg'),
+            iconPath: getExtensionUri?.('resources/icon.svg'),
         }
     }
     // FileSystemConfig

@@ -2294,10 +2294,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/vscode@npm:~1.49.0":
-  version: 1.49.0
-  resolution: "@types/vscode@npm:1.49.0"
-  checksum: 10c0/b01dd4fb34ee0ae3b1d9d6719d0b8a7921b6ad541f84d1d5432b81b67ffceb06db284ea74670b26f683894416f522345d0da08b9c2596fd38c14c6f0af19ec85
+"@types/vscode@npm:^1.90.0":
+  version: 1.97.0
+  resolution: "@types/vscode@npm:1.97.0"
+  checksum: 10c0/f46a4d671c1e50bf795b808c571077fd8e3c1ee737fe564ea0d9a0a11e9ccd8d6f172546386ad6b134fd75c62ab23f2195eaef9bb90ce2e2500c055a9e59bc84
   languageName: node
   linkType: hard
 
@@ -10311,7 +10311,7 @@ __metadata:
     "@types/node": "npm:^20.12.1"
     "@types/request": "npm:^2.48.1"
     "@types/semver": "npm:^7.3.9"
-    "@types/vscode": "npm:~1.49.0"
+    "@types/vscode": "npm:^1.90.0"
     "@types/webpack": "npm:^4.4.25"
     "@types/winreg": "npm:^1.2.30"
     "@vscode/vsce": "npm:^2.18.0"

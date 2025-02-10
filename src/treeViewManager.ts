@@ -11,7 +11,7 @@ type PendingConnection = [string, FileSystemConfig | undefined];
 type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal;
 export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData> {
     protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<TreeData | void>();
-    public onDidChangeTreeData: vscode.Event<TreeData | void> = this.onDidChangeTreeDataEmitter.event;
+    public onDidChangeTreeData: vscode.Event<TreeData | TreeData[] | undefined | null | void> = this.onDidChangeTreeDataEmitter.event;
     constructor(protected readonly manager: ConnectionManager) {
         manager.onConnectionAdded(() => this.onDidChangeTreeDataEmitter.fire());
         manager.onConnectionRemoved(() => this.onDidChangeTreeDataEmitter.fire());

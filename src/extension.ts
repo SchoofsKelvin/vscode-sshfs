@@ -8,7 +8,7 @@ import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
-import { PickComplexOptions, pickComplex, pickConnection, setAsAbsolutePath, setupWhenClauseContexts } from './ui-utils';
+import { PickComplexOptions, pickComplex, pickConnection, setGetExtensionUri, setupWhenClauseContexts } from './ui-utils';
 
 interface CommandHandler {
   /** If set, a string/undefined prompts using the given options.
@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Really too bad we *need* the ExtensionContext for relative resources
   // I really don't like having to pass context to *everything*, so let's do it this way
-  setAsAbsolutePath(context.asAbsolutePath.bind(context));
+  setGetExtensionUri(path => vscode.Uri.joinPath(context.extensionUri, path));
 
   const manager = MANAGER = new Manager(context);
 
