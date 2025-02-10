@@ -10,6 +10,7 @@
 ### Major change
 
 - Update from patched ssh2@^1.11.0 to ssh@^1.16.0
+- Removed the `OPENSSH-SHA1` flag since `ssh2` incorporates the related patch natively now (#309)
 
 ### Development changes
 

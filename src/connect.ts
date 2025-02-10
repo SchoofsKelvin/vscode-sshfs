@@ -227,29 +227,11 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
 
 function makeAuthHandler(config: FileSystemConfig, logging: Logger): AuthHandlerFunction {
   const authsAllowed: (AuthHandlerObject | AuthHandlerObject['type'])[] = ['none'];
-  const [flagV, flagR] = getFlagBoolean('OPENSSH-SHA1', true, config.flags);
   if (config.password) authsAllowed.push('password');
-  if (config.privateKey) {
-    if (flagV) {
-      logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}', including convertSha1 for publickey authentication`;
-      authsAllowed.push({ type: 'publickey', username: config.username!, key: config.privateKey, convertSha1: true });
-    } else {
-      authsAllowed.push('publickey');
-    }
-  }
-  if (config.agent) {
-    if (flagV) {
-      logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}', including convertSha1 for agent authentication`;
-      authsAllowed.push({ type: 'agent', username: config.username!, agent: config.agent, convertSha1: true });
-    } else {
-      authsAllowed.push('agent');
-    }
-  }
+  if (config.privateKey) authsAllowed.push('publickey');
+  if (config.agent) authsAllowed.push('agent');
   if (config.tryKeyboard) authsAllowed.push('keyboard-interactive');
   if (config.privateKey && config.localHostname && config.localUsername) authsAllowed.push('hostbased');
-  if (flagV) {
-    logging.info`Flag "OPENSSH-SHA1" enabled due to '${flagR}'`;
-  }
   return () => authsAllowed.shift() || false;
 }
 

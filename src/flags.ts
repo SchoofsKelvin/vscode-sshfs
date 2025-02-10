@@ -8,11 +8,6 @@ import { catchingPromise } from './utils';
     - Disables the 'diffie-hellman-group-exchange' kex algorithm as a default option
     - Originally for issue #239
     - Automatically enabled for Electron v11.0, v11.1 and v11.2
-  OPENSSH-SHA1 (boolean) (default=true)
-    - Patch for issue #309 where OpenSSH 8.8+ refuses `ssh-rsa` keys using SHA1 (which is what ssh2 uses)
-    - The patch (see `.yarn/patches/*-convertSha1.patch`) adds an option for `agent` and `publickey` authentications
-    - With this option enabled, the patch will, if the server supports it, make ssh2 use SHA512/SHA256 for `ssh-rsa` keys
-    / Mind that this option applies for every server, the patch doesn't (currently) check whether it's OpenSSH 8.8+
   DEBUG_SSH2 (boolean) (default=false)
     - Enables debug logging in the ssh2 library (set at the start of each connection)
   WINDOWS_COMMAND_SEPARATOR (boolean) (default=false)
