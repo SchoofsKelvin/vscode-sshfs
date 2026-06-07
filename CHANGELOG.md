@@ -1,7 +1,7 @@
 
 # Changelog
 
-## Unreleased
+## v1.27.0 (2026-06-08)
 
 ### Changes
 
@@ -9,30 +9,30 @@
 
 ### Major change
 
-- Update from patched ssh2@^1.11.0 to ssh@^1.17.0
-- Removed the `OPENSSH-SHA1` flag since `ssh2` incorporates the related patch natively now (#309)
+- Update from patched ssh2@^1.11.0 to ssh@^1.17.0 (cdc098f)
+- Removed the `OPENSSH-SHA1` flag since `ssh2` incorporates the related patch natively now (757d5f7, #309)
 
 ### Fixes
 
-- Fix quickPickItemTooltip API proposal bug #445
-- Allow portless colon in connection string to support Linux standard #409
-- Fix "extends" config option in UI #407
-- Fix "Forward agent" option in UI missing checkbox #414
+- Fix quickPickItemTooltip API proposal bug #445 (b1927cd)
+- Allow portless colon in connection string to support Linux standard #409 (4656306)
+- Fix "extends" config option in UI #407 (d39fc48)
+- Fix "Forward agent" option in UI missing checkbox #414 (53d9f92)
 
 ### Development changes
 
-- Update Yarn from 3.5.0 to 4.16.0
+- Update Yarn from 3.5.0 to 4.16.0 (ef3520b)
   - The workspace tools plugin is now built-in, local version removed
   - We're now forced to move `yarn.lock` back to the root of the repository
-- Update TypeScript from ~5.0.2 to ~5.7.3
-- Update engine requirement to vscode@^1.123.0
-- Upgrade a ton of dependencies
+- Update TypeScript from ~5.0.2 to ~5.7.3 (0fb9316)
+- Update engine requirement to vscode@^1.123.0 (cdc098f)
+- Upgrade a ton of dependencies (5ebb6e3)
   - React dependencies are unchanged, `@types/react-*` need to remain unchanged to prevent compilation errors
   - A security fix in winreg@1.2.5 required a code change otherwise no PuTTY sessions would be found
-- Update engine requirements to NodeJS 20 and VS Code 1.123.0
-- Update GitHub workflows as they were failing due to still using outdated versions of certain actions
+- Update engine requirements to NodeJS 20 and VS Code 1.123.0 (cdc098f)
+- Update GitHub workflows as they were failing due to still using outdated versions of certain actions (5c1a874)
   - Also updated the runner and NodeJS version used
-- Updated @types/vscode from ^1.49.0 to ^1.120.0 to match engine requirement
+- Updated @types/vscode from ^1.49.0 to ^1.120.0 to match engine requirement (cdc098f)
 
 ## v1.26.1 (2023-04-16)
 
