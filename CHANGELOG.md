@@ -14,7 +14,7 @@
 
 ### Development changes
 
-- Update Yarn from 3.5.0 to 4.6.0
+- Update Yarn from 3.5.0 to 4.16.0
   - The workspace tools plugin is now built-in, local version removed
   - We're now forced to move `yarn.lock` back to the root of the repository
 - Update TypeScript from ~5.0.2 to ~5.7.3
