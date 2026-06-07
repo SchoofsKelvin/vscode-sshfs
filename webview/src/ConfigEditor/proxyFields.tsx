@@ -10,7 +10,7 @@ function hostAndPort(config: FileSystemConfig, onChange: FSCChanged<'proxy'>): R
     const onChangeHost = (host: string) => onChange('proxy', { ...config.proxy!, host });
     const onChangePort = (port: number) => onChange('proxy', { ...config.proxy!, port });
     console.log('Current config:', config);
-    return <React.Fragment>
+    return <React.Fragment key="hostAndPort">
         <FieldString label="Proxy Host" value={config.proxy!.host} onChange={onChangeHost}
             description="Hostname or IP address of the proxy." />
         <FieldNumber label="Proxy Port" value={config.proxy!.port} onChange={onChangePort}
