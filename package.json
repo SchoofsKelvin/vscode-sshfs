@@ -5,7 +5,7 @@
     "publisher": "Kelvin",
     "version": "1.26.1",
     "engines": {
-        "vscode": "^1.90.0"
+        "vscode": "^1.123.0"
     },
     "categories": [
         "Other"
@@ -401,7 +401,7 @@
         "@types/node": "^20.12.1",
         "@types/request": "^2.48.1",
         "@types/semver": "^7.3.9",
-        "@types/vscode": "^1.90.0",
+        "@types/vscode": "^1.120.0",
         "@types/webpack": "^4.4.25",
         "@types/winreg": "^1.2.30",
         "@vscode/vsce": "^2.18.0",
@@ -416,12 +416,12 @@
     "dependencies": {
         "common": "workspace:*",
         "event-stream": "^4.0.1",
-        "iconv-lite": "^0.6.3",
-        "jsonc-parser": "^3.2.0",
-        "semver": "^7.3.5",
-        "socks": "^2.2.0",
-        "ssh2": "^1.16.0",
-        "winreg": "^1.2.4"
+        "iconv-lite": "^0.7.2",
+        "jsonc-parser": "^3.3.1",
+        "semver": "^7.8.2",
+        "socks": "^2.8.9",
+        "ssh2": "^1.17.0",
+        "winreg": "^1.2.5"
     },
     "workspaces": [
         "./common",

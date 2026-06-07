@@ -2294,10 +2294,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/vscode@npm:^1.90.0":
-  version: 1.97.0
-  resolution: "@types/vscode@npm:1.97.0"
-  checksum: 10c0/f46a4d671c1e50bf795b808c571077fd8e3c1ee737fe564ea0d9a0a11e9ccd8d6f172546386ad6b134fd75c62ab23f2195eaef9bb90ce2e2500c055a9e59bc84
+"@types/vscode@npm:^1.120.0":
+  version: 1.120.0
+  resolution: "@types/vscode@npm:1.120.0"
+  checksum: 10c0/a0ae0878f6eb071f868220aa0f454f0a1c1753597268c5f7d6f7e87d53380fc7c3ff0ab172b7ff82c4ff38a5c29c959b9a6768178b0d18844c86600e84cb4cfd
   languageName: node
   linkType: hard
 
@@ -6034,6 +6034,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"iconv-lite@npm:^0.7.2":
+  version: 0.7.2
+  resolution: "iconv-lite@npm:0.7.2"
+  dependencies:
+    safer-buffer: "npm:>= 2.1.2 < 3.0.0"
+  checksum: 10c0/3c228920f3bd307f56bf8363706a776f4a060eb042f131cd23855ceca962951b264d0997ab38a1ad340e1c5df8499ed26e1f4f0db6b2a2ad9befaff22f14b722
+  languageName: node
+  linkType: hard
+
 "icss-utils@npm:^4.0.0, icss-utils@npm:^4.1.1":
   version: 4.1.1
   resolution: "icss-utils@npm:4.1.1"
@@ -6132,6 +6141,13 @@ __metadata:
   version: 3.1.1
   resolution: "interpret@npm:3.1.1"
   checksum: 10c0/6f3c4d0aa6ec1b43a8862375588a249e3c917739895cbe67fe12f0a76260ea632af51e8e2431b50fbcd0145356dc28ca147be08dbe6a523739fd55c0f91dc2a5
+  languageName: node
+  linkType: hard
+
+"ip-address@npm:^10.1.1":
+  version: 10.2.0
+  resolution: "ip-address@npm:10.2.0"
+  checksum: 10c0/5a00aada6e922c9c69dfc800ed5d0fa3348675ebdeed0e1575f503f27ca385b5f534363c9af7ad1daf64c1f1409388cdd3cc2e9b9b0fe1c924a431378d55075a
   languageName: node
   linkType: hard
 
@@ -6659,7 +6675,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonc-parser@npm:^3.2.0":
+"jsonc-parser@npm:^3.2.0, jsonc-parser@npm:^3.3.1":
   version: 3.3.1
   resolution: "jsonc-parser@npm:3.3.1"
   checksum: 10c0/269c3ae0a0e4f907a914bf334306c384aabb9929bd8c99f909275ebd5c2d3bc70b9bcd119ad794f339dec9f24b6a4ee9cd5a8ab2e6435e730ad4075388fc2ab6
@@ -7350,12 +7366,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nan@npm:^2.19.0, nan@npm:^2.20.0":
+"nan@npm:^2.19.0":
   version: 2.22.0
   resolution: "nan@npm:2.22.0"
   dependencies:
     node-gyp: "npm:latest"
   checksum: 10c0/d5d31aefdb218deba308d44867c5f432b4d3aabeb57c70a2b236d62652e9fee7044e5d5afd380d9fef022fe7ebb2f2d6c85ca3cbcac5031aaca3592c844526bb
+  languageName: node
+  linkType: hard
+
+"nan@npm:^2.23.0":
+  version: 2.27.0
+  resolution: "nan@npm:2.27.0"
+  dependencies:
+    node-gyp: "npm:latest"
+  checksum: 10c0/38eb00b06e40f0c65b6a98d75795f17d651a8b7b52f03873dff6902d0053f12e7638d7f64fc52bda6c8f8ec454d69636e3988c8a9eb2bc749c2d5c255ba55f4c
   languageName: node
   linkType: hard
 
@@ -9113,6 +9138,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"semver@npm:^7.8.2":
+  version: 7.8.2
+  resolution: "semver@npm:7.8.2"
+  bin:
+    semver: bin/semver.js
+  checksum: 10c0/8e8c193fa75b938e5b3ccf6707c6447e4b34f73e493e72b03f3185393489f45e049144052f624217c346d6c6e0a301dda8eeab2f14413e337218ecb1cbd2de16
+  languageName: node
+  linkType: hard
+
 "send@npm:0.19.0":
   version: 0.19.0
   resolution: "send@npm:0.19.0"
@@ -9369,13 +9403,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"socks@npm:^2.2.0, socks@npm:^2.8.3":
+"socks@npm:^2.8.3":
   version: 2.8.3
   resolution: "socks@npm:2.8.3"
   dependencies:
     ip-address: "npm:^9.0.5"
     smart-buffer: "npm:^4.2.0"
   checksum: 10c0/d54a52bf9325165770b674a67241143a3d8b4e4c8884560c4e0e078aace2a728dffc7f70150660f51b85797c4e1a3b82f9b7aa25e0a0ceae1a243365da5c51a7
+  languageName: node
+  linkType: hard
+
+"socks@npm:^2.8.9":
+  version: 2.8.9
+  resolution: "socks@npm:2.8.9"
+  dependencies:
+    ip-address: "npm:^10.1.1"
+    smart-buffer: "npm:^4.2.0"
+  checksum: 10c0/2d4350c31142b0931eb1758825b426bcbf4bfb5eed682ca48bc46dc9e7d1930ec366ea574ad49fc6c1fd9e9e17ce243be0ef13e31fc4b0319d9093f1fb19743c
   languageName: node
   linkType: hard
 
@@ -9469,20 +9513,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ssh2@npm:^1.16.0":
-  version: 1.16.0
-  resolution: "ssh2@npm:1.16.0"
+"ssh2@npm:^1.17.0":
+  version: 1.17.0
+  resolution: "ssh2@npm:1.17.0"
   dependencies:
     asn1: "npm:^0.2.6"
     bcrypt-pbkdf: "npm:^1.0.2"
     cpu-features: "npm:~0.0.10"
-    nan: "npm:^2.20.0"
+    nan: "npm:^2.23.0"
   dependenciesMeta:
     cpu-features:
       optional: true
     nan:
       optional: true
-  checksum: 10c0/d336a85d87501c64ba230b6c1a2901a9b0e376fe7f7a1640a7f8dbdafe674b2e1a5dc6236ffd1329969dc0cf03cd57759b28743075e61229a984065ee1d56bed
+  checksum: 10c0/637c1b7e8070fc8a3027f8abf771cd98419f56eaf3817171180e768004d4dea26c65fb3763294ed2f784429857f196c83c4f6889d2c31cc0e2648ea5ad730665
   languageName: node
   linkType: hard
 
@@ -10311,25 +10355,25 @@ __metadata:
     "@types/node": "npm:^20.12.1"
     "@types/request": "npm:^2.48.1"
     "@types/semver": "npm:^7.3.9"
-    "@types/vscode": "npm:^1.90.0"
+    "@types/vscode": "npm:^1.120.0"
     "@types/webpack": "npm:^4.4.25"
     "@types/winreg": "npm:^1.2.30"
     "@vscode/vsce": "npm:^2.18.0"
     common: "workspace:*"
     event-stream: "npm:^4.0.1"
-    iconv-lite: "npm:^0.6.3"
-    jsonc-parser: "npm:^3.2.0"
+    iconv-lite: "npm:^0.7.2"
+    jsonc-parser: "npm:^3.3.1"
     prettier: "npm:^2.6.2"
-    semver: "npm:^7.3.5"
-    socks: "npm:^2.2.0"
+    semver: "npm:^7.8.2"
+    socks: "npm:^2.8.9"
     source-map: "npm:^0.7.3"
     source-map-support: "npm:^0.5.19"
-    ssh2: "npm:^1.16.0"
+    ssh2: "npm:^1.17.0"
     ts-loader: "npm:^9.4.2"
     typescript: "npm:~5.7.3"
     webpack: "npm:^5.76.3"
     webpack-cli: "npm:^5.0.1"
-    winreg: "npm:^1.2.4"
+    winreg: "npm:^1.2.5"
   languageName: unknown
   linkType: soft
 
@@ -10680,7 +10724,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"winreg@npm:^1.2.4":
+"winreg@npm:^1.2.5":
   version: 1.2.5
   resolution: "winreg@npm:1.2.5"
   checksum: 10c0/d6f9f18ef662826242468b59428ad802ad811c08e4afad4c81fab30bc7304ef4ff10369140e7c7420e4364987b1cb89c4043899f6d001559c0b67a8e61ce4a64

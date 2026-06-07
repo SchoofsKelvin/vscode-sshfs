@@ -9,7 +9,7 @@
 
 ### Major change
 
-- Update from patched ssh2@^1.11.0 to ssh@^1.16.0
+- Update from patched ssh2@^1.11.0 to ssh@^1.17.0
 - Removed the `OPENSSH-SHA1` flag since `ssh2` incorporates the related patch natively now (#309)
 
 ### Development changes
@@ -18,14 +18,14 @@
   - The workspace tools plugin is now built-in, local version removed
   - We're now forced to move `yarn.lock` back to the root of the repository
 - Update TypeScript from ~5.0.2 to ~5.7.3
-- Update engine requirement to vscode@^1.75.0
+- Update engine requirement to vscode@^1.123.0
 - Upgrade a ton of dependencies
   - React dependencies are unchanged, `@types/react-*` need to remain unchanged to prevent compilation errors
   - A security fix in winreg@1.2.5 required a code change otherwise no PuTTY sessions would be found
-- Update engine requirements to NodeJS 20 and VS Code 1.90.0
+- Update engine requirements to NodeJS 20 and VS Code 1.123.0
 - Update GitHub workflows as they were failing due to still using outdated versions of certain actions
   - Also updated the runner and NodeJS version used
-- Updated @types/vscode from ^1.49.0 to ^1.90.0 to match engine requirement
+- Updated @types/vscode from ^1.49.0 to ^1.120.0 to match engine requirement
 
 ## v1.26.1 (2023-04-16)
 

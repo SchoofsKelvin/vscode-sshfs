@@ -48,7 +48,7 @@
     "webpack-dev-server": "^4.13.1"
   },
   "browserslist": [
-    "Electron >= 29.1.0"
+    "Electron >= 42.2.0"
   ],
   "eslintConfig": {
     "extends": [
