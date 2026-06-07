@@ -42,7 +42,7 @@ export let getExtensionUri: ((resource: string) => vscode.Uri) | undefined;
 export const setGetExtensionUri = (value: typeof getExtensionUri) => getExtensionUri = value;
 
 /** Converts the supported types to something basically ready-to-use as vscode.QuickPickItem and vscode.TreeItem */
-export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false): FormattedItem {
+export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false, withTooltips = false): FormattedItem {
     if ('handleInput' in item) { // SSHPseudoTerminal
         return {
             item, contextValue: 'terminal',
@@ -58,13 +58,15 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
         const { label, name, group } = item.config;
         const description = group ? `${group}.${name} ` : (label && name);
         const detail = formatAddress(item.actualConfig);
-        return {
-            item, description, detail, tooltip: detail,
+        const result: FormattedItem = {
+            item, description, detail,
             label: `${iconInLabel ? '$(plug) ' : ''}${label || name} `,
             iconPath: new vscode.ThemeIcon('plug'),
             collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
             contextValue: 'connection',
         };
+        if (withTooltips) result.tooltip = detail;
+        return result;
     } else if ('onDidChangeFile' in item) { // SSHFileSystem
         const { label, name, group } = item.config;
         const description = group ? `${group}.${name} ` : (label && name);
@@ -72,21 +74,27 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             item, description, contextValue: 'filesystem',
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: getExtensionUri?.('resources/icon.svg'),
-        }
+        };
     }
     // FileSystemConfig
     const { label, name, group, putty } = item;
     const description = group ? `${group}.${name} ` : (label && name);
     const detail = putty === true ? 'PuTTY session (decuded from config)' :
         (typeof putty === 'string' ? `PuTTY session '${putty}'` : formatAddress(item));
-    return {
-        item: item, description, detail, tooltip: detail, contextValue: 'config',
+    const result: FormattedItem = {
+        item: item, description, detail, contextValue: 'config',
         label: `${iconInLabel ? '$(settings-gear) ' : ''}${item.label || item.name} `,
         iconPath: new vscode.ThemeIcon('settings-gear'),
-    }
+    };
+    if (withTooltips) result.tooltip = detail;
+    return result;
 }
 
-type QuickPickItemWithItem = vscode.QuickPickItem & { item: any };
+export function formatTreeItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false) {
+    return formatItem(item, undefined, true);
+}
+
+type QuickPickItemWithItem = vscode.QuickPickItem & { item: any; };
 
 export interface PickComplexOptions {
     /** If true and there is only one or none item is available, immediately resolve with it/undefined */

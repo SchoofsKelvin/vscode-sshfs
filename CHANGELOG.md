@@ -12,6 +12,10 @@
 - Update from patched ssh2@^1.11.0 to ssh@^1.17.0
 - Removed the `OPENSSH-SHA1` flag since `ssh2` incorporates the related patch natively now (#309)
 
+### Fixes
+
+- Fix quickPickItemTooltip API proposal bug #445
+
 ### Development changes
 
 - Update Yarn from 3.5.0 to 4.16.0

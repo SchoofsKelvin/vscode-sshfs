@@ -5,7 +5,7 @@ import { getConfigs, UPDATE_LISTENERS } from './config';
 import type { Connection, ConnectionManager } from './connection';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
-import { formatItem } from './ui-utils';
+import { formatTreeItem } from './ui-utils';
 
 type PendingConnection = [string, FileSystemConfig | undefined];
 type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal;
@@ -22,12 +22,12 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
     }
     public getTreeItem(element: TreeData): vscode.TreeItem | Thenable<vscode.TreeItem> {
         if ('onDidChangeFile' in element || 'handleInput' in element) { // SSHFileSystem | SSHPseudoTerminal
-            return { ...formatItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None }
+            return { ...formatTreeItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None }
         } else if (Array.isArray(element)) { // PendingConnection
             const [name, config] = element;
             if (!config) return { label: name, description: 'Connecting...' };
             return {
-                ...formatItem(config),
+                ...formatTreeItem(config),
                 contextValue: 'pendingconnection',
                 collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
                 // Doesn't seem to actually spin, but still gets rendered properly otherwise
@@ -35,7 +35,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
             };
         }
         // Connection
-        return { ...formatItem(element), collapsibleState: vscode.TreeItemCollapsibleState.Collapsed };
+        return { ...formatTreeItem(element), collapsibleState: vscode.TreeItemCollapsibleState.Collapsed };
     }
     public getChildren(element?: TreeData): vscode.ProviderResult<TreeData[]> {
         if (!element) return [
@@ -66,7 +66,7 @@ export class ConfigTreeProvider implements vscode.TreeDataProvider<FileSystemCon
                 iconPath: vscode.ThemeIcon.Folder,
             };
         }
-        return { ...formatItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None };
+        return { ...formatTreeItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None };
     }
     public getChildren(element: FileSystemConfig | string = ''): vscode.ProviderResult<(FileSystemConfig | string)[]> {
         if (typeof element !== 'string') return []; // Configs don't have children
