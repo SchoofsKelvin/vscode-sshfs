@@ -17,6 +17,7 @@
 - Fix quickPickItemTooltip API proposal bug #445
 - Allow portless colon in connection string to support Linux standard #409
 - Fix "extends" config option in UI #407
+- Fix "Forward agent" option in UI missing checkbox #414
 
 ### Development changes
 
