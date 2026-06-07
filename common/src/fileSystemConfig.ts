@@ -150,7 +150,7 @@ export function invalidConfigName(name: string) {
  * The resulting FileSystemConfig will have as name basically the input, but without the path. If there is no
  * username given, the name will start with `@`, as to differentiate between connection strings and config names.
  */
-const CONNECTION_REGEX = /^((?<user>[\w\-._]+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^\s@\\/:,=]+)(:(?<port>\d+))?(?<path>\/\S*)?$/;
+const CONNECTION_REGEX = /^((?<user>[\w\-._]+)?(;[\w-]+=[\w\d-]+(,[\w\d-]+=[\w\d-]+)*)?@)?(?<host>[^\s@\\/:,=]+)(:(?<port>\d+)?)?(?<path>\/\S*)?$/;
 
 export function parseConnectionString(input: string): [config: FileSystemConfig, path?: string] | string {
   input = input.trim();

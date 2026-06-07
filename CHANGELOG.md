@@ -15,6 +15,7 @@
 ### Fixes
 
 - Fix quickPickItemTooltip API proposal bug #445
+- Allow portless colon in connection string to support Linux standard #409
 
 ### Development changes
 
