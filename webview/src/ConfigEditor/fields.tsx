@@ -52,7 +52,7 @@ export function extend(config: FileSystemConfig, onChange: FSCChanged<'extend'>)
   const callback = (newValue?: string | string[]) => onChange('extend', newValue);
   const description = 'Names of other existing configs to merge into this config. Earlier entries overridden by later entries overridden by this config itself';
   const value = typeof config.extend === 'string' ? [config.extend] : config.extend;
-  return <FieldConfigList key="extend" label="Extend" {...{ value, description }} onChange={callback} optional freeText />
+  return <FieldConfigList key="extend" label="Extend" {...{ value, description }} onChange={callback} optional />
 }
 
 export function putty(config: FileSystemConfig, onChange: FSCChanged<'putty'>): React.ReactElement {

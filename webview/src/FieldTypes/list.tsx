@@ -36,7 +36,7 @@ export class FieldList extends FieldBase<T[] | undefined, Props<T>, State> {
         const { displayStyle } = this.props;
         const newInput = this.renderNewInputField();
         return <div className="FieldList">
-            {newInput && <div className="adder">{newInput}<button onClick={this.onAdd}>+</button></div>}
+            {newInput ? <div className="adder">{newInput}<button onClick={this.onAdd}>+</button></div> : <p>No items available</p>}
             {newValue?.map((item, index) => <li key={index} style={displayStyle?.(item)}>
                 <p>{item}</p>
                 <button onClick={this.onRemove.bind(this, index)}>x</button>
@@ -58,7 +58,7 @@ export class FieldList extends FieldBase<T[] | undefined, Props<T>, State> {
     };
 }
 
-export type FieldConfigListState = { options: string[] };
+export type FieldConfigListState = { options: string[]; };
 export const FieldConfigList = connect(FieldList)<FieldConfigListState>(
     state => ({ options: state.data.configs.map(c => c.name).sort() }),
 );
