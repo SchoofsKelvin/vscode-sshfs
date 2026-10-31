@@ -6161,6 +6161,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ip-matching@npm:^2.0.0":
+  version: 2.1.2
+  resolution: "ip-matching@npm:2.1.2"
+  checksum: 10c0/ebb2c38953abb180e0eb318231d07a7e8ce4678323174a19e88e90fffd812f1f1e1410ea0cce1d58466f0199525b32c28987b2e3f824bf3d51be54145c386e3b
+  languageName: node
+  linkType: hard
+
 "ipaddr.js@npm:1.9.1":
   version: 1.9.1
   resolution: "ipaddr.js@npm:1.9.1"
@@ -7501,6 +7508,13 @@ __metadata:
   version: 2.0.19
   resolution: "node-releases@npm:2.0.19"
   checksum: 10c0/52a0dbd25ccf545892670d1551690fe0facb6a471e15f2cfa1b20142a5b255b3aa254af5f59d6ecb69c2bec7390bc643c43aa63b13bf5e64b6075952e716b1aa
+  languageName: node
+  linkType: hard
+
+"node-socksv5@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "node-socksv5@npm:1.0.3"
+  checksum: 10c0/d979022a01987f5c0fa4fb58f66f28fbe47a87d5acc7f3c4c0a19348a780d3b176ded5d7ae9fc2ef0a71e4acdeac99b7475a4c6e5697bd34163ee88c94cce4cb
   languageName: node
   linkType: hard
 
@@ -10362,7 +10376,9 @@ __metadata:
     common: "workspace:*"
     event-stream: "npm:^4.0.1"
     iconv-lite: "npm:^0.7.2"
+    ip-matching: "npm:^2.0.0"
     jsonc-parser: "npm:^3.3.1"
+    node-socksv5: "npm:^1.0.3"
     prettier: "npm:^2.6.2"
     semver: "npm:^7.8.2"
     socks: "npm:^2.8.9"

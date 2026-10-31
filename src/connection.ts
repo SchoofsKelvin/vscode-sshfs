@@ -8,6 +8,8 @@ import { getFlag, getFlagBoolean } from './flags';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import { calculateShellConfig, KNOWN_SHELL_CONFIGS, ShellConfig, tryCommand, tryEcho } from './shellConfig';
+import { addForwarding, formatPortForwarding, parsePortForwarding } from './portForwarding';
+import type { ActivePortForwarding } from './portForwarding';
 import type { SSHFileSystem } from './sshFileSystem';
 import { mergeEnvironment, toPromise } from './utils';
 
@@ -21,6 +23,7 @@ export interface Connection {
     terminals: SSHPseudoTerminal[];
     filesystems: SSHFileSystem[];
     cache: Record<string, any>;
+    forwardings: ActivePortForwarding[];
     pendingUserCount: number;
     idleTimer: NodeJS.Timeout;
 }
@@ -187,6 +190,7 @@ export class ConnectionManager {
             terminals: [],
             filesystems: [],
             cache: {},
+            forwardings: [],
             pendingUserCount: 0,
             idleTimer: setInterval(() => { // Automatically close connection when idle for a while
                 timeoutCounter = timeoutCounter ? timeoutCounter - 1 : 0;
@@ -194,6 +198,7 @@ export class ConnectionManager {
                 con.filesystems = con.filesystems.filter(fs => !fs.closed && !fs.closing);
                 if (con.filesystems.length) return; // Still got active filesystems on this connection
                 if (con.terminals.length) return; // Still got active terminals on this connection
+                if (con.forwardings.length) return; // Still got active port forwardings on this connection
                 if (timeoutCounter !== 1) return timeoutCounter = 2;
                 // timeoutCounter === 1, so it's been inactive for at least 5 seconds, close it!
                 this.closeConnection(con, 'Idle with no active filesystems/terminals');
@@ -201,6 +206,25 @@ export class ConnectionManager {
         };
         this.connections.push(con);
         this.onConnectionAddedEmitter.fire(con);
+        // Setup initial port forwardings
+        setImmediate(async () => {
+            const forwards = (actualConfig.forwardings || []).map(f => parsePortForwarding(f, 'report'));
+            const badForwards = forwards.reduce((tot, f) => f ? tot : tot + 1, 0);
+            if (badForwards) vscode.window.showWarningMessage(`Could not parse ${badForwards} of ${forwards.length} port forwarding from the config, ignoring them`);
+            let failed = 0;
+            for (const forward of forwards) {
+                if (!forward) continue;
+                logging.info(`Adding forwarding ${formatPortForwarding(forward)}`);
+                try {
+                    await addForwarding(this, con, forward);
+                } catch (e) {
+                    logging.error(`Error during forwarding ${formatPortForwarding(forward)}:`, LOGGING_NO_STACKTRACE);
+                    logging.error(e);
+                    failed++;
+                }
+            }
+            if (failed) vscode.window.showWarningMessage(`Failed ${failed} of ${forwards.length - badForwards} port forwardings from the config`);
+        });
         return con;
     }
     public async createConnection(name: string, config?: FileSystemConfig): Promise<Connection> {
@@ -226,6 +250,8 @@ export class ConnectionManager {
         clearInterval(connection.idleTimer);
         this.onConnectionRemovedEmitter.fire(connection);
         connection.client.end();
+        connection.forwardings.forEach(f => f[2]());
+        connection.forwardings = [];
     }
     // Without making createConnection return a Proxy, or making Connection a class with
     // getters and setters informing the manager that created it, we don't know if it updated.
