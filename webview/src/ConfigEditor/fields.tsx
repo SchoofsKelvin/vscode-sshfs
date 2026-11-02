@@ -3,7 +3,7 @@ import * as React from 'react';
 import { FieldCheckbox } from '../FieldTypes/checkbox';
 import { FieldDropdown } from '../FieldTypes/dropdown';
 import { FieldDropdownWithInput } from '../FieldTypes/dropdownwithinput';
-import { FieldConfigList } from '../FieldTypes/list';
+import { FieldConfigList, FieldList } from '../FieldTypes/list';
 import { FieldNumber } from '../FieldTypes/number';
 import { FieldPath } from '../FieldTypes/path';
 import { FieldString } from '../FieldTypes/string';
@@ -77,6 +77,17 @@ export function port(config: FileSystemConfig, onChange: FSCChanged<'port'>): Re
   return <FieldNumber key="port" label="Port" value={config.port || 22} onChange={callback} optional description={description} />
 }
 
+export function forwardings(config: FileSystemConfig, onChange: FSCChanged<'forwardings'>): React.ReactElement {
+  const callback = (newValue?: string[]) => onChange('forwardings', newValue);
+  const description = <>
+    Port forwardings that get set up automatically when this connection is created. Syntax:{' '}
+    <code>LocalForward [localAddress:]localPort remoteAddress:remotePort</code>,{' '}
+    <code>RemoteForward [localAddress:]localPort remoteAddress:remotePort</code> or{' '}
+    <code>DynamicForward [localAddress:]localPort</code>, e.g. <code>LocalForward 8080 localhost:80</code>
+  </>;
+  return <FieldList key="forwardings" label="Port forwardings" value={config.forwardings} {...{ description }} onChange={callback} freeText optional />;
+}
+
 export function root(config: FileSystemConfig, onChange: FSCChanged<'root'>): React.ReactElement {
   const callback = (value: string) => onChange('root', value);
   const description = 'Path on the remote server that should be opened by default when creating a terminal or using the `Add as Workspace folder` command/button. Defaults to `/`';
@@ -100,10 +111,10 @@ export function username(config: FileSystemConfig, onChange: FSCChanged<'usernam
 
 export function password(config: FileSystemConfig, onChange: FSCChanged<'password'>): React.ReactElement {
   const callback = (newValue?: string) => onChange('password', newValue === '<Prompt>' ? (true as any) : newValue);
-  const description = 'Password for password-based user authentication. Supports env variables. This gets saved in plaintext! Using prompts or private keys is recommended!';
+  const description = 'Password for password-based user authentication. Supports env variables. This gets saved in plaintext in your config, but is always shown masked here (type a new value to replace it). Using prompts or private keys is recommended!';
   const values = ['<Prompt>'];
   const value = (config.password as any) === true ? '<Prompt>' : config.password;
-  return <FieldDropdownWithInput key="password" label="Password" {...{ value, values, description }} onChange={callback} optional />
+  return <FieldDropdownWithInput key="password" label="Password" {...{ value, values, description }} onChange={callback} masked optional />
 }
 
 export function privateKeyPath(config: FileSystemConfig, onChange: FSCChanged<'privateKeyPath'>): React.ReactElement {
@@ -178,7 +189,7 @@ export function encoding(config: FileSystemConfig, onChange: FSCChanged<'encodin
 
 export type FieldFactory = (config: FileSystemConfig, onChange: FSCChanged, onChangeMultiple: FSCChangedMultiple) => React.ReactElement | null;
 export const FIELDS: FieldFactory[] = [
-  name, label, group, merge, extend, putty, host, port,
+  name, label, group, merge, extend, putty, host, port, forwardings,
   root, agent, username, password, privateKeyPath, passphrase,
   newFileMode, agentForward, sftpCommand, sftpSudo, terminalCommand, taskCommand, encoding,
   PROXY_FIELD];

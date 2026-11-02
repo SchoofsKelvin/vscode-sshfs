@@ -2,13 +2,14 @@
 import { FileSystemConfig, getGroups } from 'common/fileSystemConfig';
 import * as vscode from 'vscode';
 import { getConfigs, UPDATE_LISTENERS } from './config';
+import { ActivePortForwarding, isActivePortForwarding } from './portForwarding';
 import type { Connection, ConnectionManager } from './connection';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
-import { formatTreeItem } from './ui-utils';
+import { formatItem, formatTreeItem } from './ui-utils';
 
 type PendingConnection = [string, FileSystemConfig | undefined];
-type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal;
+type TreeData = Connection | PendingConnection | SSHFileSystem | SSHPseudoTerminal | ActivePortForwarding;
 export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData> {
     protected onDidChangeTreeDataEmitter = new vscode.EventEmitter<TreeData | void>();
     public onDidChangeTreeData: vscode.Event<TreeData | TreeData[] | undefined | null | void> = this.onDidChangeTreeDataEmitter.event;
@@ -21,6 +22,9 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
         this.onDidChangeTreeDataEmitter.fire();
     }
     public getTreeItem(element: TreeData): vscode.TreeItem | Thenable<vscode.TreeItem> {
+        if (isActivePortForwarding(element)) { // ActivePortForwarding
+            return { ...formatItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None };
+        }
         if ('onDidChangeFile' in element || 'handleInput' in element) { // SSHFileSystem | SSHPseudoTerminal
             return { ...formatTreeItem(element), collapsibleState: vscode.TreeItemCollapsibleState.None }
         } else if (Array.isArray(element)) { // PendingConnection
@@ -45,7 +49,7 @@ export class ConnectionTreeProvider implements vscode.TreeDataProvider<TreeData>
         if ('onDidChangeFile' in element) return []; // SSHFileSystem
         if ('handleInput' in element) return []; // SSHPseudoTerminal
         if (Array.isArray(element)) return []; // PendingConnection
-        return [...element.terminals, ...element.filesystems]; // Connection
+        return [...element.terminals, ...element.filesystems, ...element.forwardings]; // Connection
     }
 }
 

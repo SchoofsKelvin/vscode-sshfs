@@ -6,6 +6,8 @@ import type { Connection, ConnectionManager } from './connection';
 import type { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
+import { ActivePortForwarding, getPortForwardingIcon, isActivePortForwarding } from './portForwarding';
+import { toPromise } from './utils';
 
 export interface FormattedItem extends vscode.QuickPickItem, vscode.TreeItem {
     item: any;
@@ -42,7 +44,7 @@ export let getExtensionUri: ((resource: string) => vscode.Uri) | undefined;
 export const setGetExtensionUri = (value: typeof getExtensionUri) => getExtensionUri = value;
 
 /** Converts the supported types to something basically ready-to-use as vscode.QuickPickItem and vscode.TreeItem */
-export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal, iconInLabel = false, withTooltips = false): FormattedItem {
+export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem | SSHPseudoTerminal | ActivePortForwarding, iconInLabel = false, withTooltips = false): FormattedItem {
     if ('handleInput' in item) { // SSHPseudoTerminal
         return {
             item, contextValue: 'terminal',
@@ -75,6 +77,32 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
             label: `${iconInLabel ? '$(root-folder) ' : ''}ssh://${item.authority}/`,
             iconPath: getExtensionUri?.('resources/icon.svg'),
         };
+    } else if (isActivePortForwarding(item)) { // ActivePortForwarding
+        let label = '';
+        const [forw] = item;
+        if (forw.type === 'local' || forw.type === 'remote') {
+            if (forw.localPort != undefined || forw.localAddress) {
+                label += forw.localPort === undefined ? forw.localAddress : `${forw.localAddress || '*'}:${forw.localPort}` || '?';
+            } else {
+                label += 'SOCKSv5';
+            }
+            label += forw.type === 'local' ? ' \u2192 ' : ' \u2190 ';
+            label += forw.remotePort === undefined ? forw.remoteAddress : `${forw.remoteAddress || '*'}:${forw.remotePort}` || '?';
+        } else if (forw.type === 'dynamic') {
+            label += `${forw.address || '?'}:${forw.port} \u2192 SOCKSv5`;
+        } else {
+            label += ' <unrecognized type>';
+        }
+        const connLabel = item[1].actualConfig.label || item[1].actualConfig.name;
+        const detail = `${forw.type[0].toUpperCase() + forw.type.slice(1)} port forwarding ${forw.type === 'remote' ? 'from' : 'to'} ${connLabel}`;
+        const icon = getPortForwardingIcon(forw);
+        if (iconInLabel) label = `$(${icon}) ${label}`;
+        return {
+            item, label, contextValue: 'forwarding',
+            detail, tooltip: detail,
+            collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+            iconPath: new vscode.ThemeIcon(icon),
+        };
     }
     // FileSystemConfig
     const { label, name, group, putty } = item;
@@ -96,6 +124,19 @@ export function formatTreeItem(item: FileSystemConfig | Connection | SSHFileSyst
 
 type QuickPickItemWithItem = vscode.QuickPickItem & { item: any; };
 
+export async function promptQuickPick<T>(title: string, items: readonly T[], toString?: (item: T) => string): Promise<T | undefined> {
+    const picker = vscode.window.createQuickPick<FormattedItem>();
+    picker.title = title;
+    picker.items = items.map(item => ({ item, label: toString?.(item) || `${item}` }));
+    picker.show();
+    const accepted = await Promise.race([
+        toPromise(cb => picker.onDidAccept(cb)).then(() => true),
+        toPromise(cb => picker.onDidHide(cb)).then(() => false),
+    ]);
+    if (!accepted) return undefined;
+    return picker.selectedItems[0]?.item;
+}
+
 export interface PickComplexOptions {
     /** If true and there is only one or none item is available, immediately resolve with it/undefined */
     immediateReturn?: boolean;
@@ -107,6 +148,8 @@ export interface PickComplexOptions {
     promptConfigs?: boolean | string;
     /** If true, add all terminals. If this is a string, filter by config name first */
     promptTerminals?: boolean | string;
+    /** If true, add all active port forwardings. If this is a string, filter by address/port first */
+    promptActivePortForwardings?: boolean | string;
     /** If set, filter the connections/configs by (config) name first */
     nameFilter?: string;
 }
@@ -129,7 +172,7 @@ async function inputInstantConnection(value?: string): Promise<FileSystemConfig 
 }
 
 export async function pickComplex(manager: Manager, options: PickComplexOptions):
-    Promise<FileSystemConfig | Connection | SSHPseudoTerminal | undefined> {
+    Promise<FileSystemConfig | Connection | SSHPseudoTerminal | ActivePortForwarding | undefined> {
     return new Promise<any>((resolve) => {
         const { promptConnections, promptConfigs, nameFilter } = options;
         const items: QuickPickItemWithItem[] = [];
@@ -155,6 +198,14 @@ export async function pickComplex(manager: Manager, options: PickComplexOptions)
             const terminals = cons.reduce((all, con) => [...all, ...con.terminals], []);
             items.push(...terminals.map(config => formatItem(config, true)));
             toSelect.push('terminal');
+        }
+        if (options.promptActivePortForwardings) {
+            let cons = manager.connectionManager.getActiveConnections();
+            if (typeof promptConnections === 'string') cons = cons.filter(con => con.actualConfig.name === promptConnections);
+            if (nameFilter) cons = cons.filter(con => con.actualConfig.name === nameFilter);
+            const forwardings = cons.reduce((all, con) => [...all, ...con.forwardings], []);
+            items.push(...forwardings.map(config => formatItem(config, true)));
+            toSelect.push('forwarded port');
         }
         if (options.promptInstantConnection) {
             items.unshift({

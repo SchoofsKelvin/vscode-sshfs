@@ -3,7 +3,7 @@
     "displayName": "SSH FS",
     "description": "File system, terminal and task provider using SSH",
     "publisher": "Kelvin",
-    "version": "1.27.0",
+    "version": "1.27.1",
     "engines": {
         "vscode": "^1.123.0"
     },
@@ -159,6 +159,17 @@
                 "title": "Close terminal",
                 "category": "SSH FS",
                 "icon": "$(close)"
+            },
+            {
+                "command": "sshfs.forwardPort",
+                "title": "Start forwarding a port",
+                "category": "SSH FS",
+                "icon": "$(add)"
+            },
+            {
+                "command": "sshfs.unforwardPort",
+                "title": "Stop forwarding a port",
+                "category": "SSH FS"
             }
         ],
         "menus": {
@@ -264,12 +275,22 @@
                 {
                     "command": "sshfs.disconnect",
                     "when": "view == 'sshfs-connections' && viewItem == connection",
-                    "group": "inline@2"
+                    "group": "inline@3"
                 },
                 {
                     "command": "sshfs.closeTerminal",
                     "when": "view == 'sshfs-connections' && viewItem == terminal",
                     "group": "inline@1"
+                },
+                {
+                    "command": "sshfs.unforwardPort",
+                    "when": "view == 'sshfs-connections' && viewItem == forwarding",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "sshfs.forwardPort",
+                    "when": "view == 'sshfs-connections' && viewItem == connection",
+                    "group": "inline@2"
                 }
             ],
             "explorer/context": [
@@ -301,6 +322,10 @@
                     "command": "sshfs.disconnectAll",
                     "group": "remote_11_ssh_sshfs@5",
                     "when": "sshfs.openConnections > 0"
+                },
+                {
+                    "command": "sshfs.forwardPort",
+                    "group": "remote_11_ssh_sshfs@3"
                 }
             ]
         },
@@ -417,7 +442,9 @@
         "common": "workspace:*",
         "event-stream": "^4.0.1",
         "iconv-lite": "^0.7.2",
+        "ip-matching": "^2.0.0",
         "jsonc-parser": "^3.3.1",
+        "node-socksv5": "^1.0.3",
         "semver": "^7.8.2",
         "socks": "^2.8.9",
         "ssh2": "^1.17.0",

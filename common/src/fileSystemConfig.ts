@@ -109,8 +109,11 @@ export interface FileSystemConfig extends ConnectConfig {
   terminalCommand?: string | string[];
   /** The command(s) to run when a `ssh-shell` task gets run. Defaults to the placeholder `$COMMAND`. Internally the command `cd ...` is run first */
   taskCommand?: string | string[];
+  /** List of port forwardings to (attempt to) establish when the connection gets created */
+  forwardings?: string[];
   /** An object with environment variables to add to the SSH connection. Affects the whole connection thus all terminals */
-  environment?: EnvironmentVariable[] | Record<string, string>;
+  environment?:
+    EnvironmentVariable[] | Record<string, string>;
   /** The filemode to assign to new files created using VS Code, not the terminal. Similar to umask. Defaults to `rw-rw-r--` (regardless of server config, whether you are root, ...) */
   newFileMode?: number | string;
   /** Whether this config was created from an instant connection string. Enables fuzzy matching for e.g. PuTTY, config-by-host, ... */

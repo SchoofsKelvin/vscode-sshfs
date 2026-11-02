@@ -28,7 +28,7 @@ export class FieldList extends FieldBase<T[] | undefined, Props<T>, State> {
         const { inputText } = this.state;
         const { freeText, options, displayStyle } = this.props;
         const FD = options?.length ? (freeText ? FieldDropdownWithInput : FieldDropdown) : (freeText ? FieldString : undefined);
-        return FD && <FD value={inputText} values={options} displayStyle={displayStyle}
+        return FD && <FD value={inputText} values={options} displayStyle={displayStyle} optional
             onChange={t => this.setState({ inputText: t || '' })} />;
     }
     public renderInput(): React.ReactNode {
