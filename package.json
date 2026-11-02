@@ -162,13 +162,13 @@
             },
             {
                 "command": "sshfs.forwardPort",
-                "title": "Start forwarding a port (BETA)",
+                "title": "Start forwarding a port",
                 "category": "SSH FS",
                 "icon": "$(add)"
             },
             {
                 "command": "sshfs.unforwardPort",
-                "title": "Stop forwarding a port (BETA)",
+                "title": "Stop forwarding a port",
                 "category": "SSH FS"
             }
         ],
