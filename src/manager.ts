@@ -1,8 +1,8 @@
 
-import type { FileSystemConfig } from 'common/fileSystemConfig';
+import { FileSystemConfig, SSH_CONFIG_LOCATION_PREFIX, isSshConfigLocation } from 'common/fileSystemConfig';
 import type { Navigation } from 'common/webviewMessages';
 import * as vscode from 'vscode';
-import { getConfig, loadConfigs, LOADING_CONFIGS } from './config';
+import { getConfig, getSshConfigFiles, loadConfigs, LOADING_CONFIGS } from './config';
 import { getFlagBoolean } from './flags';
 import { Connection, ConnectionManager } from './connection';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
@@ -272,6 +272,10 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info`Command received to configure ${typeof target === 'string' ? target : target.name}`;
     if (typeof target === 'object') {
+      // Hosts from an OpenSSH config file (or instant connections purely based on one) are configured in that file
+      const fromSshConfig = target._location ? isSshConfigLocation(target._location)
+        : (target._locations.length > 0 && target._locations.every(isSshConfigLocation));
+      if (fromSshConfig) return this.openSshConfig(target);
       if (!target._location && !target._locations.length) {
         vscode.window.showErrorMessage('Cannot configure a config-less connection!');
         return;
@@ -287,7 +291,45 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       return Logging.error`Unexpectedly found no matching configs for '${target}' in commandConfigure?`;
     }
     const config = configs.length === 1 ? configs[0] : configs;
+    if (configs.length === 1 && isSshConfigLocation(configs[0]._location)) return this.openSshConfig(configs[0]);
     this.openSettings({ config, type: 'editconfig' });
+  }
+  /**
+   * Opens the OpenSSH config file in an editor. Hosts from there are read-only for us, the file itself is the
+   * one and only place where they are configured. If a config is given, its `Host` line gets revealed.
+   */
+  public async openSshConfig(config?: FileSystemConfig): Promise<void> {
+    let file = config?._sshConfigSource?.file;
+    if (!file && config && isSshConfigLocation(config._location)) file = config._location.substring(SSH_CONFIG_LOCATION_PREFIX.length);
+    if (!file) [file] = getSshConfigFiles();
+    if (!file) {
+      vscode.window.showWarningMessage('Reading hosts from OpenSSH config files is disabled (setting "sshfs.sshConfig.enabled")');
+      return;
+    }
+    Logging.info`Opening OpenSSH config file ${file}${config ? ` for ${config.name}` : ''}`;
+    const uri = vscode.Uri.file(file);
+    try {
+      await vscode.workspace.fs.stat(uri);
+    } catch {
+      const answer = await vscode.window.showInformationMessage(`The OpenSSH config file ${file} doesn't exist yet, create it?`, 'Create', 'Cancel');
+      if (answer !== 'Create') return;
+      try {
+        await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(uri, '..'));
+        await vscode.workspace.fs.writeFile(uri, Buffer.from('# Example:\n# Host myserver\n#     HostName server.example.com\n#     User me\n'));
+      } catch (e) {
+        Logging.error`Error while creating ${file}: ${e}`;
+        vscode.window.showErrorMessage(`Couldn't create ${file}: ${e.message || e}`);
+        return;
+      }
+    }
+    try {
+      const line = Math.max(0, (config?._sshConfigSource?.line || 1) - 1);
+      const selection = new vscode.Range(line, 0, line, 0);
+      await vscode.window.showTextDocument(uri, { selection, preview: false });
+    } catch (e) {
+      Logging.error`Error while opening ${file}: ${e}`;
+      vscode.window.showErrorMessage(`Couldn't open ${file}: ${e.message || e}`);
+    }
   }
   public async openSettings(navigation?: Navigation) {
     const { open, navigate } = await import('./webview');

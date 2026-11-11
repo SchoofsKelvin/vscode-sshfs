@@ -15,8 +15,17 @@ export interface EnvironmentVariable {
   value: string;
 }
 
+/** Prefix of the `_location` of configs that are read from an OpenSSH config file (e.g. `~/.ssh/config`). Followed by the path of that file */
+export const SSH_CONFIG_LOCATION_PREFIX = 'sshconfig:';
+
+/** Whether the given location represents an OpenSSH config file. Configs from there are read-only and never get stored anywhere by us */
+export function isSshConfigLocation(location?: ConfigLocation): location is `${typeof SSH_CONFIG_LOCATION_PREFIX}${string}` {
+  return typeof location === 'string' && location.startsWith(SSH_CONFIG_LOCATION_PREFIX);
+}
+
 export function formatConfigLocation(location?: ConfigLocation): string {
   if (!location) return 'Unknown location';
+  if (isSshConfigLocation(location)) return `OpenSSH config file ${location.substring(SSH_CONFIG_LOCATION_PREFIX.length)} (read-only)`;
   if (typeof location === 'number') {
     return `${[, 'Global', 'Workspace', 'WorkspaceFolder'][location] || 'Unknown'} settings.json`;
   }
@@ -28,6 +37,7 @@ export function getLocations(configs: FileSystemConfig[]): ConfigLocation[] {
   // TODO: Suggest creating sshfs.jsonc etc in current workspace folder(s) (UI feature?)
   for (const { _location } of configs) {
     if (!_location) continue;
+    if (isSshConfigLocation(_location)) continue; // Read-only, we never write to OpenSSH config files
     if (!res.find(l => l === _location)) {
       res.push(_location);
     }
@@ -101,6 +111,23 @@ export interface FileSystemConfig extends ConnectConfig {
   privateKeyPath?: string;
   /** A name of another config to use as a hop */
   hop?: string;
+  /**
+   * OpenSSH-style `ProxyJump`: a comma-separated list of `[user@]host[:port]` jump hosts to connect through, in order.
+   * Every jump host can be the name of a config / a host from your OpenSSH config file, or just a hostname.
+   */
+  proxyJump?: string;
+  /**
+   * OpenSSH-style `ProxyCommand`: a local command whose stdin/stdout is used as connection to the server instead of a TCP socket.
+   * Supports the `%h` (host), `%p` (port), `%r` (remote user) and `%n` (config name) tokens.
+   * For configs that aren't from your user settings or OpenSSH config file, this only works in trusted workspaces.
+   */
+  proxyCommand?: string;
+  /** OpenSSH-style `RemoteCommand`: the command to run on the server when opening a terminal, instead of the default shell. Ignored if `terminalCommand` is set */
+  remoteCommand?: string;
+  /** Paths to private key files to try (in order). The passphrase of an encrypted key gets prompted when needed and is never stored */
+  identityFiles?: string[];
+  /** Only offer the keys from `identityFiles` to the server, even if the SSH agent has more keys loaded (OpenSSH's `IdentitiesOnly`) */
+  identitiesOnly?: boolean;
   /** The command to run on the remote SSH session to start a SFTP session (defaults to sftp subsystem) */
   sftpCommand?: string;
   /** Whether to use a sudo shell (and for which user) to run the sftpCommand in (sftpCommand defaults to /usr/lib/openssh/sftp-server if missing) */
@@ -125,6 +152,14 @@ export interface FileSystemConfig extends ConnectConfig {
   _locations: ConfigLocation[];
   /** Internal property keeping track of whether this config is an actually calculated one, and if so, which config it originates from (normally itself) */
   _calculated?: FileSystemConfig;
+  /** Internal property set for configs generated from an OpenSSH config file: the `Host` alias exactly as written in that file */
+  _sshConfigHost?: string;
+  /** Internal property set for configs generated from an OpenSSH config file: where the (first) `Host` line for it is located */
+  _sshConfigSource?: { file: string; line: number };
+  /** Internal property set for configs generated from an OpenSSH config file: which authentication methods are allowed */
+  _sshAuth?: { publickey: boolean; password: boolean; keyboard: boolean };
+  /** Internal property set for configs generated from an OpenSSH config file: `IdentityAgent none`, i.e. never use a SSH agent */
+  _sshAgentDisabled?: boolean;
 }
 
 export function isFileSystemConfig(config: any): config is FileSystemConfig {

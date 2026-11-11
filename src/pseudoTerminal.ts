@@ -200,7 +200,8 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 if (options.command) {
                     commands.push(replaceVariables(options.command.replace(/$SHELL/g, SHELL), actualConfig));
                 } else {
-                    const tc = joinCommands(actualConfig.terminalCommand, separator);
+                    // An explicit terminalCommand wins, otherwise use the (OpenSSH-style) RemoteCommand if there is one
+                    const tc = joinCommands(actualConfig.terminalCommand, separator) || actualConfig.remoteCommand;
                     let cmd = tc ? replaceVariables(tc.replace(/$SHELL/g, SHELL), actualConfig) : SHELL;
                     commands.push(cmd);
                 }
@@ -231,11 +232,17 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                 }
                 const pseudoTtyOptions: Partial<PseudoTtyOptions> = { ...PSEUDO_TTY_OPTIONS, cols: dims?.columns, rows: dims?.rows };
                 Logging.debug(`Starting shell for ${connection.actualConfig.name}: ${cmd}`);
-                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, cb));
+                // A command that finishes right away (e.g. a short RemoteCommand or task, especially through jump hosts where
+                // packets tend to arrive together) can exit before we get to add our listeners below, so catch that here
+                let earlyExit: [code?: number, signal?: string, dump?: unknown, description?: string] | undefined;
+                const channel = await toPromise<ClientChannel | undefined>(cb => client.exec(cmd, { pty: pseudoTtyOptions }, (err, chan) => {
+                    chan?.once('exit', (...args: NonNullable<typeof earlyExit>) => earlyExit = args);
+                    cb(err, chan);
+                }));
                 if (!channel) throw new Error('Could not create remote terminal');
                 pseudo.channel = channel;
                 const startTime = Date.now();
-                channel.once('exit', (code, signal, _, description) => {
+                const onExit = (code?: number, signal?: string, _?: unknown, description?: string) => {
                     Logging.debug`Terminal session closed: ${{ code, signal, description, status: pseudo.status }}`;
                     if (code && (Date.now() < startTime + 1000) && !options.command) {
                         // Terminal failed within a second, let's keep it open for the user to see the error (if this isn't a task)
@@ -248,7 +255,14 @@ export async function createTerminal(options: TerminalOptions): Promise<SSHPseud
                         onDidClose.fire(code || 0);
                         pseudo.status = 'closed';
                     }
-                });
+                };
+                if (earlyExit) {
+                    // Give the output that arrived together with the exit status a chance to get displayed first
+                    const exit = earlyExit;
+                    setImmediate(() => onExit(...exit));
+                } else {
+                    channel.once('exit', onExit);
+                }
                 channel.once('readable', () => {
                     // Inform others (e.g. createTaskTerminal) that the terminal is ready to be used
                     if (pseudo.status === 'opening') pseudo.status = 'open';

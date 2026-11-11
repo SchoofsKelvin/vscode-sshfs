@@ -78,15 +78,32 @@ export function formatItem(item: FileSystemConfig | Connection | SSHFileSystem |
     }
     // FileSystemConfig
     const { label, name, group, putty } = item;
-    const description = group ? `${group}.${name} ` : (label && name);
-    const detail = putty === true ? 'PuTTY session (decuded from config)' :
+    // Hosts that come straight from the user's OpenSSH config file (e.g. ~/.ssh/config)
+    const fromSshConfig = !!item._sshConfigHost;
+    const icon = fromSshConfig ? 'vm' : 'settings-gear';
+    let description = group ? `${group}.${name} ` : (label && name);
+    let detail = putty === true ? 'PuTTY session (decuded from config)' :
         (typeof putty === 'string' ? `PuTTY session '${putty}'` : formatAddress(item));
+    if (item.proxyJump) detail += ` via ${item.proxyJump}`;
+    else if (item.proxyCommand) detail += ' via ProxyCommand';
+    if (fromSshConfig && !withTooltips) description = `${description ? `${description} ` : ''}(SSH config)`;
     const result: FormattedItem = {
         item: item, description, detail, contextValue: 'config',
-        label: `${iconInLabel ? '$(settings-gear) ' : ''}${item.label || item.name} `,
-        iconPath: new vscode.ThemeIcon('settings-gear'),
+        label: `${iconInLabel ? `$(${icon}) ` : ''}${item.label || item.name} `,
+        iconPath: new vscode.ThemeIcon(icon),
     };
-    if (withTooltips) result.tooltip = detail;
+    if (withTooltips) {
+        result.tooltip = detail;
+        // In the tree view, immediately show where a host from the OpenSSH config file leads to
+        if (fromSshConfig) result.description = detail;
+        if (fromSshConfig && item._sshConfigSource) {
+            const { file, line } = item._sshConfigSource;
+            const lines = [detail, `From ${file}:${line}`];
+            if (item.proxyCommand) lines.push(`ProxyCommand: ${item.proxyCommand}`);
+            if (item.remoteCommand) lines.push(`RemoteCommand: ${item.remoteCommand}`);
+            result.tooltip = lines.join('\n');
+        }
+    }
     return result;
 }
 

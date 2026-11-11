@@ -1,10 +1,12 @@
 
-import { ConfigLocation, FileSystemConfig, invalidConfigName, isFileSystemConfig, parseConnectionString } from 'common/fileSystemConfig';
+import { ConfigLocation, FileSystemConfig, SSH_CONFIG_LOCATION_PREFIX, invalidConfigName, isFileSystemConfig, isSshConfigLocation, parseConnectionString } from 'common/fileSystemConfig';
 import { ParseError, parse as parseJsonc, printParseErrorCode } from 'jsonc-parser';
+import * as nodeFs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { MANAGER } from './extension';
 import { Logging, OUTPUT_CHANNEL } from './logging';
+import { LoadedSshConfig, SshConfigSource, getSshHostConfig, listSshHosts, loadSshConfig, matchPattern, parseJumpSpec } from './sshConfig';
 import { catchingPromise } from './utils';
 
 const fs = vscode.workspace.fs;
@@ -146,7 +148,130 @@ let configLayers: {
   global: FileSystemConfig[];
   workspace: FileSystemConfig[];
   folder: Map<string, FileSystemConfig[]>;
+  /** Hosts from the user's OpenSSH config file(s). Lowest priority, read-only and never stored in any settings */
+  sshConfig: FileSystemConfig[];
 };
+
+/* OpenSSH config file support (~/.ssh/config) */
+
+interface SshConfigSettings {
+  enabled: boolean;
+  paths: string[];
+  exclude: string[];
+  root: string;
+}
+
+/**
+ * Reads the `sshfs.sshConfig.*` settings. Only user-level values are used on purpose: a workspace
+ * (which could be an untrusted repository) should never be able to make us parse a file of its choosing,
+ * as OpenSSH config files can contain commands that get run locally (ProxyCommand).
+ */
+function getSshConfigSettings(): SshConfigSettings {
+  const config = vscode.workspace.getConfiguration('sshfs.sshConfig');
+  function user<T>(key: string, fallback: T): T {
+    const inspect = config.inspect<T>(key);
+    const value = inspect?.globalValue ?? inspect?.defaultValue;
+    return value === undefined || value === null ? fallback : value;
+  }
+  const strings = (value: unknown) => Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && !!v.trim()) : [];
+  return {
+    enabled: user<boolean>('enabled', true) !== false,
+    paths: strings(user<unknown>('paths', [])),
+    exclude: strings(user<unknown>('exclude', [])),
+    root: `${user('root', '~') || '~'}`,
+  };
+}
+
+let loadedSshConfig: LoadedSshConfig | undefined;
+let loadedSshConfigSettings: SshConfigSettings | undefined;
+let watchedSshConfigFiles: string[] = [];
+let sshConfigReloadTimer: NodeJS.Timeout | undefined;
+const sshConfigWarnings = new Set<string>();
+
+function warnSshConfig(message: string) {
+  if (sshConfigWarnings.has(message)) return;
+  sshConfigWarnings.add(message);
+  logging.warning(message);
+}
+
+function onSshConfigFileChanged(current: nodeFs.Stats, previous: nodeFs.Stats) {
+  if (current.mtimeMs === previous.mtimeMs && current.size === previous.size) return;
+  if (sshConfigReloadTimer) clearTimeout(sshConfigReloadTimer);
+  sshConfigReloadTimer = setTimeout(() => {
+    logging.info('An OpenSSH config file changed, reloading configurations...');
+    loadConfigs().catch(e => logging.error`Error while reloading configs after an OpenSSH config file change: ${e}`);
+  }, 250);
+}
+
+/** (Un)watches the OpenSSH config files (including `Include`d and not-yet-existing ones) so changes get picked up automatically */
+function watchSshConfigFiles(files: string[]) {
+  for (const file of watchedSshConfigFiles) {
+    if (!files.includes(file)) nodeFs.unwatchFile(file, onSshConfigFileChanged);
+  }
+  for (const file of files) {
+    if (!watchedSshConfigFiles.includes(file)) nodeFs.watchFile(file, { interval: 2000, persistent: false }, onSshConfigFileChanged);
+  }
+  watchedSshConfigFiles = files;
+}
+
+/** Converts the given host to a config by resolving it against the loaded OpenSSH config files, exactly like `ssh <host>` would */
+function sshHostToFileSystemConfig(alias: string, source?: SshConfigSource): FileSystemConfig | undefined {
+  if (!loadedSshConfig) return undefined;
+  const { _explicit, ...host } = getSshHostConfig(loadedSshConfig, alias, warnSshConfig);
+  const location = `${SSH_CONFIG_LOCATION_PREFIX}${source?.file || loadedSshConfig.files[0]?.path || ''}`;
+  return {
+    ...host,
+    root: loadedSshConfigSettings?.root || '~',
+    _sshConfigSource: source,
+    _location: location,
+    _locations: [location],
+  };
+}
+
+/** Loads all hosts from the OpenSSH config file(s). Nothing gets cached on disk or stored in settings, it's read fresh every (re)load */
+async function loadSshConfigHosts(): Promise<FileSystemConfig[]> {
+  const settings = loadedSshConfigSettings = getSshConfigSettings();
+  sshConfigWarnings.clear();
+  if (!settings.enabled) {
+    logging.info('Reading hosts from OpenSSH config files is disabled (sshfs.sshConfig.enabled)');
+    loadedSshConfig = undefined;
+    watchSshConfigFiles([]);
+    return [];
+  }
+  try {
+    loadedSshConfig = await loadSshConfig(settings.paths, warnSshConfig);
+  } catch (e) {
+    logging.error`Error while reading OpenSSH config files: ${e}`;
+    loadedSshConfig = undefined;
+    return [];
+  }
+  watchSshConfigFiles(loadedSshConfig.watch);
+  const configs: FileSystemConfig[] = [];
+  for (const { alias, source } of listSshHosts(loadedSshConfig.files)) {
+    if (invalidConfigName(alias)) {
+      logging.info`Skipping host '${alias}' from ${source.file}:${source.line} as its name can't be used as SSH FS name`;
+      continue;
+    }
+    if (settings.exclude.some(pattern => matchPattern(alias, pattern) || matchPattern(alias.toLowerCase(), pattern.toLowerCase()))) {
+      logging.debug`Skipping host '${alias}' from ${source.file}:${source.line} due to sshfs.sshConfig.exclude`;
+      continue;
+    }
+    try {
+      const config = sshHostToFileSystemConfig(alias, source);
+      if (config) configs.push(config);
+    } catch (e) {
+      logging.error`Error while resolving host '${alias}' from ${source.file}:${source.line}: ${e}`;
+    }
+  }
+  const read = loadedSshConfig.files.filter(f => f.exists).map(f => f.path);
+  logging.info`Read ${configs.length} hosts from OpenSSH config files: ${read.length ? read.join(', ') : '(none found)'}`;
+  return configs;
+}
+
+/** Returns the paths of the top-level OpenSSH config files we (try to) read, in order of precedence */
+export function getSshConfigFiles(): string[] {
+  return loadedSshConfig?.files.map(f => f.path) || [];
+}
 
 /** Only loads `sshfs.configs` into `configLayers`, ignoring `sshfs.configpaths` */
 async function loadGlobalOrWorkspaceConfigs(): Promise<void> {
@@ -187,6 +312,7 @@ function applyConfigLayers(): void {
     ...(vscode.workspace.workspaceFolders || []).flatMap(ws => configLayers.folder.get(ws.uri.toString()) || []),
     ...configLayers.workspace,
     ...configLayers.global,
+    ...configLayers.sshConfig,
   ];
   all.forEach(c => c.name = (c.name || '').toLowerCase()); // It being undefined shouldn't happen, but better be safe
   // Let the user do some cleaning with the raw configs
@@ -286,7 +412,9 @@ export async function loadConfigs(): Promise<FileSystemConfig[]> {
     await renameNameless();
     // Keep all found configs "ordened" by layer, for proper deduplication/merging
     // while also allowing partially refreshing (workspaceFolder configs) without having to reload *everything*
-    configLayers = { global: [], workspace: [], folder: new Map() };
+    configLayers = { global: [], workspace: [], folder: new Map(), sshConfig: [] };
+    // Fetch hosts from the user's OpenSSH config file(s), e.g. ~/.ssh/config
+    configLayers.sshConfig = await loadSshConfigHosts();
     // Fetch global/workspace configs from vscode settings
     loadGlobalOrWorkspaceConfigs();
     // Fetch configs from config files defined in global/workspace settings
@@ -320,6 +448,10 @@ export async function reloadWorkspaceFolderConfigs(authority: string): Promise<v
 }
 
 vscode.workspace.onDidChangeConfiguration(async (e) => {
+  if (e.affectsConfiguration('sshfs.sshConfig')) {
+    logging.info('OpenSSH config settings changed, reloading configs...');
+    return loadConfigs();
+  }
   if (e.affectsConfiguration('sshfs.configpaths')) {
     logging.info('Config paths changed for global/workspace, reloading configs...');
     return loadConfigs();
@@ -357,6 +489,9 @@ vscode.workspace.onDidChangeWorkspaceFolders(event => {
 
 export type ConfigAlterer = (configs: FileSystemConfig[]) => FileSystemConfig[] | null | false;
 export async function alterConfigs(location: ConfigLocation, alterer: ConfigAlterer) {
+  if (isSshConfigLocation(location)) {
+    throw new Error(`Hosts from an OpenSSH config file are read-only in SSH FS, edit ${location.substring(SSH_CONFIG_LOCATION_PREFIX.length)} instead`);
+  }
   let uri!: vscode.Uri | undefined;
   let prettyLocation: string | undefined;
   if (typeof location === 'string' && location.startsWith('WorkspaceFolder ')) {
@@ -462,20 +597,61 @@ export function getConfig(input: string): FileSystemConfig | undefined {
   const parseString = parseConnectionString(input);
   if (typeof parseString === 'string') return undefined;
   const [parsed] = parseString;
+  // Fields that weren't part of the connection string shouldn't override the ones of a matching config
+  const given: Partial<FileSystemConfig> = { ...parsed };
+  for (const key in given) if (given[key] === undefined) delete given[key];
   // If we're using the instant connection string, the host name might be a config name
-  const existing = getConfigs().find(c => c.name.toLowerCase() === parsed.host!.toLowerCase());
+  let existing = getConfigs().find(c => c.name.toLowerCase() === parsed.host!.toLowerCase());
   if (existing) {
     Logging.info`getConfig('${input}') led to '${parsed.name}' which matches config '${existing.name}'`;
+  } else if (loadedSshConfig) {
+    // Not a known config, but (just like with `ssh user@host`) the OpenSSH config file can still have
+    // options that apply to this host, e.g. a `Host *.example.com` block specifying a ProxyJump
+    try {
+      existing = sshHostToFileSystemConfig(parsed.host!);
+      // Keep the regular instant connection behavior of not having a default root folder
+      if (existing) delete existing.root;
+    } catch (e) {
+      Logging.error`Error while resolving '${parsed.host}' against the OpenSSH config files: ${e}`;
+    }
+    // Without an explicit user in the connection string, use the one from the OpenSSH config
+    if (existing && given.username === '$USERNAME') delete given.username;
+  }
+  if (existing) {
     // Take the existing config, but (more or less) override it with the values present in `parsed`
     // `name` be the same as in `parsed`, meaning it can be reused with `getConfig` on window reload.
     return {
-      ...existing, ...parsed,
+      ...existing, ...given as FileSystemConfig,
       host: existing.host || parsed.host, // `parsed.host` is the session name, which might not be the actual hostname
       _location: undefined, // Since this is a merged config, we have to flag it as such
       _locations: [...existing._locations, ...parsed._locations], // Merge locations
     };
   }
   return parsed;
+}
+
+/**
+ * Resolves a single ProxyJump entry (`[user@]host[:port]`) to a config to hop through.
+ * The host can be the name of a loaded config (which includes every host from the OpenSSH config files).
+ * Otherwise it is resolved against the OpenSSH config files (wildcard blocks might apply), and if those
+ * aren't available, it results in a plain config for the given host.
+ */
+export function getJumpConfig(spec: string): FileSystemConfig | undefined {
+  const parsed = parseJumpSpec(spec);
+  if (!parsed) return undefined;
+  const lower = parsed.host.toLowerCase();
+  let config: FileSystemConfig | undefined = getConfigs().find(c => c.name.toLowerCase() === lower);
+  if (!config && loadedSshConfig) {
+    try {
+      config = sshHostToFileSystemConfig(parsed.host);
+    } catch (e) {
+      Logging.error`Error while resolving jump host '${parsed.host}' against the OpenSSH config files: ${e}`;
+    }
+  }
+  config = { ...(config || { name: parsed.host, host: parsed.host, username: '$USER', _locations: [] }) };
+  if (parsed.username) config.username = parsed.username;
+  if (parsed.port) config.port = parsed.port;
+  return config;
 }
 
 function valueMatches(a: any, b: any): boolean {
