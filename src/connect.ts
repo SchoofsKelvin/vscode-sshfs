@@ -1,15 +1,29 @@
-import type { FileSystemConfig } from 'common/fileSystemConfig';
+import { FileSystemConfig, isSshConfigLocation } from 'common/fileSystemConfig';
 import { readFile } from 'fs';
 import { Socket } from 'net';
 import { userInfo } from 'os';
 import { AuthHandlerFunction, AuthHandlerObject, Client, ClientChannel, ConnectConfig } from 'ssh2';
 import { SFTP } from 'ssh2/lib/protocol/SFTP';
 import * as vscode from 'vscode';
-import { getConfig } from './config';
+import { getConfig, getJumpConfig } from './config';
 import { getFlagBoolean } from './flags';
 import { Logger, Logging } from './logging';
 import type { PuttySession } from './putty';
+import { ConnectContext, makeLazyAuthHandler, promptKeyboardInteractive } from './sshAuth';
+import { splitProxyJump } from './sshConfig';
 import { toPromise, validatePort } from './utils';
+
+/** Maximum amount of nested hops (through `hop` and/or `proxyJump`), mostly to detect configs that (indirectly) hop through themselves */
+const MAX_HOP_DEPTH = 16;
+
+/**
+ * Configs from an OpenSSH config file (or ones using `identityFiles`) authenticate "lazily", the way `ssh` does:
+ * use the keys loaded in the SSH agent (`ssh-add -l`) first, then the identity files, and only prompt for a passphrase/password once it is actually needed.
+ * Nothing that gets prompted is ever stored.
+ */
+function usesLazyAuth(config: FileSystemConfig): boolean {
+  return !!config._sshConfigHost || Array.isArray(config.identityFiles);
+}
 
 const DEFAULT_CONFIG: ConnectConfig = {
   tryKeyboard: true,
@@ -146,6 +160,10 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   }
   await promptFields(config, 'host', 'username', 'password');
   if (config.password) config.agent = undefined;
+  if (config.remoteCommand) {
+    const remoteCommand = config.remoteCommand.trim();
+    config.remoteCommand = remoteCommand && remoteCommand.toLowerCase() !== 'none' ? expandCommandTokens(remoteCommand, config) : undefined;
+  }
   if ((config.passphrase as any) === true) {
     if (config.privateKey) {
       await promptFields(config, 'passphrase');
@@ -166,7 +184,9 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
     logging.debug`\tNo agent while having agentForward, disabling agent forwarding`;
     config.agentForward = false;
   }
-  if (!config.privateKey && !config.agent && !config.password) {
+  if (usesLazyAuth(config)) {
+    logging.debug`\tUsing OpenSSH-style authentication, passphrases/passwords only get prompted when needed`;
+  } else if (!config.privateKey && !config.agent && !config.password) {
     logging.debug`\tNo privateKey, agent or password. Gonna prompt for password`;
     config.password = true as any;
     await promptFields(config, 'password');
@@ -175,35 +195,104 @@ export async function calculateActualConfig(config: FileSystemConfig): Promise<F
   return config;
 }
 
-export async function createSocket(config: FileSystemConfig): Promise<NodeJS.ReadableStream | null> {
+/** Replaces the `%h` (host), `%p` (port), `%r` (remote user), `%n` (config name) and `%%` tokens, like OpenSSH does for commands */
+function expandCommandTokens(command: string, config: FileSystemConfig): string {
+  const tokens: Record<string, string> = {
+    h: config.host || '',
+    p: `${config.port || 22}`,
+    r: config.username || '',
+    n: config._sshConfigHost || config.name,
+  };
+  return command.replace(/%(.)/g, (full, token: string) => token === '%' ? '%' : (token in tokens ? tokens[token] : full));
+}
+
+/**
+ * A ProxyCommand is a command that gets run on the local machine. That's fine when the user wrote it down
+ * in their OpenSSH config file or user settings, but (the settings of) an untrusted workspace or a remote
+ * server should never be able to make us run commands.
+ */
+function isLocalCommandAllowed(config: FileSystemConfig): boolean {
+  for (const location of config._locations || []) {
+    if (location === vscode.ConfigurationTarget.Global) continue;
+    if (isSshConfigLocation(location)) continue;
+    if (!vscode.workspace.isTrusted) return false;
+    if (typeof location === 'string' && /(^|\s)ssh:\/\//i.test(location)) return false;
+  }
+  return true;
+}
+
+/** Opens a `direct-tcpip` channel to the target of the given config through an (already connected) hop */
+function forwardThroughHop(ssh: Client, hopName: string, config: FileSystemConfig, logging: Logger): Promise<NodeJS.ReadableStream> {
+  return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+    ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
+      if (err) {
+        logging.debug`\tError connecting to hop ${hopName} for ${config.name}: ${err}`;
+        err.message = `Couldn't connect through the hop '${hopName}':\n${err}`;
+        ssh.end();
+        return reject(err);
+      } else if (!channel) {
+        err = new Error('Did not receive a channel');
+        logging.debug`\tGot no channel when connecting to hop ${hopName} for ${config.name}`;
+        ssh.end();
+        return reject(err);
+      }
+      channel.once('close', () => ssh.end());
+      resolve(channel);
+    });
+  });
+}
+
+export async function createSocket(config: FileSystemConfig, context: ConnectContext = { depth: 0, keys: new Map() }): Promise<NodeJS.ReadableStream | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
   const logging = Logging.scope(`createSocket(${config.name})`);
   logging.info`Creating socket`;
+  const hopContext: ConnectContext = { ...context, depth: context.depth + 1 };
+  if (context.depth > MAX_HOP_DEPTH) {
+    throw new Error(`Too many nested hops/jump hosts while connecting, does '${config.name}' (indirectly) hop through itself?`);
+  }
+  if (config.proxyJump) {
+    // OpenSSH's ProxyJump: `a,b` means that we connect to `a`, through that to `b`, and through that to our target.
+    // So we connect to the last one (which itself has to jump through all the ones before it) and forward through it.
+    const jumps = splitProxyJump(config.proxyJump);
+    const last = jumps.pop();
+    if (last && last.toLowerCase() !== 'none') {
+      logging.debug`\tJumping through ${config.proxyJump}`;
+      let hop = getJumpConfig(last);
+      if (!hop) throw new Error(`Invalid ProxyJump host '${last}' for '${config.name}'`);
+      if (jumps.length) {
+        // The earlier jump hosts take precedence over whatever proxying this jump host has configured itself
+        hop = { ...hop, proxyJump: jumps.join(','), proxyCommand: undefined, hop: undefined, proxy: undefined };
+      }
+      const ssh = await createSSH(hop, undefined, hopContext);
+      if (!ssh) {
+        logging.debug`\tFailed in connecting to jump host ${last}`;
+        return null;
+      }
+      return forwardThroughHop(ssh, last, config, logging);
+    }
+  }
   if (config.hop) {
     logging.debug`\tHopping through ${config.hop}`;
     const hop = getConfig(config.hop);
     if (!hop) throw new Error(`A SSH FS configuration with the name '${config.hop}' doesn't exist`);
-    const ssh = await createSSH(hop);
+    const ssh = await createSSH(hop, undefined, hopContext);
     if (!ssh) {
       logging.debug`\tFailed in connecting to hop ${config.hop}`;
       return null;
     }
-    return new Promise<NodeJS.ReadableStream>((resolve, reject) => {
-      ssh.forwardOut('localhost', 0, config.host!, config.port || 22, (err, channel) => {
-        if (err) {
-          logging.debug`\tError connecting to hop ${config.hop} for ${config.name}: ${err}`;
-          err.message = `Couldn't connect through the hop:\n${err}`;
-          return reject(err);
-        } else if (!channel) {
-          err = new Error('Did not receive a channel');
-          logging.debug`\tGot no channel when connecting to hop ${config.hop} for ${config.name}`;
-          return reject(err);
-        }
-        channel.once('close', () => ssh.end());
-        resolve(channel);
-      });
-    });
+    return forwardThroughHop(ssh, config.hop, config, logging);
+  }
+  if (config.proxyCommand && config.proxyCommand.trim().toLowerCase() !== 'none') {
+    if (!isLocalCommandAllowed(config)) {
+      throw new Error(`The config '${config.name}' wants to run a local command (proxyCommand), which is only allowed for configs from your `
+        + `OpenSSH config file or user settings, or in a trusted workspace`);
+    }
+    const command = expandCommandTokens(config.proxyCommand, config);
+    logging.info`Connecting through ProxyCommand: ${command}`;
+    const { spawnProxyCommand } = await import('./proxyCommand');
+    const proxyLogging = Logging.scope(`ProxyCommand(${config.name})`);
+    return spawnProxyCommand(command, { onStderr: line => proxyLogging.debug(line) });
   }
   switch (config.proxy && config.proxy.type) {
     case null:
@@ -225,7 +314,8 @@ export async function createSocket(config: FileSystemConfig): Promise<NodeJS.Rea
   });
 }
 
-function makeAuthHandler(config: FileSystemConfig, logging: Logger): AuthHandlerFunction {
+function makeAuthHandler(config: FileSystemConfig, logging: Logger, context: ConnectContext): AuthHandlerFunction {
+  if (usesLazyAuth(config)) return makeLazyAuthHandler(config, logging, context);
   const authsAllowed: (AuthHandlerObject | AuthHandlerObject['type'])[] = ['none'];
   if (config.password) authsAllowed.push('password');
   if (config.privateKey) authsAllowed.push('publickey');
@@ -235,26 +325,17 @@ function makeAuthHandler(config: FileSystemConfig, logging: Logger): AuthHandler
   return () => authsAllowed.shift() || false;
 }
 
-export async function createSSH(config: FileSystemConfig, sock?: NodeJS.ReadableStream): Promise<Client | null> {
+export async function createSSH(config: FileSystemConfig, sock?: NodeJS.ReadableStream, context: ConnectContext = { depth: 0, keys: new Map() }): Promise<Client | null> {
   config = (await calculateActualConfig(config))!;
   if (!config) return null;
-  sock = sock || (await createSocket(config))!;
+  sock = sock || (await createSocket(config, context))!;
   if (!sock) return null;
   const logging = Logging.scope(`createSSH(${config.name})`);
   return new Promise<Client>((resolve, reject) => {
     const client = new Client();
     client.once('ready', () => resolve(client));
     client.once('timeout', () => reject(new Error(`Socket timed out while connecting SSH FS '${config.name}'`)));
-    client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
-      logging.debug`Received keyboard-interactive request with prompts ${prompts}`;
-      Promise.all<string | undefined>(prompts.map(prompt =>
-        vscode.window.showInputBox({
-          password: true, // prompt.echo was false for me while testing password prompting
-          ignoreFocusOut: true,
-          prompt: prompt.prompt.replace(/:\s*$/, ''),
-        }),
-      )).then(finish).catch(e => logging.error(e));
-    });
+    client.on('keyboard-interactive', promptKeyboardInteractive(logging));
     client.on('error', (error: Error & { description?: string }) => {
       if (error.description) {
         error.message = `${error.description}\n${error}`;
@@ -264,7 +345,9 @@ export async function createSSH(config: FileSystemConfig, sock?: NodeJS.Readable
     });
     try {
       const finalConfig: FileSystemConfig = { ...config, sock, ...DEFAULT_CONFIG };
-      finalConfig.authHandler = makeAuthHandler(finalConfig, logging);
+      // Respect keepalive settings (e.g. ServerAliveInterval/ServerAliveCountMax from an OpenSSH config file)
+      if (config.keepaliveInterval) finalConfig.keepaliveInterval = config.keepaliveInterval;
+      finalConfig.authHandler = makeAuthHandler(finalConfig, logging, context);
       if (config.debug || getFlagBoolean('DEBUG_SSH2', false, config.flags)[0]) {
         const scope = Logging.scope(`ssh2(${config.name})`);
         finalConfig.debug = (msg: string) => scope.debug(msg);

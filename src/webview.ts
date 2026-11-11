@@ -1,11 +1,13 @@
 
-import { getLocations } from 'common/fileSystemConfig';
+import { getLocations, isSshConfigLocation } from 'common/fileSystemConfig';
 import type { Message, Navigation } from 'common/webviewMessages';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { deleteConfig, getConfigs, loadConfigs, updateConfig } from './config';
+import { MANAGER } from './extension';
 import { DEBUG, LOGGING_NO_STACKTRACE, Logging as _Logging } from './logging';
+import { getExtensionUri } from './ui-utils';
 import { toPromise } from './utils';
 
 const Logging = _Logging.scope('WebView');
@@ -14,8 +16,7 @@ let webviewPanel: vscode.WebviewPanel | undefined;
 let pendingNavigation: Navigation | undefined;
 
 function getExtensionPath(): string | undefined {
-  const ext = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
-  return ext && ext.extensionPath;
+  return getExtensionUri?.('')?.fsPath;
 }
 
 async function getDebugContent(): Promise<string | false> {
@@ -100,7 +101,9 @@ async function handleMessage(message: Message): Promise<any> {
       const { uniqueId, config, name, remove } = message;
       let error: string | undefined;
       try {
-        if (remove) {
+        if (isSshConfigLocation(config._location)) {
+          throw new Error('Hosts from your OpenSSH config file are read-only here, edit that file instead');
+        } else if (remove) {
           await deleteConfig(config);
         } else {
           await updateConfig(config, name);
@@ -132,6 +135,10 @@ async function handleMessage(message: Message): Promise<any> {
         path: uri && uri.fsPath,
         type: 'promptPathResult',
       });
+    }
+    case 'openConfigSource': {
+      // Used for (read-only) hosts from an OpenSSH config file: open that file at the right line
+      return MANAGER?.openSshConfig(message.config);
     }
     case 'navigated': {
       const { view } = message;

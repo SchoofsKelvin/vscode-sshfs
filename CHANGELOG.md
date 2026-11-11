@@ -1,6 +1,37 @@
 
 # Changelog
 
+## Unreleased
+
+### New features
+
+- Hosts from the OpenSSH config file (`~/.ssh/config`, followed by the system-wide `ssh_config`) are listed and can be connected to without creating any SSH FS configuration
+  - Nothing is stored in the settings, the files are read (and watched for changes) directly
+  - Supports `Include`, `Host`/`Match` blocks, tokens, `HostName`, `User`, `Port`, `IdentityFile`, `IdentitiesOnly`, `IdentityAgent`, `ForwardAgent`, `SetEnv`, timeouts/keepalives and the authentication toggles
+  - New settings `sshfs.sshConfig.enabled`, `sshfs.sshConfig.paths`, `sshfs.sshConfig.exclude` and `sshfs.sshConfig.root`
+  - New command `SSH FS: Open OpenSSH config file`, also used by `Edit configuration` for these hosts
+- OpenSSH-style authentication for these hosts: agent keys, identity files, keyboard-interactive, then password
+  - Keys that are loaded in the SSH agent (listed by `ssh-add -l`) are used without a passphrase prompt, like `ssh` does
+  - The agent is looked for at `IdentityAgent` / `SSH_AUTH_SOCK`, the standard agent of the platform (OpenSSH agent service/Pageant on Windows, launchd on macOS, keyring/systemd socket on Linux) and manually started agents (`eval $(ssh-agent)`). The first agent that has keys loaded is used
+  - Agent keys matching the configured `IdentityFile`s are offered to the server first, `IdentitiesOnly` and `IdentityAgent none` are respected
+  - Passphrases and passwords are only prompted when needed (e.g. an encrypted key that is in no agent) and never stored
+- Added `ProxyJump` support (`proxyJump` field), including chains (`a,b,c`) and `[user@]host[:port]` entries
+- Added `ProxyCommand` support (`proxyCommand` field), limited to user settings/OpenSSH config or trusted workspaces
+- Added `RemoteCommand` support (`remoteCommand` field), used for terminals when no `terminalCommand` is set
+- Added the `identityFiles` and `identitiesOnly` fields for regular configurations
+- Instant connections now also apply the OpenSSH config (e.g. wildcard `Host` blocks)
+
+### Fixes
+
+- An instant connection like `user@config` no longer drops the port of the matching configuration
+- `keepaliveInterval` from a configuration is no longer ignored
+- A terminal/task whose command finishes immediately no longer risks staying open forever
+
+### Other changes
+
+- The example for the `sshfs.configs` setting no longer suggests storing a password
+- Added tests for the OpenSSH config support in `test/sshconfig` (plain Node scripts, see the README in there)
+
 ## v1.27.0 (2026-06-08)
 
 ### Changes

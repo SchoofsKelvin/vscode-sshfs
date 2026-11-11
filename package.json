@@ -38,7 +38,10 @@
         "filesystem",
         "terminal",
         "sftp",
-        "scp"
+        "scp",
+        "ssh config",
+        "proxyjump",
+        "proxycommand"
     ],
     "badges": [
         {
@@ -143,6 +146,12 @@
                 "icon": "$(settings)"
             },
             {
+                "command": "sshfs.openSshConfig",
+                "title": "Open OpenSSH config file (~/.ssh/config)",
+                "category": "SSH FS",
+                "icon": "$(go-to-file)"
+            },
+            {
                 "command": "sshfs.refresh",
                 "title": "Refresh",
                 "category": "SSH FS",
@@ -196,6 +205,10 @@
                     "group": "SSH FS@8"
                 },
                 {
+                    "command": "sshfs.openSshConfig",
+                    "group": "SSH FS@9"
+                },
+                {
                     "command": "sshfs.focusTerminal",
                     "when": "false"
                 },
@@ -233,6 +246,11 @@
                     "command": "sshfs.settings",
                     "when": "view == 'sshfs-configs' || view == 'sshfs-connections'",
                     "group": "navigation@100"
+                },
+                {
+                    "command": "sshfs.openSshConfig",
+                    "when": "view == 'sshfs-configs'",
+                    "group": "navigation@3"
                 }
             ],
             "view/item/context": [
@@ -293,6 +311,10 @@
                     "group": "remote_11_ssh_sshfs@3"
                 },
                 {
+                    "command": "sshfs.openSshConfig",
+                    "group": "remote_11_ssh_sshfs@3"
+                },
+                {
                     "command": "sshfs.disconnect",
                     "group": "remote_11_ssh_sshfs@4",
                     "when": "sshfs.openConnections > 0"
@@ -307,6 +329,40 @@
         "configuration": {
             "title": "SSH FS Configuration",
             "properties": {
+                "sshfs.sshConfig.enabled": {
+                    "title": "Read hosts from your OpenSSH config file",
+                    "markdownDescription": "List (and connect to) the hosts from your OpenSSH config file (`~/.ssh/config`), exactly like `ssh` would. Supports `Include`, `Host`/`Match` blocks, `HostName`, `User`, `Port`, `IdentityFile`, `IdentityAgent`, `ProxyJump`, `ProxyCommand`, `RemoteCommand` and more. Nothing is copied into your settings: the file gets read every time and passphrases/passwords are prompted when needed, never stored.",
+                    "type": "boolean",
+                    "default": true,
+                    "scope": "application"
+                },
+                "sshfs.sshConfig.paths": {
+                    "title": "OpenSSH config files to read",
+                    "markdownDescription": "OpenSSH config files to read hosts from, in order of precedence. Supports `~` and `${ENV_VAR}`. Leave empty to use the same files as `ssh`: `~/.ssh/config` followed by the system-wide `ssh_config`. Can only be set in your user settings, as these files can define commands that run on your machine (`ProxyCommand`).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "scope": "machine"
+                },
+                "sshfs.sshConfig.exclude": {
+                    "title": "Hosts from your OpenSSH config file to hide",
+                    "markdownDescription": "Hosts from your OpenSSH config file that should not be listed, e.g. `github.com` or `*.git.example.com`. Supports the `*` and `?` wildcards.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "scope": "application"
+                },
+                "sshfs.sshConfig.root": {
+                    "title": "Default remote folder for hosts from your OpenSSH config file",
+                    "markdownDescription": "The remote folder to open for hosts from your OpenSSH config file when using `Add as Workspace folder` or opening a terminal. Use `~` for the home directory of the remote user.",
+                    "type": "string",
+                    "default": "~",
+                    "scope": "application"
+                },
                 "sshfs.configpaths": {
                     "title": "A list of file locations to load SSH FS configurations from",
                     "description": "Location of JSON files to load configs from",
@@ -316,19 +372,11 @@
                 },
                 "sshfs.configs": {
                     "title": "A list of SSH FS configurations",
-                    "description": "Use the Settings UI to edit configurations (run command SSH FS: Open settings and edit configurations)",
-                    "markdownDescription": "Use the Settings UI to edit configurations *(run command `SSH FS: Open settings and edit configurations`)*",
+                    "description": "Extra SSH FS configurations. Hosts from your OpenSSH config file (~/.ssh/config) are listed automatically and do not need to be added here. Avoid storing passwords in here, they are saved as plain text!",
+                    "markdownDescription": "Extra SSH FS configurations. Hosts from your OpenSSH config file (`~/.ssh/config`) are listed automatically and do **not** need to be added here. Avoid storing passwords/passphrases in here, they are saved as plain text! *(run command `SSH FS: Open settings and edit configurations` for the Settings UI)*",
                     "type": "array",
                     "items": "object",
-                    "default": [
-                        {
-                            "root": "/tmp",
-                            "host": "localhost",
-                            "port": 22,
-                            "username": "root",
-                            "password": "CorrectHorseBatteryStaple"
-                        }
-                    ]
+                    "default": []
                 },
                 "sshfs.flags": {
                     "title": "List of special flags to enable/disable certain fixes/features",
@@ -377,7 +425,7 @@
         "viewsWelcome": [
             {
                 "view": "sshfs-configs",
-                "contents": "No configurations created yet"
+                "contents": "No hosts found in your OpenSSH config file (~/.ssh/config) and no SSH FS configurations created yet.\n[Open OpenSSH config file](command:sshfs.openSshConfig)\n[Create a SSH FS configuration](command:sshfs.new)"
             },
             {
                 "view": "sshfs-connections",

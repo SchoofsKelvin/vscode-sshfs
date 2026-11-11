@@ -25,8 +25,7 @@ interface CommandHandler {
 export let MANAGER: Manager | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  const extension = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
-  const version = extension?.packageJSON?.version;
+  const version = context.extension.packageJSON?.version;
 
   Logging.info`Extension activated, version ${version}, mode ${context.extensionMode}`;
   Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
@@ -148,6 +147,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.reload()
   registerCommand('sshfs.reload', loadConfigs);
+
+  // sshfs.openSshConfig()
+  registerCommand('sshfs.openSshConfig', () => manager.openSshConfig());
 
   // sshfs.settings()
   registerCommand('sshfs.settings', () => manager.openSettings());
