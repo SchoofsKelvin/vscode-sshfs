@@ -10348,9 +10348,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vscode-sshfs@workspace:.":
+"vscode-sshfs-sshconfig@workspace:.":
   version: 0.0.0-use.local
-  resolution: "vscode-sshfs@workspace:."
+  resolution: "vscode-sshfs-sshconfig@workspace:."
   dependencies:
     "@types/node": "npm:^20.12.1"
     "@types/request": "npm:^2.48.1"

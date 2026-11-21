@@ -37,6 +37,11 @@ export interface PromptPathResultMessage {
   uniqueId?: string;
 }
 
+export interface OpenConfigSourceMessage {
+  type: 'openConfigSource';
+  config: FileSystemConfig;
+}
+
 export interface NavigateMessage {
   type: 'navigate';
   navigation: Navigation;
@@ -53,6 +58,7 @@ export interface MessageTypes {
   saveConfigResult: SaveConfigResultMessage;
   promptPath: PromptPathMessage;
   promptPathResult: PromptPathResultMessage;
+  openConfigSource: OpenConfigSourceMessage;
   navigate: NavigateMessage;
   navigated: NavigatedMessage;
 }

@@ -3,17 +3,56 @@
 
 ![Logo](./resources/Logo.png)
 
-[![GitHub package version](https://img.shields.io/github/v/release/SchoofsKelvin/vscode-sshfs?include_prereleases&label=GitHub%20version)](https://github.com/SchoofsKelvin/vscode-sshfs)
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/Kelvin.vscode-sshfs?label=VS%20Marketplace&logo=sdf)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
-[![OpenVSX Registry](https://img.shields.io/open-vsx/v/Kelvin/vscode-sshfs?label=Open%20VSX)](https://open-vsx.org/extension/Kelvin/vscode-sshfs)
-
-[![VS Market installs](https://img.shields.io/visual-studio-marketplace/i/Kelvin.vscode-sshfs?color=green&label=Installs)](https://marketplace.visualstudio.com/items?itemName=Kelvin.vscode-sshfs)
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/SchoofsKelvin?color=green&label=GitHub%20Sponsors)](https://github.com/sponsors/SchoofsKelvin)
-[![Donate](./media/paypal.png)](https://www.paypal.me/KSchoofs)
+> **OpenSSH config edition.** This is a modified build of [SSH FS by Kelvin Schoofs](https://github.com/SchoofsKelvin/vscode-sshfs) (GPL-3.0), based on v1.27.0.
+> It lists and connects to the hosts from your `~/.ssh/config` without storing any configuration, password or passphrase in your settings,
+> and adds `ProxyJump`, `ProxyCommand` and `RemoteCommand` support. It is not published or endorsed by the original author.
 
 This extension allows mounting remote folders as local workspace folders, launch integrated remote terminals and run `ssh-shell` tasks.
 
 ## Features
+
+### Hosts from your OpenSSH config file
+
+Every host in your `~/.ssh/config` (and the system-wide `ssh_config`) is listed in the SSH FS view, ready to be mounted as workspace folder or opened in a terminal. Nothing has to be configured in VS Code and nothing is copied into your settings: the file is read every time (changes are picked up automatically) and it stays the single source of truth.
+
+```
+Host bastion
+    HostName bastion.example.com
+    User admin
+    IdentityFile ~/.ssh/id_ed25519
+
+Host app
+    HostName 10.0.0.12
+    User deploy
+    ProxyJump bastion
+    RemoteCommand tmux new -A -s main
+
+Host legacy
+    HostName legacy.internal
+    ProxyCommand ssh -W %h:%p bastion
+```
+
+- **Authentication works like `ssh`**: first the keys in your SSH agent, then your `IdentityFile`s (or the default `~/.ssh/id_*` keys), then keyboard-interactive and password.
+- **Keys loaded with `ssh-add` never ask for a passphrase**: every key that `ssh-add -l` lists is used straight from the agent, the key file isn't even opened. If an `IdentityFile` is configured, that key is taken from the agent first (and with `IdentitiesOnly yes`, only that key). The agent is looked for at `IdentityAgent` / `SSH_AUTH_SOCK`, then at the standard location of your platform (the OpenSSH Authentication Agent service or Pageant on Windows, launchd on macOS, the desktop keyring/systemd socket on Linux) and finally among agents you started by hand (`eval $(ssh-agent)`), so it also works when VS Code wasn't started from the terminal you ran `ssh-add` in. Use `IdentityAgent none` to not use an agent for a host.
+- A passphrase is only prompted as a last resort, for an encrypted key that isn't loaded in any agent. Prompted passphrases and passwords are **never stored**: they only live in memory while that connection is being set up. The `SSH FS` output channel tells which agent and keys were used (or why not).
+- **`ProxyJump`**: one or more (comma-separated) jump hosts, each `[user@]host[:port]`. Jump hosts are resolved against your OpenSSH config as well, so they can have their own keys, users, ports and even their own `ProxyJump`.
+- **`ProxyCommand`**: the command is run locally (through your shell) and used as the connection, with the `%h`, `%p`, `%r`, `%n` and `%%` tokens.
+- **`RemoteCommand`**: run instead of the default shell when opening a terminal for the host. File access (SFTP) is not affected.
+- Also supported: `Include` (with globs), `Host` patterns and negation, `Match` (`all`, `host`, `originalhost`, `user`, `localuser`, `final`), `HostName`, `User`, `Port`, `IdentitiesOnly`, `ForwardAgent`, `SetEnv`, `ConnectTimeout`, `ServerAliveInterval`, `ServerAliveCountMax`, `PreferredAuthentications`, `PubkeyAuthentication`, `PasswordAuthentication` and `KbdInteractiveAuthentication`. `Match exec` blocks are never executed and thus never apply.
+- Instant connections (e.g. `user@host.example.com`) also apply your OpenSSH config, e.g. a `Host *.example.com` block with a `ProxyJump`.
+- The `Edit configuration` button of such a host opens the config file at the right line. The command `SSH FS: Open OpenSSH config file` opens (or creates) the file.
+
+Related settings (user settings only): `sshfs.sshConfig.enabled`, `sshfs.sshConfig.paths` (other files to read), `sshfs.sshConfig.exclude` (hosts to hide, e.g. `github.com`) and `sshfs.sshConfig.root` (the folder to open, defaults to the remote home directory `~`).
+
+A regular SSH FS configuration with the same name as a host takes precedence over that host. To set SSH FS specific options for a host (e.g. a different root folder), create a regular SSH FS configuration with the same name and `"merge": true`. Everything not specified in there is taken from your OpenSSH config:
+
+```json
+"sshfs.configs": [
+    { "name": "app", "merge": true, "root": "/srv/app" }
+],
+```
+
+The fields `proxyJump`, `proxyCommand`, `remoteCommand`, `identityFiles` and `identitiesOnly` can also be used in regular SSH FS configurations. A `proxyCommand` in a configuration that doesn't come from your user settings is only honored in trusted workspaces.
 
 ### Config editor
 
@@ -42,6 +81,11 @@ Configurations are read from your global User Settings, the current workspace's 
 
 Using a simple button or the command palette, a remote terminal can be started:
 ![Terminals](./media/terminals.png)
+
+The terminal panel works with your SSH hosts too:
+
+- **The `+` button opens a terminal on the connected SSH host**, in the SSH workspace folder of the active editor (otherwise the first SSH workspace folder, otherwise the first active connection), just like `Open remote SSH terminal` on a folder in the explorer. Without a connected host it opens a terminal on this computer. This works by making `New Terminal in connected SSH host` the default terminal profile in your user settings; disable `sshfs.terminal.defaultToConnectedHost` to keep your own default (the previous one is restored).
+- The dropdown next to the `+` button lists `New Terminal (this computer)` for a local terminal, and `Open remote SSH terminal`, which lets you pick `New Terminal in <connection name>` for every SSH workspace folder and connection, a terminal on this computer, or any other host.
 
 _Uses `$SHELL` by default to launch your default user shell. A config option exists to change this, e.g. `"ksh -"` or `"exec .special-profile; $SHELL"`_
 

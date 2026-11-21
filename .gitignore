@@ -1,3 +1,4 @@
+.DS_Store
 
 # Build output
 dist
@@ -16,3 +17,5 @@ stats.json
 !.yarn/versions
 !.yarn/yarn.lock
 .pnp.*
+.test-out
+

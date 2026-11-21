@@ -1,6 +1,69 @@
 
 # Changelog
 
+## v1.27.4 (OpenSSH config edition)
+
+### Changes
+
+- The `+` button of the terminal panel opens a terminal on the connected SSH host, in the SSH workspace folder (of the active editor, otherwise the first one, otherwise the first active connection), like `Open remote SSH terminal` on a folder in the explorer does
+  - Done by making the new `New Terminal in connected SSH host` terminal profile the default one (`terminal.integrated.defaultProfile.*` in the user settings). Without a connected host, it opens a terminal on this computer
+  - New setting `sshfs.terminal.defaultToConnectedHost` (enabled by default). Disabling it restores the previous default profile
+- `Open remote SSH terminal` in the dropdown of the `+` button now offers `New Terminal in <connection name>` for every SSH workspace folder and active connection, `New Terminal (this computer)` and other hosts
+- New `New Terminal (this computer)` terminal profile, for a local terminal
+- The terminal profiles moved to `src/terminalProfiles.ts`
+
+### Fixes
+
+- If registering the `Open remote SSH terminal` terminal profile fails (VS Code refuses a second registration, e.g. when another copy of SSH FS is enabled too), the rest of the extension (commands, menus, views) still gets set up
+- A warning tells which other copies of SSH FS are installed and enabled, since only one of them can work at a time
+
+## v1.27.3 (OpenSSH config edition)
+
+### Changes
+
+- Added an `Open remote SSH terminal` terminal profile: the dropdown of the `+` button of the terminal panel now lists it, next to the local shells. It asks which host (or active connection) to use, like the command with the same name does
+  - Cancelling the host picker doesn't create a terminal (and shows no error), a failed connection shows the usual error with a `Retry` option
+
+## v1.27.2 (OpenSSH config edition)
+
+### Changes
+
+- Keys that are loaded in your SSH agent (listed by `ssh-add -l`) are now always used without a passphrase prompt, like `ssh` and the Remote - SSH extension do
+  - The agent is now also found when VS Code doesn't have (a working) `SSH_AUTH_SOCK`: the standard agent of the platform (OpenSSH agent service/Pageant on Windows, launchd on macOS, keyring/systemd socket on Linux) and manually started agents (`eval $(ssh-agent)`) are tried as well. The first agent that has keys loaded is used
+  - A passphrase-protected `IdentityFile` without a `.pub` file next to it is now recognized in the agent (the public key is read from the OpenSSH private key file, which doesn't need the passphrase). This used to break `IdentitiesOnly yes` and resulted in a passphrase prompt
+  - Agent keys matching the configured `IdentityFile`s are offered to the server first, like OpenSSH does, so an agent with many keys doesn't run into the server's limit of authentication attempts
+  - `IdentityAgent none` is respected: no agent is used for that host
+- The passphrase prompt (now only shown for an encrypted key that is in no agent) and the `SSH FS` output channel mention why the agent couldn't be used
+- The OpenSSH-style authentication moved from `src/connect.ts` to `src/sshAuth.ts`
+
+## v1.27.1 (OpenSSH config edition, unofficial build based on upstream v1.27.0)
+
+### New features
+
+- Hosts from the OpenSSH config file (`~/.ssh/config`, followed by the system-wide `ssh_config`) are listed and can be connected to without creating any SSH FS configuration
+  - Nothing is stored in the settings, the files are read (and watched for changes) directly
+  - Supports `Include`, `Host`/`Match` blocks, tokens, `HostName`, `User`, `Port`, `IdentityFile`, `IdentitiesOnly`, `IdentityAgent`, `ForwardAgent`, `SetEnv`, timeouts/keepalives and the authentication toggles
+  - New settings `sshfs.sshConfig.enabled`, `sshfs.sshConfig.paths`, `sshfs.sshConfig.exclude` and `sshfs.sshConfig.root`
+  - New command `SSH FS: Open OpenSSH config file`, also used by `Edit configuration` for these hosts
+- OpenSSH-style authentication for these hosts: agent keys, identity files, keyboard-interactive, then password
+  - Passphrases and passwords are only prompted when needed and never stored
+- Added `ProxyJump` support (`proxyJump` field), including chains (`a,b,c`) and `[user@]host[:port]` entries
+- Added `ProxyCommand` support (`proxyCommand` field), limited to user settings/OpenSSH config or trusted workspaces
+- Added `RemoteCommand` support (`remoteCommand` field), used for terminals when no `terminalCommand` is set
+- Added the `identityFiles` and `identitiesOnly` fields for regular configurations
+- Instant connections now also apply the OpenSSH config (e.g. wildcard `Host` blocks)
+
+### Fixes
+
+- An instant connection like `user@config` no longer drops the port of the matching configuration
+- `keepaliveInterval` from a configuration is no longer ignored
+- A terminal/task whose command finishes immediately no longer risks staying open forever
+
+### Other changes
+
+- The extension has a different identifier (`sshfs-sshconfig.vscode-sshfs-sshconfig`) so it can't be overwritten by updates of the original extension
+- The example for the `sshfs.configs` setting no longer suggests storing a password
+
 ## v1.27.0 (2026-06-08)
 
 ### Changes
