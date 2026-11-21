@@ -7,6 +7,7 @@ import { FileSystemRouter } from './fileSystemRouter';
 import { Logging, setDebug } from './logging';
 import { Manager } from './manager';
 import type { SSHPseudoTerminal } from './pseudoTerminal';
+import { registerTerminalProfiles } from './terminalProfiles';
 import { ConfigTreeProvider, ConnectionTreeProvider } from './treeViewManager';
 import { PickComplexOptions, pickComplex, pickConnection, setGetExtensionUri, setupWhenClauseContexts } from './ui-utils';
 
@@ -25,11 +26,24 @@ interface CommandHandler {
 export let MANAGER: Manager | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  const extension = vscode.extensions.getExtension('Kelvin.vscode-sshfs');
-  const version = extension?.packageJSON?.version;
+  const version = context.extension.packageJSON?.version;
 
   Logging.info`Extension activated, version ${version}, mode ${context.extensionMode}`;
   Logging.debug`Running VS Code version ${vscode.version} ${process.versions}`;
+
+  // Several copies of SSH FS (e.g. the Marketplace version and a build installed from a .vsix under another name)
+  // register the same commands, views and terminal profile, so they break each other. Say so instead of failing silently
+  try {
+    const duplicates = vscode.extensions.all.filter(ext => ext.id !== context.extension.id
+      && ext.packageJSON?.contributes?.commands?.some?.((c: { command?: string }) => c.command === 'sshfs.new'));
+    if (duplicates.length) {
+      const names = duplicates.map(ext => `${ext.packageJSON.displayName || ext.id} (${ext.id} ${ext.packageJSON.version})`).join(', ');
+      Logging.warning(`Other copies of SSH FS are installed and enabled: ${names}. Only one of them can work, disable or uninstall the others`);
+      vscode.window.showWarningMessage(`Another copy of SSH FS is installed and enabled: ${names}. Disable or uninstall all but one of them, then reload the window.`);
+    }
+  } catch (e) {
+    Logging.error`Could not check for other copies of SSH FS: ${e}`;
+  }
 
   setDebug(process.env.VSCODE_SSHFS_DEBUG?.toLowerCase() === 'true');
 
@@ -69,6 +83,8 @@ export function activate(context: vscode.ExtensionContext) {
   subscribe(vscode.window.createTreeView('sshfs-connections', { treeDataProvider: connectionTreeProvider, showCollapseAll: true }));
   subscribe(vscode.tasks.registerTaskProvider('ssh-shell', manager));
   subscribe(vscode.window.registerTerminalLinkProvider(manager));
+  // Terminal profiles in the dropdown of the "+" button of the terminal panel (and the default one), see terminalProfiles.ts
+  registerTerminalProfiles(context, manager);
 
   setupWhenClauseContexts(manager.connectionManager);
 
@@ -148,6 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // sshfs.reload()
   registerCommand('sshfs.reload', loadConfigs);
+
+  // sshfs.openSshConfig()
+  registerCommand('sshfs.openSshConfig', () => manager.openSshConfig());
 
   // sshfs.settings()
   registerCommand('sshfs.settings', () => manager.openSettings());

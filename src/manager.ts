@@ -1,12 +1,12 @@
 
-import type { FileSystemConfig } from 'common/fileSystemConfig';
+import { FileSystemConfig, SSH_CONFIG_LOCATION_PREFIX, isSshConfigLocation } from 'common/fileSystemConfig';
 import type { Navigation } from 'common/webviewMessages';
 import * as vscode from 'vscode';
-import { getConfig, loadConfigs, LOADING_CONFIGS } from './config';
+import { getConfig, getSshConfigFiles, loadConfigs, LOADING_CONFIGS } from './config';
 import { getFlagBoolean } from './flags';
 import { Connection, ConnectionManager } from './connection';
 import { Logging, LOGGING_NO_STACKTRACE } from './logging';
-import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive } from './pseudoTerminal';
+import { isSSHPseudoTerminal, replaceVariables, replaceVariablesRecursive, SSHPseudoTerminal } from './pseudoTerminal';
 import type { SSHFileSystem } from './sshFileSystem';
 import { catchingPromise, joinCommands } from './utils';
 
@@ -112,7 +112,8 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       throw e;
     });
   }
-  public async createTerminal(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<void> {
+  /** Connects (if needed) and creates the pseudo terminal, without creating the VS Code terminal that shows it */
+  public async createTerminalPty(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<SSHPseudoTerminal> {
     const { createTerminal } = await import('./pseudoTerminal');
     // Create connection (early so we have .actualConfig.root)
     const con = (config && 'client' in config) ? config : await this.connectionManager.createConnection(config?.name || name, config);
@@ -121,6 +122,10 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
     const pty = await createTerminal({ connection: con, workingDirectory: uri?.path || con.actualConfig.root });
     pty.onDidClose(() => this.connectionManager.update(con, con => con.terminals = con.terminals.filter(t => t !== pty)));
     this.connectionManager.update(con, con => (con.terminals.push(pty), con.pendingUserCount--));
+    return pty;
+  }
+  public async createTerminal(name: string, config?: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<void> {
+    const pty = await this.createTerminalPty(name, config, uri);
     // Create and show the graphical representation
     const terminal = vscode.window.createTerminal({ name, pty });
     pty.terminal = terminal;
@@ -269,9 +274,42 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       if (choice && choice.title === 'Retry') return this.commandTerminal(target, uri);
     }
   }
+  /**
+   * Used by the "Open remote SSH terminal" terminal profile (the dropdown of the "+" button in the terminal panel).
+   * Unlike {@link commandTerminal}, VS Code creates the actual terminal using the returned profile.
+   * Resolves to `undefined` if connecting failed (after showing an error with a "Retry" option).
+   * @param uri The (`ssh://`) folder to start the terminal in, defaults to the root of the config
+   */
+  public async createTerminalProfile(target: FileSystemConfig | Connection, uri?: vscode.Uri): Promise<vscode.TerminalProfile | undefined> {
+    Logging.info`Terminal profile requested for ${commandArgumentToName(target)}${uri ? ` in ${uri}` : ''}`;
+    const config = 'client' in target ? target.actualConfig : target;
+    const name = config.label || config.name;
+    try {
+      const pty = await this.createTerminalPty(name, target, uri);
+      // VS Code creates the terminal itself, link it to our pseudo terminal once it's there (used by e.g. "Focus terminal")
+      const listener = vscode.window.onDidOpenTerminal(terminal => {
+        if ((terminal.creationOptions as vscode.ExtensionTerminalOptions).pty !== pty) return;
+        pty.terminal = terminal;
+        listener.dispose();
+      });
+      pty.onDidClose(() => listener.dispose());
+      return new vscode.TerminalProfile({ name, pty });
+    } catch (e) {
+      Logging.error`Error while creating terminal:\n${e}`;
+      const choice = await vscode.window.showErrorMessage<vscode.MessageItem>(
+        `Couldn't start a terminal for ${config.name}: ${e.message || e}`,
+        { title: 'Retry' }, { title: 'Ignore', isCloseAffordance: true });
+      if (choice && choice.title === 'Retry') return this.createTerminalProfile(target, uri);
+      return undefined;
+    }
+  }
   public async commandConfigure(target: string | FileSystemConfig) {
     Logging.info`Command received to configure ${typeof target === 'string' ? target : target.name}`;
     if (typeof target === 'object') {
+      // Hosts from an OpenSSH config file (or instant connections purely based on one) are configured in that file
+      const fromSshConfig = target._location ? isSshConfigLocation(target._location)
+        : (target._locations.length > 0 && target._locations.every(isSshConfigLocation));
+      if (fromSshConfig) return this.openSshConfig(target);
       if (!target._location && !target._locations.length) {
         vscode.window.showErrorMessage('Cannot configure a config-less connection!');
         return;
@@ -287,7 +325,45 @@ export class Manager implements vscode.TaskProvider, vscode.TerminalLinkProvider
       return Logging.error`Unexpectedly found no matching configs for '${target}' in commandConfigure?`;
     }
     const config = configs.length === 1 ? configs[0] : configs;
+    if (configs.length === 1 && isSshConfigLocation(configs[0]._location)) return this.openSshConfig(configs[0]);
     this.openSettings({ config, type: 'editconfig' });
+  }
+  /**
+   * Opens the OpenSSH config file in an editor. Hosts from there are read-only for us, the file itself is the
+   * one and only place where they are configured. If a config is given, its `Host` line gets revealed.
+   */
+  public async openSshConfig(config?: FileSystemConfig): Promise<void> {
+    let file = config?._sshConfigSource?.file;
+    if (!file && config && isSshConfigLocation(config._location)) file = config._location.substring(SSH_CONFIG_LOCATION_PREFIX.length);
+    if (!file) [file] = getSshConfigFiles();
+    if (!file) {
+      vscode.window.showWarningMessage('Reading hosts from OpenSSH config files is disabled (setting "sshfs.sshConfig.enabled")');
+      return;
+    }
+    Logging.info`Opening OpenSSH config file ${file}${config ? ` for ${config.name}` : ''}`;
+    const uri = vscode.Uri.file(file);
+    try {
+      await vscode.workspace.fs.stat(uri);
+    } catch {
+      const answer = await vscode.window.showInformationMessage(`The OpenSSH config file ${file} doesn't exist yet, create it?`, 'Create', 'Cancel');
+      if (answer !== 'Create') return;
+      try {
+        await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(uri, '..'));
+        await vscode.workspace.fs.writeFile(uri, Buffer.from('# Example:\n# Host myserver\n#     HostName server.example.com\n#     User me\n'));
+      } catch (e) {
+        Logging.error`Error while creating ${file}: ${e}`;
+        vscode.window.showErrorMessage(`Couldn't create ${file}: ${e.message || e}`);
+        return;
+      }
+    }
+    try {
+      const line = Math.max(0, (config?._sshConfigSource?.line || 1) - 1);
+      const selection = new vscode.Range(line, 0, line, 0);
+      await vscode.window.showTextDocument(uri, { selection, preview: false });
+    } catch (e) {
+      Logging.error`Error while opening ${file}: ${e}`;
+      vscode.window.showErrorMessage(`Couldn't open ${file}: ${e.message || e}`);
+    }
   }
   public async openSettings(navigation?: Navigation) {
     const { open, navigate } = await import('./webview');
