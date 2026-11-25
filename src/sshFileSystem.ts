@@ -90,7 +90,8 @@ export class SSHFileSystem implements vscode.FileSystemProvider {
     if (stat.isSymbolicLink()) type = type | vscode.FileType.SymbolicLink;
     // tslint:enable no-bitwise */
     return {
-      type, mtime, size,
+      // SFTP reports mtime in seconds since the epoch, but vscode.FileStat.mtime expects milliseconds
+      type, mtime: mtime * 1000, size,
       ctime: 0,
     };
   }
